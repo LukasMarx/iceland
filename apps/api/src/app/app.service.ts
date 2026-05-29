@@ -14,16 +14,14 @@ import type {
   TodayResponse,
   TripResponse,
 } from '@islandhub/api-contracts';
-import type { Hub, RouteStop, SafetyStatus, SmartRoute, Spot, TripSummary } from '@islandhub/domain';
+import type { Hub, RouteStop, SafetyStatus, SmartRoute, Spot } from '@islandhub/domain';
+import { ApiDemoStateRepository } from './api-demo-state.repository';
 
 @Injectable()
 export class AppService {
   private readonly now = '2026-05-25T07:42:00.000Z';
-  private readonly savedSpotIds = new Set<string>(['geysir', 'gullfoss', 'thingvellir', 'bruarfoss', 'kerid']);
-  private todayTitle = 'Wind-light loop';
-  private todayStopProgress = '2/4';
-  private todayDriveMinutes = 200;
-  private todayUpdate = 'Status updated: Seljalandsfoss wind gusts rising to 24 m/s. Still passable.';
+
+  constructor(private readonly stateRepository: ApiDemoStateRepository) {}
 
   private readonly hub: Hub = {
     id: 'hub-reykholt',
@@ -109,15 +107,17 @@ export class AppService {
   }
 
   getToday(): TodayResponse {
+    const state = this.stateRepository.snapshot();
+
     return {
-      title: this.todayTitle,
+      title: state.todayTitle,
       dateLabel: 'Today - Thu 14 May',
       recheckedMinutesAgo: 8,
-      stopProgress: this.todayStopProgress,
-      driveMinutes: this.todayDriveMinutes,
+      stopProgress: state.todayStopProgress,
+      driveMinutes: state.todayDriveMinutes,
       daylightLeft: '14h 32',
-      update: this.todayUpdate,
-      stops: this.routeStops,
+      update: state.todayUpdate,
+      stops: state.routeStops,
     };
   }
 
@@ -137,29 +137,36 @@ export class AppService {
 
   addRouteStop(spotId: string, position: 'recommended' | 'end'): RouteMutationResponse {
     const spot = this.findSpot(spotId);
-    const alreadyInRoute = this.routeStops.some((stop) => stop.spotId === spot.id);
+    this.stateRepository.update((state) => {
+      const routeStops = [...state.routeStops];
+      const alreadyInRoute = routeStops.some((stop) => stop.spotId === spot.id);
 
-    if (!alreadyInRoute) {
-      const newStop: RouteStop = {
-        id: spot.id,
-        spotId: spot.id,
-        title: spot.name,
-        meta: `${this.minutesToDrive(spot.driveMinutes)} drive - ${spot.stayMinutes} min stay`,
-        driveFromPreviousMinutes: spot.driveMinutes,
-        stayMinutes: spot.stayMinutes,
-        status: spot.status.status,
-        state: 'open',
-        note: spot.status.status === 'green' ? undefined : spot.status.reasons[0],
+      if (!alreadyInRoute) {
+        const newStop: RouteStop = {
+          id: spot.id,
+          spotId: spot.id,
+          title: spot.name,
+          meta: `${this.minutesToDrive(spot.driveMinutes)} drive - ${spot.stayMinutes} min stay`,
+          driveFromPreviousMinutes: spot.driveMinutes,
+          stayMinutes: spot.stayMinutes,
+          status: spot.status.status,
+          state: 'open',
+          note: spot.status.status === 'green' ? undefined : spot.status.reasons[0],
+        };
+        const returnIndex = routeStops.findIndex((stop) => stop.state === 'return');
+        const recommendedIndex = Math.max(0, routeStops.findIndex((stop) => stop.id === 'gullfoss') + 1);
+        const insertIndex = position === 'recommended' ? recommendedIndex : returnIndex;
+        routeStops.splice(insertIndex, 0, newStop);
+      }
+
+      return {
+        ...state,
+        routeStops,
+        todayUpdate: `Inserted ${spot.name}. Status rechecked against snapshot version ${spot.status.version}.`,
+        todayStopProgress: this.progressLabel(routeStops),
+        todayDriveMinutes: routeStops.reduce((total, stop) => total + stop.driveFromPreviousMinutes, 0),
       };
-      const returnIndex = this.routeStops.findIndex((stop) => stop.state === 'return');
-      const recommendedIndex = Math.max(0, this.routeStops.findIndex((stop) => stop.id === 'gullfoss') + 1);
-      const insertIndex = position === 'recommended' ? recommendedIndex : returnIndex;
-      this.routeStops.splice(insertIndex, 0, newStop);
-    }
-
-    this.todayUpdate = `Inserted ${spot.name}. Status rechecked against snapshot version ${spot.status.version}.`;
-    this.todayStopProgress = this.progressLabel();
-    this.todayDriveMinutes = this.routeStops.reduce((total, stop) => total + stop.driveFromPreviousMinutes, 0);
+    });
 
     return {
       today: {
@@ -170,8 +177,7 @@ export class AppService {
 
   createTodayRoute(spotId: string): RouteMutationResponse {
     const spot = this.findSpot(spotId);
-
-    this.routeStops = [
+    const routeStops: RouteStop[] = [
       { id: 'start', title: this.hub.name, meta: 'start', driveFromPreviousMinutes: 0, stayMinutes: 0, status: 'green', state: 'start' },
       {
         id: spot.id,
@@ -186,10 +192,14 @@ export class AppService {
       },
       { id: 'return', title: this.hub.name, meta: 'return', driveFromPreviousMinutes: spot.driveMinutes, stayMinutes: 0, status: 'green', state: 'return' },
     ];
-    this.todayTitle = `${spot.name} out-and-back`;
-    this.todayStopProgress = '0/1';
-    this.todayDriveMinutes = spot.driveMinutes * 2;
-    this.todayUpdate = `Route created for today from ${this.hub.name} to ${spot.name} and back.`;
+    this.stateRepository.update((state) => ({
+      ...state,
+      routeStops,
+      todayTitle: `${spot.name} out-and-back`,
+      todayStopProgress: '0/1',
+      todayDriveMinutes: spot.driveMinutes * 2,
+      todayUpdate: `Route created for today from ${this.hub.name} to ${spot.name} and back.`,
+    }));
 
     return {
       today: this.getToday(),
@@ -212,7 +222,7 @@ export class AppService {
 
     const routeSpots = route.spotIds.map((spotId) => this.findSpot(spotId));
     const windLightMeta = ['12\' drive · 35\' stay', '14\' drive · 40\' stay', '64\' drive · 25\' stay', '52\' drive · 30\' stay'];
-    this.routeStops = [
+    const routeStops: RouteStop[] = [
       { id: 'start', title: this.hub.name, meta: 'start', driveFromPreviousMinutes: 0, stayMinutes: 0, status: 'green', state: 'start' },
       ...routeSpots.map((spot, index) => {
         const state: RouteStop['state'] = route.id === 'wind-light-loop' ? index < 2 ? 'done' : index === 2 ? 'active' : 'open' : index === 0 ? 'active' : 'open';
@@ -232,31 +242,43 @@ export class AppService {
       }),
       { id: 'return', title: this.hub.name, meta: route.id === 'wind-light-loop' ? `18' drive` : 'return', driveFromPreviousMinutes: Math.max(18, Math.round(route.driveMinutes / 5)), stayMinutes: 0, status: 'green', state: 'return' },
     ];
-    this.todayTitle = route.title;
-    this.todayStopProgress = route.id === 'wind-light-loop' ? `2/${route.spotIds.length}` : `0/${route.spotIds.length}`;
-    this.todayDriveMinutes = route.driveMinutes;
-    this.todayUpdate = route.id === 'wind-light-loop' ? 'Seljalandsfoss wind gusts rising to 24 m/s. Still passable.' : `${route.title} started from saved highlights. Status rechecked against current seed snapshots.`;
+    this.stateRepository.update((state) => ({
+      ...state,
+      routeStops,
+      todayTitle: route.title,
+      todayStopProgress: route.id === 'wind-light-loop' ? `2/${route.spotIds.length}` : `0/${route.spotIds.length}`,
+      todayDriveMinutes: route.driveMinutes,
+      todayUpdate: route.id === 'wind-light-loop' ? 'Seljalandsfoss wind gusts rising to 24 m/s. Still passable.' : `${route.title} started from saved highlights. Status rechecked against current seed snapshots.`,
+    }));
 
     return { today: this.getToday() };
   }
 
   markStopDone(stopId: string): RouteMutationResponse {
-    const activeIndex = this.routeStops.findIndex((stop) => stop.id === stopId || (stopId === 'active' && stop.state === 'active'));
+    this.stateRepository.update((state) => {
+      const routeStops = state.routeStops.map((stop) => ({ ...stop }));
+      const activeIndex = routeStops.findIndex((stop) => stop.id === stopId || (stopId === 'active' && stop.state === 'active'));
 
-    if (activeIndex >= 0) {
-      this.routeStops[activeIndex] = { ...this.routeStops[activeIndex], state: 'done' };
-      const nextOpenIndex = this.routeStops.findIndex((stop, index) => index > activeIndex && stop.state === 'open');
+      if (activeIndex >= 0) {
+        routeStops[activeIndex] = { ...routeStops[activeIndex], state: 'done' };
+        const nextOpenIndex = routeStops.findIndex((stop, index) => index > activeIndex && stop.state === 'open');
 
-      if (nextOpenIndex >= 0) {
-        this.routeStops[nextOpenIndex] = { ...this.routeStops[nextOpenIndex], state: 'active' };
+        if (nextOpenIndex >= 0) {
+          routeStops[nextOpenIndex] = { ...routeStops[nextOpenIndex], state: 'active' };
+        }
       }
-    }
 
-    const doneCount = this.routeStops.filter((stop) => stop.state === 'done').length;
-    const totalStops = this.routeStops.filter((stop) => stop.state !== 'start' && stop.state !== 'return').length;
-    const nextStop = this.routeStops.find((stop) => stop.state === 'active');
-    this.todayStopProgress = `${doneCount}/${totalStops}`;
-    this.todayUpdate = nextStop ? `${nextStop.title} is next. Status still ${nextStop.status}.` : 'All planned stops are complete. Return route is ready.';
+      const doneCount = routeStops.filter((stop) => stop.state === 'done').length;
+      const totalStops = routeStops.filter((stop) => stop.state !== 'start' && stop.state !== 'return').length;
+      const nextStop = routeStops.find((stop) => stop.state === 'active');
+
+      return {
+        ...state,
+        routeStops,
+        todayStopProgress: `${doneCount}/${totalStops}`,
+        todayUpdate: nextStop ? `${nextStop.title} is next. Status still ${nextStop.status}.` : 'All planned stops are complete. Return route is ready.',
+      };
+    });
 
     return {
       today: this.getToday(),
@@ -264,23 +286,28 @@ export class AppService {
   }
 
   getTrip(): TripResponse {
-    return { trip: this.trip };
+    return { trip: this.stateRepository.snapshot().trip };
   }
 
   saveSpot(spotId: string): SaveSpotResponse {
     const spot = this.findSpot(spotId);
-    this.savedSpotIds.add(spot.id);
+    const state = this.stateRepository.update((currentState) => ({
+      ...currentState,
+      savedSpotIds: Array.from(new Set([...currentState.savedSpotIds, spot.id])),
+    }));
 
     return {
       spot,
-      savedSpotIds: Array.from(this.savedSpotIds),
+      savedSpotIds: state.savedSpotIds,
       message: `${spot.name} saved to your trip list.`,
     };
   }
 
   getSavedSpots(): SavedSpotsResponse {
+    const state = this.stateRepository.snapshot();
+
     return {
-      savedSpotIds: Array.from(this.savedSpotIds),
+      savedSpotIds: state.savedSpotIds,
       spots: this.savedSpots(),
     };
   }
@@ -288,26 +315,35 @@ export class AppService {
   planSpotForLater(spotId: string): PlanSpotResponse {
     const spot = this.findSpot(spotId);
     const title = `Draft - ${spot.name}`;
-    const alreadyPlanned = this.trip.days.some((day) => day.title === title);
+    let alreadyPlanned = false;
 
-    if (!alreadyPlanned) {
-      this.trip = {
-        ...this.trip,
-        days: [
-          ...this.trip.days,
-          {
-            weekday: 'Draft',
-            day: `${13 + this.trip.days.length}`,
-            title,
-            summary: `${spot.category} - ${this.minutesToDrive(spot.driveMinutes)} from hub`,
-            status: spot.status.status,
-          },
-        ],
+    const state = this.stateRepository.update((currentState) => {
+      alreadyPlanned = currentState.trip.days.some((day) => day.title === title);
+
+      if (alreadyPlanned) {
+        return currentState;
+      }
+
+      return {
+        ...currentState,
+        trip: {
+          ...currentState.trip,
+          days: [
+            ...currentState.trip.days,
+            {
+              weekday: 'Draft',
+              day: `${13 + currentState.trip.days.length}`,
+              title,
+              summary: `${spot.category} - ${this.minutesToDrive(spot.driveMinutes)} from hub`,
+              status: spot.status.status,
+            },
+          ],
+        },
       };
-    }
+    });
 
     return {
-      trip: this.trip,
+      trip: state.trip,
       message: alreadyPlanned ? `${spot.name} is already on a draft day.` : `${spot.name} added to a draft day.`,
     };
   }
@@ -385,32 +421,6 @@ export class AppService {
     },
   ];
 
-  private readonly initialRouteStops: RouteStop[] = [
-    { id: 'start', title: 'Reykholt Cabin', meta: 'start', driveFromPreviousMinutes: 0, stayMinutes: 0, status: 'green', state: 'start' },
-    { id: 'geysir', spotId: 'geysir', title: 'Geysir', meta: "12 min drive - 35 min stay", driveFromPreviousMinutes: 12, stayMinutes: 35, status: 'green', state: 'done' },
-    { id: 'gullfoss', spotId: 'gullfoss', title: 'Gullfoss', meta: "14 min drive - 40 min stay", driveFromPreviousMinutes: 14, stayMinutes: 40, status: 'green', state: 'done' },
-    { id: 'seljalandsfoss', spotId: 'seljalandsfoss', title: 'Seljalandsfoss', meta: "64 min drive - 25 min stay", driveFromPreviousMinutes: 64, stayMinutes: 25, status: 'yellow', state: 'active', note: 'Gusts to 24 m/s. Keep visit short.' },
-    { id: 'bruarfoss', spotId: 'bruarfoss', title: 'Bruarfoss', meta: "52 min drive - 30 min stay", driveFromPreviousMinutes: 52, stayMinutes: 30, status: 'green', state: 'open' },
-    { id: 'return', title: 'Reykholt Cabin', meta: 'return', driveFromPreviousMinutes: 18, stayMinutes: 0, status: 'green', state: 'return' },
-  ];
-
-  private routeStops: RouteStop[] = this.initialRouteStops.map((stop) => ({ ...stop }));
-
-  private trip: TripSummary = {
-    title: 'Iceland spring run',
-    dates: 'May 13-22',
-    vehicle: 'car_2wd',
-    pace: 'Relaxed',
-    hub: this.hub,
-    days: [
-      { weekday: 'Wed', day: '13', title: 'Arrival', summary: 'KEF -> Reykholt - 1h 40', status: 'green' },
-      { weekday: 'Thu', day: '14', title: 'Wind-light loop', summary: 'Geysir - Gullfoss - Bruarfoss', status: 'yellow', today: true },
-      { weekday: 'Fri', day: '15', title: 'Draft - golden circle short', summary: '3 stops - 2h 10', status: 'green' },
-      { weekday: 'Sat', day: '16', title: 'No plan', summary: 'Rest day', status: 'unknown' },
-      { weekday: 'Sun', day: '17', title: 'Draft - south coast', summary: '4 stops - 5h drive', status: 'yellow' },
-    ],
-  };
-
   private filterSpots(query: ExploreQuery): Spot[] {
     const statuses = query.statuses?.length ? query.statuses : ['green', 'yellow', 'unknown', 'red'];
     const categories = query.categories?.length ? query.categories : Array.from(new Set(this.spots.map((spot) => spot.category)));
@@ -482,12 +492,12 @@ export class AppService {
   }
 
   private savedSpots(): Spot[] {
-    return Array.from(this.savedSpotIds).map((spotId) => this.findSpot(spotId));
+    return this.stateRepository.snapshot().savedSpotIds.map((spotId) => this.findSpot(spotId));
   }
 
-  private progressLabel(): string {
-    const doneCount = this.routeStops.filter((stop) => stop.state === 'done').length;
-    const totalStops = this.routeStops.filter((stop) => stop.state !== 'start' && stop.state !== 'return').length;
+  private progressLabel(routeStops: RouteStop[]): string {
+    const doneCount = routeStops.filter((stop) => stop.state === 'done').length;
+    const totalStops = routeStops.filter((stop) => stop.state !== 'start' && stop.state !== 'return').length;
     return `${doneCount}/${totalStops}`;
   }
 

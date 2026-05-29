@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { ApiDemoStateRepository } from './api-demo-state.repository';
 import { AppService } from './app.service';
 
 describe('AppService', () => {
@@ -6,7 +7,7 @@ describe('AppService', () => {
 
   beforeEach(async () => {
     const app = await Test.createTestingModule({
-      providers: [AppService],
+      providers: [AppService, ApiDemoStateRepository],
     }).compile();
 
     service = app.get<AppService>(AppService);

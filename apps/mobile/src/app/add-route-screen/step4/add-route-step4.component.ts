@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import type { SafetyStatus, Spot } from '@islandhub/domain';
 import { LibButtonDirective, LibChipComponent, LibMapComponent } from '@islandhub/ui';
@@ -8,10 +8,10 @@ import { spotImageBackground } from '../../spot-images';
 import { AddRouteWizardService } from '../add-route-wizard.service';
 
 @Component({
-  standalone: true,
   imports: [LibButtonDirective, LibChipComponent, LibMapComponent],
   selector: 'app-add-route-step4',
   templateUrl: './add-route-step4.component.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AddRouteStep4Component extends AppScreenBase {
   protected readonly service = inject(AddRouteWizardService);
@@ -71,7 +71,7 @@ export class AddRouteStep4Component extends AppScreenBase {
     }
 
     if (destination) {
-      markers.push({ id: 'destination', coordinates: [destination.lon, destination.lat], color: '#2563eb', size: 'lg', label: hotel?.name ?? base?.name ?? 'Ziel' });
+      markers.push({ id: 'destination', coordinates: [destination.lon, destination.lat], color: '#2563eb', size: 'lg', label: hotel?.name ?? base?.name ?? 'Destination' });
     }
 
     return markers;
@@ -100,7 +100,7 @@ export class AddRouteStep4Component extends AppScreenBase {
   });
 
   protected get destinationName(): string {
-    return this.service.endHotel()?.name ?? this.service.base()?.name ?? 'dein Ziel';
+    return this.service.endHotel()?.name ?? this.service.base()?.name ?? 'your destination';
   }
 
   protected useRecommended(): void {
@@ -147,7 +147,7 @@ export class AddRouteStep4Component extends AppScreenBase {
   }
 
   protected statusLabel(status: SafetyStatus): string {
-    return status === 'green' ? 'Offen' : status === 'yellow' ? 'Achtung' : status === 'red' ? 'Gesperrt' : 'Keine Daten';
+    return status === 'green' ? 'Open' : status === 'yellow' ? 'Caution' : status === 'red' ? 'Closed' : 'No data';
   }
 
   protected minutesToDrive(minutes: number): string {

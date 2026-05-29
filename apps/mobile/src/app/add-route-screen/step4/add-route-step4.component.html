@@ -32,7 +32,7 @@
       <div class="wizard-recommendation">
         <p class="wizard-section-label">EMPFEHLUNG</p>
         <h2>Gute Stopps entlang deiner Strecke</h2>
-        <p>Sortiert nach Fahrzeit, Sicherheitsstatus und sinnvoller Aufenthaltsdauer.</p>
+        <p>Sorted by drive time, safety status and useful visit length.</p>
         <div class="route-preview-stops">
           @for (spot of recommendedStops(); track spot.id) {
             <button class="route-preview-stop" [style.background]="attractionImage(spot)" (click)="chooseManually()">
@@ -44,14 +44,14 @@
       </div>
 
       <div class="wizard-sheet-actions">
-        <button libButton="primary" (click)="useRecommended()">Empfohlene Route übernehmen</button>
-        <button libButton="secondary" (click)="chooseManually()">Stopps selbst auswählen</button>
-        <button libButton="text" (click)="driveDirectly()">Direkt zum Ziel fahren</button>
+        <button libButton="primary" (click)="useRecommended()">Use recommended route</button>
+        <button libButton="secondary" (click)="chooseManually()">Choose stops manually</button>
+        <button libButton="text" (click)="driveDirectly()">Drive directly to destination</button>
       </div>
     } @else {
       <div class="manual-stop-head">
         <div>
-          <strong>{{ selectedStops().length }} ausgewählt</strong>
+          <strong>{{ selectedStops().length }} selected</strong>
           <span>{{ minutesToDrive(totalTripMinutes()) }} gesamt</span>
         </div>
         <span lib-chip [variant]="statusVariant(highestStatus())" size="sm">{{ statusIcon(highestStatus()) }} {{ statusLabel(highestStatus()) }}</span>
@@ -72,7 +72,7 @@
       </div>
 
       <div class="wizard-sheet-footer">
-        <button libButton="primary" (click)="continue()">Routenentwurf ansehen</button>
+        <button libButton="primary" (click)="continue()">Review route draft</button>
       </div>
     }
   </div>

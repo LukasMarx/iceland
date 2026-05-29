@@ -1,7 +1,7 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import type { AttractionRouteSummary } from '@islandhub/api-contracts';
 import { LibButtonDirective } from '@islandhub/ui';
-import { App } from '../../app';
+import { AppScreenBase } from '../../screen-base';
 import { SpotActionWizardService } from '../spot-action-wizard.service';
 
 interface RouteEntry {
@@ -11,14 +11,13 @@ interface RouteEntry {
 }
 
 @Component({
-  standalone: true,
   imports: [LibButtonDirective],
   selector: 'app-spot-action-step2',
   templateUrl: './spot-action-step2.component.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SpotActionStep2Component {
+export class SpotActionStep2Component extends AppScreenBase {
   protected readonly service = inject(SpotActionWizardService);
-  private readonly app = inject(App) as any;
 
   protected readonly selectedRouteId = signal<string | null>(null);
 

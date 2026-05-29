@@ -2,7 +2,7 @@
 	<lib-screen-intro kicker="Thu 14 May · 07:42" title="Trips">
         <p screenIntroSubtitle class="routes-subcopy">{{ app.routeSuggestions().length }} routes built from <strong>{{ app.savedCount() }} saved spots</strong></p>
 	</lib-screen-intro>
-    		<button screenIntroAction class="add-route-btn" libButton="secondary" (click)="app.addCustomRoute()"><svg lucidePlus [size]="18" />Route hinzufügen</button>
+		<button screenIntroAction class="add-route-btn" libButton="secondary" (click)="app.addCustomRoute()"><svg lucidePlus [size]="18" />Add route</button>
 
 	<div class="route-list cards">
 		@for (route of app.routeSuggestions(); track route.id; let index = $index) {
@@ -16,6 +16,6 @@
 		}
 		@if (app.routeSuggestions().length === 0) { <lib-empty-state title="No routes yet" message="Save attractions in Explore to build day trips."></lib-empty-state> }
 	</div>
-    		<button screenIntroAction class="add-route-btn" libButton="secondary" (click)="app.addCustomRoute()"><svg lucidePlus [size]="18" />Route hinzufügen</button>
+		<button screenIntroAction class="add-route-btn" libButton="secondary" (click)="app.addCustomRoute()"><svg lucidePlus [size]="18" />Add route</button>
 
 </section>

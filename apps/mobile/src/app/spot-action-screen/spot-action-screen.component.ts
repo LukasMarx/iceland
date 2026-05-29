@@ -1,40 +1,39 @@
-import { Component, OnDestroy, OnInit, inject } from '@angular/core';
-import { Router, RouterModule } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Router, RouterOutlet } from '@angular/router';
 import { AppScreenBase } from '../screen-base';
 import { SpotActionWizardService } from './spot-action-wizard.service';
 
 @Component({
-  standalone: true,
-  imports: [RouterModule],
+  imports: [RouterOutlet],
   selector: 'app-spot-action-screen',
   templateUrl: './spot-action-screen.component.html',
   styleUrl: './spot-action-screen.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SpotActionScreenComponent extends AppScreenBase implements OnInit, OnDestroy {
+export class SpotActionScreenComponent extends AppScreenBase {
   protected readonly service = inject(SpotActionWizardService);
   private readonly router = inject(Router);
-  private readonly subs = new Subscription();
+  private readonly destroyRef = inject(DestroyRef);
 
-  ngOnInit(): void {
-    this.subs.add(
-      this.service.completed$.subscribe((result) => {
+  constructor() {
+    super();
+
+    this.service.completed$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((result) => {
         if (result.action === 'direct-route') {
-          (this.app as any).createDirectRouteFromSpot();
+          this.app.createDirectRouteFromSpot();
         } else if (result.action === 'add-to-route' && result.routeId) {
-          (this.app as any).addSpotToExistingRoute(result.routeId);
+          this.app.addSpotToExistingRoute(result.routeId);
         }
-      }),
-    );
-    this.subs.add(
-      this.service.cancelled$.subscribe(() => {
-        void this.router.navigateByUrl('/explore');
-      }),
-    );
-  }
+      });
 
-  ngOnDestroy(): void {
-    this.subs.unsubscribe();
+    this.service.cancelled$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        void this.router.navigateByUrl('/explore');
+      });
   }
 
   protected back(): void {

@@ -1,13 +1,13 @@
-import { CommonModule } from '@angular/common';
-import { Component, computed } from '@angular/core';
+import { NgClass, UpperCasePipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
 import { AppScreenBase } from '../screen-base';
 
 @Component({
-  standalone: true,
-  imports: [CommonModule],
+  imports: [NgClass, UpperCasePipe],
   selector: 'app-trip-screen',
   templateUrl: './trip-screen.component.html',
   styleUrl: './trip-screen.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TripScreenComponent extends AppScreenBase {
   protected readonly trip = computed(() => this.app.trip().trip);

@@ -1,13 +1,13 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { LibButtonDirective } from '@islandhub/ui';
 import { SpotActionType, SpotActionWizardService } from '../spot-action-wizard.service';
 
 @Component({
-  standalone: true,
   imports: [LibButtonDirective],
   selector: 'app-spot-action-step1',
   templateUrl: './spot-action-step1.component.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SpotActionStep1Component {
   protected readonly service = inject(SpotActionWizardService);

@@ -1,50 +1,67 @@
-import { Route } from '@angular/router';
-import { AddRouteScreenComponent } from './add-route-screen/add-route-screen.component';
-import { AddRouteStep1Component } from './add-route-screen/step1/add-route-step1.component';
-import { AddRouteStep2Component } from './add-route-screen/step2/add-route-step2.component';
-import { AddRouteStep3Component } from './add-route-screen/step3/add-route-step3.component';
-import { AddRouteStep4Component } from './add-route-screen/step4/add-route-step4.component';
-import { AddRouteStep5Component } from './add-route-screen/step5/add-route-step5.component';
-import { ExploreScreenComponent } from './explore-screen/explore-screen.component';
-import { ProfileScreenComponent } from './profile-screen/profile-screen.component';
-import { RouteDetailScreenComponent } from './route-detail-screen/route-detail-screen.component';
-import { RoutesScreenComponent } from './routes-screen/routes-screen.component';
-import { SetupScreenComponent } from './setup-screen/setup-screen.component';
-import { SpotActionScreenComponent } from './spot-action-screen/spot-action-screen.component';
-import { SpotActionStep1Component } from './spot-action-screen/step1/spot-action-step1.component';
-import { SpotActionStep2Component } from './spot-action-screen/step2/spot-action-step2.component';
-import { TodayScreenComponent } from './today-screen/today-screen.component';
-import { TripScreenComponent } from './trip-screen/trip-screen.component';
+import type { Route } from '@angular/router';
+import { setupCompleteGuard, setupPendingGuard } from './setup.guard';
+
+const guarded = [setupCompleteGuard];
 
 export const appRoutes: Route[] = [
-	{ path: '', pathMatch: 'full', redirectTo: 'setup' },
-	{ path: 'setup', component: SetupScreenComponent },
-	{ path: 'explore', component: ExploreScreenComponent },
-	{ path: 'routes', component: RoutesScreenComponent },
-	{
-		path: 'routes/add',
-		component: AddRouteScreenComponent,
-		children: [
-			{ path: '', pathMatch: 'full', redirectTo: 'step1' },
-			{ path: 'step1', component: AddRouteStep1Component },
-			{ path: 'step2', component: AddRouteStep2Component },
-			{ path: 'step3', component: AddRouteStep3Component },
-			{ path: 'step4', component: AddRouteStep4Component },
-			{ path: 'step5', component: AddRouteStep5Component },
-		],
-	},
-	{
-		path: 'spot-action',
-		component: SpotActionScreenComponent,
-		children: [
-			{ path: '', pathMatch: 'full', redirectTo: 'step1' },
-			{ path: 'step1', component: SpotActionStep1Component },
-			{ path: 'step2', component: SpotActionStep2Component },
-		],
-	},
-	{ path: 'route-detail', component: RouteDetailScreenComponent },
-	{ path: 'today', component: TodayScreenComponent },
-	{ path: 'trip', component: TripScreenComponent },
-	{ path: 'profile', component: ProfileScreenComponent },
-	{ path: '**', redirectTo: 'setup' },
+  { path: '', pathMatch: 'full', redirectTo: 'setup' },
+  {
+    path: 'setup',
+    canActivate: [setupPendingGuard],
+    loadComponent: () => import('./setup-screen/setup-screen.component').then((component) => component.SetupScreenComponent),
+  },
+  {
+    path: 'explore',
+    canActivate: guarded,
+    loadComponent: () => import('./explore-screen/explore-screen.component').then((component) => component.ExploreScreenComponent),
+  },
+  {
+    path: 'routes',
+    canActivate: guarded,
+    loadComponent: () => import('./routes-screen/routes-screen.component').then((component) => component.RoutesScreenComponent),
+  },
+  {
+    path: 'routes/add',
+    canActivate: guarded,
+    loadComponent: () => import('./add-route-screen/add-route-screen.component').then((component) => component.AddRouteScreenComponent),
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'step1' },
+      { path: 'step1', loadComponent: () => import('./add-route-screen/step1/add-route-step1.component').then((component) => component.AddRouteStep1Component) },
+      { path: 'step2', loadComponent: () => import('./add-route-screen/step2/add-route-step2.component').then((component) => component.AddRouteStep2Component) },
+      { path: 'step3', loadComponent: () => import('./add-route-screen/step3/add-route-step3.component').then((component) => component.AddRouteStep3Component) },
+      { path: 'step4', loadComponent: () => import('./add-route-screen/step4/add-route-step4.component').then((component) => component.AddRouteStep4Component) },
+      { path: 'step5', loadComponent: () => import('./add-route-screen/step5/add-route-step5.component').then((component) => component.AddRouteStep5Component) },
+    ],
+  },
+  {
+    path: 'spot-action',
+    canActivate: guarded,
+    loadComponent: () => import('./spot-action-screen/spot-action-screen.component').then((component) => component.SpotActionScreenComponent),
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'step1' },
+      { path: 'step1', loadComponent: () => import('./spot-action-screen/step1/spot-action-step1.component').then((component) => component.SpotActionStep1Component) },
+      { path: 'step2', loadComponent: () => import('./spot-action-screen/step2/spot-action-step2.component').then((component) => component.SpotActionStep2Component) },
+    ],
+  },
+  {
+    path: 'route-detail',
+    canActivate: guarded,
+    loadComponent: () => import('./route-detail-screen/route-detail-screen.component').then((component) => component.RouteDetailScreenComponent),
+  },
+  {
+    path: 'today',
+    canActivate: guarded,
+    loadComponent: () => import('./today-screen/today-screen.component').then((component) => component.TodayScreenComponent),
+  },
+  {
+    path: 'trip',
+    canActivate: guarded,
+    loadComponent: () => import('./trip-screen/trip-screen.component').then((component) => component.TripScreenComponent),
+  },
+  {
+    path: 'profile',
+    canActivate: guarded,
+    loadComponent: () => import('./profile-screen/profile-screen.component').then((component) => component.ProfileScreenComponent),
+  },
+  { path: '**', redirectTo: 'setup' },
 ];

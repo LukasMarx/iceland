@@ -1,37 +1,36 @@
-import { Component, OnDestroy, OnInit, inject } from '@angular/core';
-import { Router, RouterModule } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Router, RouterOutlet } from '@angular/router';
 import { AppScreenBase } from '../screen-base';
 import { AddRouteWizardService } from './add-route-wizard.service';
 
 @Component({
-  standalone: true,
-  imports: [RouterModule],
+  imports: [RouterOutlet],
   selector: 'app-add-route-screen',
   templateUrl: './add-route-screen.component.html',
   styleUrl: './add-route-screen.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AddRouteScreenComponent extends AppScreenBase implements OnInit, OnDestroy {
+export class AddRouteScreenComponent extends AppScreenBase {
   protected readonly service = inject(AddRouteWizardService);
   private readonly router = inject(Router);
-  private readonly subs = new Subscription();
+  private readonly destroyRef = inject(DestroyRef);
 
-  ngOnInit(): void {
-    this.subs.add(
-      this.service.completed$.subscribe(() => {
-        (this.app as any).actionNotice.set('Route-Editor kommt im nächsten Schritt.');
+  constructor() {
+    super();
+
+    this.service.completed$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.app.setRouteEditorComingSoonNotice();
         void this.router.navigateByUrl('/routes');
-      }),
-    );
-    this.subs.add(
-      this.service.cancelled$.subscribe(() => {
-        void this.router.navigateByUrl(this.service.flow() === 'edit' && this.app.selectedRoute() ? '/route-detail' : '/routes');
-      }),
-    );
-  }
+      });
 
-  ngOnDestroy(): void {
-    this.subs.unsubscribe();
+    this.service.cancelled$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        void this.router.navigateByUrl(this.service.flow() === 'edit' && this.app.selectedRoute() ? '/route-detail' : '/routes');
+      });
   }
 
   protected back(): void {

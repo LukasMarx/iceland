@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { LibButtonDirective, LibMapComponent } from '@islandhub/ui';
 import type { MapMarker } from '@islandhub/ui';
@@ -7,10 +7,10 @@ import type { WizardHotel } from '../add-route-wizard.service';
 import { AddRouteWizardService } from '../add-route-wizard.service';
 
 @Component({
-  standalone: true,
   imports: [LibButtonDirective, LibMapComponent],
   selector: 'app-add-route-step3',
   templateUrl: './add-route-step3.component.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AddRouteStep3Component extends AppScreenBase {
   protected readonly service = inject(AddRouteWizardService);

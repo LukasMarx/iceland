@@ -1,7 +1,7 @@
 <div class="wizard-body route-draft-body">
-  <p class="wizard-section-label">ROUTENENTWURF</p>
+  <p class="wizard-section-label">ROUTE DRAFT</p>
   <h1>{{ routeTitle }}</h1>
-  <p class="wizard-subtitle">Prüfe die Etappe, bevor daraus deine aktive Tagesroute wird.</p>
+  <p class="wizard-subtitle">Review this leg before turning it into your active route for today.</p>
 
   <lib-stats-dark class="draft-stats">
     <div><span>Gesamt</span><strong>{{ minutesToDrive(totalTripMinutes()) }}</strong></div>
@@ -11,7 +11,7 @@
 
   <div class="draft-status-row">
     <span lib-chip [variant]="statusVariant(highestStatus())" size="sm">{{ statusIcon(highestStatus()) }} {{ statusLabel(highestStatus()) }}</span>
-    <span>Geprüft vor {{ app.explore().dataAgeMinutes }} min</span>
+    <span>Checked {{ app.explore().dataAgeMinutes }} min ago</span>
   </div>
 
   <ol class="draft-timeline">
@@ -40,14 +40,14 @@
       <span class="draft-node">B</span>
       <div>
         <strong>{{ destinationName }}</strong>
-        <p>Ziel für diese Etappe</p>
+        <p>Destination for this leg</p>
       </div>
     </li>
   </ol>
 </div>
 
 <div class="wizard-footer draft-footer">
-  <button libButton="primary" (click)="startToday()">{{ service.flow() === 'edit' ? 'Änderungen übernehmen' : 'Heute starten' }}</button>
+  <button libButton="primary" (click)="startToday()">{{ service.flow() === 'edit' ? 'Apply changes' : 'Start today' }}</button>
   @if (service.flow() === 'edit') {
     <button libButton="secondary" (click)="editStops()">Stopps weiter bearbeiten</button>
   } @else {

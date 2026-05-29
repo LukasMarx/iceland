@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
-import { App } from './app';
+import { AppStateService } from './app-state.service';
 
 export abstract class AppScreenBase {
-  protected readonly app = inject(App) as any;
+  protected readonly app = inject(AppStateService);
 }

@@ -1,155 +1,128 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
+import type { Spot } from '@islandhub/domain';
+import { API_BASE_URL } from './api-base-url.token';
 import { App } from './app';
+import { AppStateService } from './app-state.service';
 import { appRoutes } from './app.routes';
 
-type AppHarness = App & {
-  openSpot(spot: typeof mockSpot): void;
-  saveSelectedSpot(): Promise<void>;
-  skipSetup(): void;
-  setMaxDriveMinutes(maxDriveMinutes: number): void;
-  setShowFRoads(showFRoads: boolean): void;
-};
-
 describe('App', () => {
-  const originalFetch = globalThis.fetch;
-  let requestedUrls: string[];
+  let http: HttpTestingController;
 
   beforeEach(async () => {
-    requestedUrls = [];
-    globalThis.fetch = (async (input) => {
-      const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
-      requestedUrls.push(url);
-
-      return {
-        ok: true,
-        json: async () => mockApiResponse(url),
-      } as Response;
-    }) as typeof fetch;
-
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter(appRoutes)],
+      providers: [
+        provideRouter(appRoutes),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: API_BASE_URL, useValue: 'http://localhost:3000/api' },
+      ],
     }).compileComponents();
+
+    http = TestBed.inject(HttpTestingController);
   });
 
   afterEach(() => {
-    globalThis.fetch = originalFetch;
+    http.verify();
   });
 
   it('renders the IslandHub onboarding promise', async () => {
     const fixture = TestBed.createComponent(App);
+    await flushInitialApi(http);
     const router = TestBed.inject(Router);
     await router.navigateByUrl('/setup');
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
+
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.textContent).toContain("See what's open today");
   });
 
   it('reloads Explore from the API when filters change', async () => {
     const fixture = TestBed.createComponent(App);
-    const component = fixture.componentInstance as unknown as AppHarness;
+    const appState = TestBed.inject(AppStateService);
+    await flushInitialApi(http);
     await fixture.whenStable();
 
-    requestedUrls = [];
-    component.skipSetup();
-    component.setShowFRoads(true);
+    appState.skipSetup();
+    appState.setShowFRoads(true);
+
+    const showFRoadsRequest = http.expectOne((request) => request.url.endsWith('/api/explore') && request.params.get('showFRoads') === 'true' && request.params.get('maxDriveMinutes') === '180');
+    showFRoadsRequest.flush(mockExploreResponse());
     await fixture.whenStable();
 
-    expect(requestedUrls.some((url) => url.includes('/api/explore?') && url.includes('showFRoads=true') && url.includes('maxDriveMinutes=180'))).toBe(true);
+    appState.setMaxDriveMinutes(180);
 
-    requestedUrls = [];
-    component.setMaxDriveMinutes(180);
-    await fixture.whenStable();
-
-    expect(requestedUrls.some((url) => url.includes('/api/explore?') && url.includes('showFRoads=true') && url.includes('maxDriveMinutes=180'))).toBe(true);
+    const maxDriveRequest = http.expectOne((request) => request.url.endsWith('/api/explore') && request.params.get('showFRoads') === 'true' && request.params.get('maxDriveMinutes') === '180');
+    maxDriveRequest.flush(mockExploreResponse());
   });
 
   it('saves the selected spot through the API', async () => {
     const fixture = TestBed.createComponent(App);
-    const component = fixture.componentInstance as unknown as AppHarness;
+    const appState = TestBed.inject(AppStateService);
+    await flushInitialApi(http);
     await fixture.whenStable();
 
-    requestedUrls = [];
-    component.openSpot(mockSpot);
-    await fixture.whenStable();
-    await component.saveSelectedSpot();
-
-    expect(requestedUrls.some((url) => url.includes('/api/saved-spots'))).toBe(true);
-  });
-});
-
-function mockApiResponse(url: string) {
-  if (url.includes('/health')) {
-    return { status: 'ok', service: 'islandhub-api', mode: 'seed', version: 'test', checkedAt: '2026-05-25T07:42:00.000Z' };
-  }
-
-  if (url.includes('/today')) {
-    return {
-      title: 'Wind-light loop',
-      dateLabel: 'Today - Thu 14 May',
-      recheckedMinutesAgo: 8,
-      stopProgress: '2/4',
-      driveMinutes: 200,
-      daylightLeft: '14h 32',
-      update: 'Status updated.',
-      stops: [],
-    };
-  }
-
-  if (url.includes('/trip')) {
-    return {
-      trip: {
-        title: 'Iceland spring run',
-        dates: 'May 13-22',
-        vehicle: 'car_2wd',
-        pace: 'Relaxed',
-        hub: mockHub,
-        days: [],
-      },
-    };
-  }
-
-  if (url.includes('/routes/suggestions')) {
-    return {
-      savedSpots: [mockSpot],
-      routes: [
-        {
-          id: 'wind-light-loop',
-          title: 'Wind-light loop',
-          summary: 'Geysir',
-          driveMinutes: 74,
-          stops: 1,
-          distanceKm: 52,
-          highestStatus: 'green',
-          spotIds: ['geysir'],
-          daylight: 'Comfortable day trip',
-          reason: 'Best conditions for your saved waterfalls today.',
-        },
-      ],
-    };
-  }
-
-  if (url.includes('/spots/geysir/context')) {
-    return {
+    appState.openSpot(mockSpot);
+    http.expectOne('http://localhost:3000/api/spots/geysir/context').flush({
       spot: mockSpot,
       primaryAction: 'Add to today route',
       secondaryAction: 'Save spot',
       sourceSummary: 'Seed status shaped like official road and weather data.',
-    };
-  }
+    });
+    await fixture.whenStable();
 
-  if (url.includes('/saved-spots')) {
-    return {
+    const savePromise = appState.saveSelectedSpot();
+    http.expectOne('http://localhost:3000/api/saved-spots').flush({
       savedSpotIds: ['geysir'],
       spots: [mockSpot],
       spot: mockSpot,
       message: 'Geysir saved to your trip list.',
-    };
-  }
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    http.expectOne('http://localhost:3000/api/routes/suggestions').flush(mockRouteSuggestionsResponse());
+    await savePromise;
+  });
+});
 
+async function flushInitialApi(http: HttpTestingController): Promise<void> {
+  http.expectOne('http://localhost:3000/api/health').flush({ status: 'ok', service: 'islandhub-api', mode: 'seed', version: 'test', checkedAt: '2026-05-25T07:42:00.000Z' });
+  http.expectOne((request) => request.url === 'http://localhost:3000/api/explore').flush(mockExploreResponse());
+  http.expectOne('http://localhost:3000/api/today').flush({
+    title: 'Wind-light loop',
+    dateLabel: 'Today - Thu 14 May',
+    recheckedMinutesAgo: 8,
+    stopProgress: '2/4',
+    driveMinutes: 200,
+    daylightLeft: '14h 32',
+    update: 'Status updated.',
+    stops: [],
+  });
+  http.expectOne('http://localhost:3000/api/trip').flush({
+    trip: {
+      title: 'Iceland spring run',
+      dates: 'May 13-22',
+      vehicle: 'car_2wd',
+      pace: 'Relaxed',
+      hub: mockHub,
+      days: [],
+    },
+  });
+
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+
+  http.expectOne('http://localhost:3000/api/saved-spots').flush({ savedSpotIds: ['geysir'], spots: [mockSpot] });
+  http.expectOne('http://localhost:3000/api/routes/suggestions').flush(mockRouteSuggestionsResponse());
+}
+
+function mockExploreResponse() {
   return {
     hub: mockHub,
     dateLabel: 'Today, Thu 14 May',
@@ -170,6 +143,26 @@ function mockApiResponse(url: string) {
   };
 }
 
+function mockRouteSuggestionsResponse() {
+  return {
+    savedSpots: [mockSpot],
+    routes: [
+      {
+        id: 'wind-light-loop',
+        title: 'Wind-light loop',
+        summary: 'Geysir',
+        driveMinutes: 74,
+        stops: 1,
+        distanceKm: 52,
+        highestStatus: 'green',
+        spotIds: ['geysir'],
+        daylight: 'Comfortable day trip',
+        reason: 'Best conditions for your saved waterfalls today.',
+      },
+    ],
+  };
+}
+
 const mockHub = {
   id: 'hub-reykholt',
   name: 'Reykholt Cabin',
@@ -178,7 +171,7 @@ const mockHub = {
   nights: 9,
 };
 
-const mockSpot = {
+const mockSpot: Spot = {
   id: 'geysir',
   name: 'Geysir',
   region: 'South Iceland',

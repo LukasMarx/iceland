@@ -1,14 +1,14 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { LibButtonDirective } from '@islandhub/ui';
 import type { WizardBase } from '../add-route-wizard.service';
 import { AddRouteWizardService, KEFLAVIK_BASE } from '../add-route-wizard.service';
 
 @Component({
-  standalone: true,
   imports: [LibButtonDirective],
   selector: 'app-add-route-step1',
   templateUrl: './add-route-step1.component.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AddRouteStep1Component {
   protected readonly service = inject(AddRouteWizardService);

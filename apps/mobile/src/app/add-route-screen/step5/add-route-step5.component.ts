@@ -1,16 +1,16 @@
-import { Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import type { RouteStop, SafetyStatus, Spot } from '@islandhub/domain';
+import type { SafetyStatus, Spot } from '@islandhub/domain';
 import { LibButtonDirective, LibChipComponent, LibStatsDarkComponent } from '@islandhub/ui';
 import type { LibChipVariant } from '@islandhub/ui';
 import { AppScreenBase } from '../../screen-base';
 import { AddRouteWizardService } from '../add-route-wizard.service';
 
 @Component({
-  standalone: true,
   imports: [LibButtonDirective, LibChipComponent, LibStatsDarkComponent],
   selector: 'app-add-route-step5',
   templateUrl: './add-route-step5.component.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AddRouteStep5Component extends AppScreenBase {
   protected readonly service = inject(AddRouteWizardService);
@@ -37,7 +37,7 @@ export class AddRouteStep5Component extends AppScreenBase {
   protected readonly highestStatus = computed(() => this.highestStatusFor(this.selectedStops()));
 
   protected get destinationName(): string {
-    return this.service.endHotel()?.name ?? this.service.base()?.name ?? 'Ziel';
+    return this.service.endHotel()?.name ?? this.service.base()?.name ?? 'Destination';
   }
 
   protected get routeTitle(): string {
@@ -47,7 +47,7 @@ export class AddRouteStep5Component extends AppScreenBase {
 
     const base = this.service.base()?.name ?? 'Start';
 
-    return `${base} nach ${this.destinationName}`;
+    return `${base} to ${this.destinationName}`;
   }
 
   protected editStops(): void {
@@ -63,56 +63,18 @@ export class AddRouteStep5Component extends AppScreenBase {
 
     const baseName = this.service.base()?.name ?? this.app.explore().hub.name;
     const destinationName = this.destinationName;
-    const routeStops: RouteStop[] = this.selectedStops().map((spot: Spot, index: number) => ({
-      id: spot.id,
-      spotId: spot.id,
-      title: spot.name,
-      meta: `${this.minutesToDrive(Math.max(8, Math.round(spot.driveMinutes / 5)))} drive · ${spot.stayMinutes} min stay`,
-      driveFromPreviousMinutes: Math.max(8, Math.round(spot.driveMinutes / 5)),
-      stayMinutes: spot.stayMinutes,
-      status: spot.status.status,
-      state: index === 0 ? 'active' : 'open',
-      note: spot.status.status === 'green' ? undefined : spot.status.reasons[0],
-    }));
-
-    this.app.today.set({
-      title: this.selectedStops().length ? 'Roadtrip draft' : 'Direct drive',
-      dateLabel: this.app.explore().dateLabel,
-      recheckedMinutesAgo: this.app.explore().dataAgeMinutes,
-      stopProgress: `0/${routeStops.length}`,
-      driveMinutes: this.totalDriveMinutes(),
-      daylightLeft: '14h 32',
-      update: this.selectedStops().length ? 'Route checked against current road and weather snapshot.' : 'Direct leg saved without sightseeing stops.',
-      stops: [
-        { id: 'start', title: baseName, meta: 'start', driveFromPreviousMinutes: 0, stayMinutes: 0, status: 'green', state: 'start' },
-        ...routeStops,
-        { id: 'destination', title: destinationName, meta: 'destination', driveFromPreviousMinutes: this.directDriveMinutes(), stayMinutes: 0, status: 'green', state: 'return' },
-      ],
+    this.app.setWizardTodayRoute({
+      baseName,
+      destinationName,
+      selectedStops: this.selectedStops(),
+      directDriveMinutes: this.directDriveMinutes(),
+      totalDriveMinutes: this.totalDriveMinutes(),
     });
-    this.app.activeRoute.set(true);
-    this.app.actionNotice.set('Routenentwurf ist als heutige Route bereit.');
-    this.app.navigateToTab('today');
   }
 
   protected saveToTrip(): void {
     const status = this.highestStatus();
-    this.app.trip.update((response: any) => ({
-      trip: {
-        ...response.trip,
-        days: [
-          ...response.trip.days,
-          {
-            weekday: 'Draft',
-            day: `${13 + response.trip.days.length}`,
-            title: this.routeTitle,
-            summary: `${this.selectedStops().length} Stopps · ${this.minutesToDrive(this.totalDriveMinutes())} Fahrzeit`,
-            status,
-          },
-        ],
-      },
-    }));
-    this.app.actionNotice.set('Routenentwurf wurde zur Reise gespeichert.');
-    this.app.navigateToTab('trip');
+    this.app.saveWizardDraftDay(this.routeTitle, `${this.selectedStops().length} stops - ${this.minutesToDrive(this.totalDriveMinutes())} drive`, status);
   }
 
   protected statusVariant(status: SafetyStatus): LibChipVariant {
@@ -124,7 +86,7 @@ export class AddRouteStep5Component extends AppScreenBase {
   }
 
   protected statusLabel(status: SafetyStatus): string {
-    return status === 'green' ? 'Offen' : status === 'yellow' ? 'Achtung' : status === 'red' ? 'Gesperrt' : 'Keine Daten';
+    return status === 'green' ? 'Open' : status === 'yellow' ? 'Caution' : status === 'red' ? 'Closed' : 'No data';
   }
 
   protected minutesToDrive(minutes: number): string {
