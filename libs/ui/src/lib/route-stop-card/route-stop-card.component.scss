@@ -1,0 +1,125 @@
+:host {
+	display: block;
+	border: 1px solid var(--line);
+	border-radius: 18px;
+	overflow: hidden;
+	background: var(--card);
+	margin-bottom: 4px;
+}
+
+/* Photo band */
+
+.rd-stop-photo {
+	position: relative;
+	height: 120px;
+	padding: 14px;
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+}
+
+.rd-photo-green {
+	background: repeating-linear-gradient(
+			135deg,
+			rgba(100, 170, 90, 0.2) 0 16px,
+			rgba(255, 255, 255, 0.28) 16px 32px
+		),
+		#cde3c4;
+}
+
+.rd-photo-yellow {
+	background: repeating-linear-gradient(
+			135deg,
+			rgba(200, 155, 50, 0.2) 0 16px,
+			rgba(255, 255, 255, 0.28) 16px 32px
+		),
+		#eedfa0;
+}
+
+.rd-photo-red {
+	background: repeating-linear-gradient(
+			135deg,
+			rgba(200, 70, 55, 0.2) 0 16px,
+			rgba(255, 255, 255, 0.28) 16px 32px
+		),
+		#f0bfb8;
+}
+
+.rd-photo-unknown {
+	background: repeating-linear-gradient(
+			135deg,
+			rgba(150, 150, 150, 0.2) 0 16px,
+			rgba(255, 255, 255, 0.28) 16px 32px
+		),
+		#dedbd5;
+}
+
+.rd-category-badge {
+	position: absolute;
+	bottom: 12px;
+	right: 12px;
+	font-size: 11px;
+	color: rgba(0, 0, 0, 0.45);
+	letter-spacing: 0.04em;
+}
+
+/* Stop body */
+
+.rd-stop-body {
+	position: relative;
+	padding: 16px 16px 18px;
+}
+
+.rd-remove {
+	position: absolute;
+	top: 12px;
+	right: 12px;
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	background: white;
+	border: 1px solid var(--line);
+	font-size: 22px;
+	line-height: 1;
+	color: var(--muted);
+}
+
+.rd-spot-name {
+	margin: 0 0 3px;
+	font-size: 22px;
+	font-weight: 900;
+	line-height: 1.1;
+	padding-right: 44px;
+}
+
+:host:has(.rd-remove) .rd-spot-name {
+	padding-right: 44px;
+}
+
+:host:not(:has(.rd-remove)) .rd-spot-name {
+	padding-right: 0;
+}
+
+.rd-spot-type {
+	color: var(--muted);
+	font-size: 14px;
+	margin-bottom: 12px;
+}
+
+.rd-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.rd-note {
+	font-size: 13px;
+	color: var(--muted);
+	font-style: italic;
+	line-height: 1.4;
+}
+
+.rd-note-amber {
+	color: #835f20;
+}

@@ -1,0 +1,107 @@
+<section class="screen trip-view">
+
+	<!-- ── Header ────────────────────────────────────────────────── -->
+	<header class="trip-header">
+		@if (trip().status) {
+			<span class="trip-status-badge">&#x25CF; {{ trip().status | uppercase }}</span>
+		}
+		<p class="trip-dates-line">{{ trip().dates }} · {{ trip().totalDays }} DAYS</p>
+		<h1 class="trip-title">{{ trip().title }}</h1>
+		<p class="trip-description">Drop the routes you built onto each day. Choose how long you stay at every hotel along the way.</p>
+	</header>
+
+	<!-- ── Summary stats ─────────────────────────────────────────── -->
+	<div class="stats-grid">
+		<div class="stat-cell">
+			<span class="stat-label">Days Planned</span>
+			<strong class="stat-value">{{ trip().daysPlanned }} / {{ trip().totalDays }}</strong>
+			<span class="stat-sub">{{ (trip().totalDays ?? 0) - (trip().daysPlanned ?? 0) }} open</span>
+		</div>
+		<div class="stat-cell">
+			<span class="stat-label">Routes Used</span>
+			<strong class="stat-value">{{ trip().routesUsed }} / {{ trip().totalRoutes }}</strong>
+			<span class="stat-sub">{{ (trip().totalRoutes ?? 0) - (trip().routesUsed ?? 0) }} in pool</span>
+		</div>
+		<div class="stat-cell stat-cell--cta">
+			<span class="stat-label">Hotels to Book</span>
+			<strong class="stat-value">{{ trip().hotelsToBook }}</strong>
+			<span class="stat-sub stat-sub--cta">tap to book</span>
+		</div>
+	</div>
+
+	<!-- ── Unplaced routes ───────────────────────────────────────── -->
+	@if (trip().unplacedRoutes?.length) {
+		<div class="section-header">
+			<span class="section-label">Unplaced Routes</span>
+			<span class="section-hint">{{ trip().unplacedRoutes!.length }} to place</span>
+		</div>
+		<div class="unplaced-panel">
+			<p class="unplaced-banner">
+				<span class="unplaced-icon">&#x24D8;</span>
+				Built but not on the calendar yet
+			</p>
+			@for (route of trip().unplacedRoutes; track route.id) {
+				<div class="unplaced-route">
+					<div class="unplaced-info">
+						<span class="route-dot dot--green"></span>
+						<div>
+							<strong class="unplaced-title">{{ route.title }}</strong>
+							<p class="unplaced-meta">{{ route.direction }} · {{ route.stops }} stops · {{ formatDuration(route.durationMinutes) }}</p>
+						</div>
+					</div>
+					<button class="assign-btn" type="button">Assign &#x2192;</button>
+				</div>
+			}
+		</div>
+	}
+
+	<!-- ── Itinerary ─────────────────────────────────────────────── -->
+	<div class="section-header">
+		<span class="section-label">Itinerary</span>
+		<span class="section-hint">tap a day to edit</span>
+	</div>
+
+	<div class="itinerary">
+		@for (day of trip().days; track day.day) {
+			<article class="day-row" [class.day-row--today]="day.today">
+				<div class="day-date">
+					<span class="day-weekday">{{ day.weekday }}</span>
+					<b class="day-num">{{ day.day }}</b>
+					@if (day.dayLabel) {
+						<span class="day-label">{{ day.dayLabel }}</span>
+					}
+				</div>
+				<div class="day-content">
+					@if (day.route) {
+						<div class="route-card">
+							<div class="route-badge">
+								<span class="route-dot" [ngClass]="routeDotClass(day.route.status)"></span>
+								<span class="route-type-label">Route · {{ day.route.direction }}</span>
+								<button class="route-menu" type="button" aria-label="Route options">&#x22EF;</button>
+							</div>
+							<strong class="route-title">{{ day.route.title }}</strong>
+							<p class="route-meta">
+								@if (day.route.stops) { {{ day.route.stops }} stops · }{{ formatDuration(day.route.durationMinutes) }}
+							</p>
+						</div>
+					} @else {
+						<div class="no-route-card">
+							<span class="no-route-label">No route planned</span>
+						</div>
+					}
+					@if (day.sleep) {
+						<div class="sleep-row">
+							<span class="sleep-icon" aria-hidden="true">&#x1F6CF;</span>
+							<span class="sleep-label">Sleep</span>
+							<span class="hotel-chip">
+								<span class="hotel-initial">{{ day.sleep.initial }}</span>
+								{{ day.sleep.action === 'check-in' ? 'Check in' : 'Check out' }} · {{ day.sleep.hotel }}
+							</span>
+						</div>
+					}
+				</div>
+			</article>
+		}
+	</div>
+
+</section>

@@ -1,0 +1,29 @@
+<section class="explore screen discover-view">
+	<header class="discover-head">
+		<lib-screen-intro kicker="Explore · Iceland" title="Discover highlights"></lib-screen-intro>
+	</header>
+
+	<div class="discover-chips"><button lib-chip size="lg" [active]="app.isAllCategories()" (click)="app.setCategoryPreset(null)">All</button>@for (category of app.availableCategories(); track category) { <button lib-chip size="lg" [active]="app.categoryFilters().length === 1 && app.categoryFilters()[0] === category" (click)="app.setCategoryPreset(category)">{{ category }}</button> }</div>
+
+	<div class="discover-map">
+		<lib-map
+			[markers]="exploreMarkers()"
+			[center]="[-18.5, 64.9]"
+			[zoom]="4"
+		></lib-map>
+	</div>
+
+	<div class="attraction-list">
+		@for (spot of app.visibleSpots(); track spot.id) {
+			<lib-attraction-card
+				[spot]="spot"
+			[variant]="app.statusVariant(spot.status.status)"
+			(openSpot)="app.openSpot(spot)"
+			(planRoute)="app.openSpotAction(spot)"
+			></lib-attraction-card>
+		}
+		@if (app.visibleSpots().length === 0) {
+			<lib-empty-state title="No matching attractions" message="Try another category."></lib-empty-state>
+		}
+	</div>
+</section>

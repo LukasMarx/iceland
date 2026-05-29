@@ -1,0 +1,92 @@
+<main class="phone-shell" [class.is-offline]="offlineMode()">
+	@if (!setupDone()) {
+		<router-outlet></router-outlet>
+	} @else {
+		<section class="app-frame">
+			@if (offlineMode()) {
+				<div class="offline-banner"><strong>You're offline</strong><span>Showing last data from 2h 42 min ago</span><button (click)="offlineMode.set(false)">Retry</button></div>
+			}
+
+			@if (actionNotice()) {
+				<button class="action-notice" (click)="dismissActionNotice()"><strong>{{ actionNotice() }}</strong><span>Dismiss</span></button>
+			}
+
+			<router-outlet></router-outlet>
+
+			<nav class="bottom-nav">
+				<button [class.active]="activeTab() === 'explore'" (click)="navigateToTab('explore')"><svg lucideCompass [size]="22" /><span>Explore</span></button>
+				<button [class.active]="activeTab() === 'routes'" (click)="navigateToTab('routes')"><svg lucideRoute [size]="22" /><span>Routes</span></button>
+				<button [class.active]="activeTab() === 'today'" (click)="navigateToTab('today')"><svg lucideNavigation [size]="22" /><span>Today</span></button>
+				<button [class.active]="activeTab() === 'trip'" (click)="navigateToTab('trip')"><svg lucideCalendarDays [size]="22" /><span>Trip</span></button>
+				<button [class.active]="activeTab() === 'profile'" (click)="navigateToTab('profile')"><svg lucideCircleUser [size]="22" /><span>Profile</span></button>
+			</nav>
+		</section>
+	}
+
+	@if (selectedSpot()) {
+		<section class="modal-backdrop">
+			<article class="spot-detail">
+				<button class="close" (click)="closeSpot()"><svg lucideX [size]="20" /></button>
+				<div class="photo-band" [ngClass]="statusClass(selectedSpot()!.spot.status.status)"><span lib-chip variant="neutral" size="sm">{{ selectedSpot()!.spot.status.label }} · {{ selectedSpot()!.spot.status.weatherStatus }}</span><strong>[ hero photo · {{ selectedSpot()!.spot.name }} ]</strong></div>
+				<p class="mono">{{ selectedSpot()!.spot.region }} · {{ selectedSpot()!.spot.category }}</p>
+				<h1>{{ selectedSpot()!.spot.name }}</h1>
+				<div class="reason" [ngClass]="statusClass(selectedSpot()!.spot.status.status)"><strong>{{ selectedSpot()!.spot.status.label }}</strong>@for (reason of selectedSpot()!.spot.status.reasons; track reason) { <p>{{ reason }}</p> }</div>
+				<div class="context-grid"><div><span>Drive from hub</span><strong>{{ minutesToDrive(selectedSpot()!.spot.driveMinutes) }} · {{ selectedSpot()!.spot.distanceKm }} km</strong></div><div><span>Road</span><strong>{{ selectedSpot()!.spot.status.roadStatus }}</strong></div><div><span>Vehicle</span><strong>{{ selectedSpot()!.spot.status.vehicleCompatibility }}</strong></div><div><span>Sources</span><strong>{{ selectedSpot()!.sourceSummary }}</strong></div></div>
+				<div class="detail-actions"><button class="secondary" libButton="secondary" [libButtonBlock]="false" (click)="saveSelectedSpot()">{{ selectedSpot()!.secondaryAction }}</button><button class="primary" libButton="primary" (click)="handleSpotPrimaryAction()">{{ selectedSpot()!.primaryAction }}</button></div>
+			</article>
+		</section>
+	}
+
+	@if (routeSheet()) {
+		<section class="modal-backdrop">
+			<article class="route-sheet"><span class="grabber"></span><button class="close" (click)="closeRouteSheet()"><svg lucideX [size]="20" /></button>
+				@if (routeSheet()!.mode === 'insert') {
+					<p class="mono">Adding to today's route</p>
+					<h2>Insert {{ routeSheet()!.context.spot.name }} between Geysir and Gullfoss?</h2>
+					<div class="impact-grid"><div><span>Drive +</span><strong>{{ routeSheet()!.preview?.addedDriveMinutes ?? 18 }} min</strong></div><div><span>Status</span><strong>{{ routeSheet()!.preview?.statusImpact ?? (routeSheet()!.context.spot.status.status === 'yellow' ? 'stays amber' : routeSheet()!.context.spot.status.label) }}</strong></div><div><span>Daylight</span><strong>{{ routeSheet()!.preview?.daylightImpact ?? 'ample' }}</strong></div></div>
+					<p class="mono">Preview · recommended position</p>
+					<div class="insert-preview"><span>A</span><strong>{{ explore().hub.name }}</strong><span>✓</span><strong>Geysir</strong><span [ngClass]="statusClass(routeSheet()!.context.spot.status.status)">!</span><strong>{{ routeSheet()!.context.spot.name }} <em>new</em></strong><span>✓</span><strong>Gullfoss</strong><span>B</span><strong>{{ explore().hub.name }}</strong></div>
+					<button class="primary" libButton="primary" (click)="insertRouteStop('recommended')">Insert here</button>
+					<div class="split-actions"><button class="secondary" libButton="secondary" (click)="insertRouteStop('end')">Add to end</button><button class="secondary" libButton="secondary" (click)="closeRouteSheet()">Cancel</button></div>
+				}
+
+				@if (routeSheet()!.mode === 'create') {
+					<p class="mono">No active route yet</p>
+					<h2>What should happen with {{ routeSheet()!.context.spot.name }}?</h2>
+					<button class="primary sheet-option" libButton="primary" (click)="createRouteFromSpot()"><strong>Create for today</strong><span>Hub -> {{ routeSheet()!.context.spot.name }} -> Hub</span></button>
+					<button class="secondary sheet-option" libButton="secondary" (click)="planRouteSheetSpotForLater()"><strong>Plan for later</strong><span>Save the spot to a draft day.</span></button>
+					<button class="secondary sheet-option" libButton="secondary" (click)="saveRouteSheetSpot()"><strong>Only save it</strong><span>Add to saved spots without a route.</span></button>
+				}
+
+				@if (routeSheet()!.mode === 'alternatives') {
+					<p class="mono">Road closed</p>
+					<h2>{{ routeSheet()!.context.spot.name }} is not recommended today.</h2>
+					<div class="reason status-red"><strong>Why closed</strong><p>{{ routeSheet()!.context.spot.status.reasons[0] }}</p></div>
+					<p class="mono">Safer alternatives today</p>
+					<div class="alternative-list"><button (click)="closeRouteSheet(); openSpot(explore().spots[0])"><span lib-chip variant="success" size="sm">✓ Open</span><strong>Geysir</strong><em>37m drive</em></button><button (click)="closeRouteSheet(); openSpot(explore().spots[3])"><span lib-chip variant="success" size="sm">✓ Open</span><strong>Bruarfoss</strong><em>52m drive</em></button></div>
+					<button class="primary" libButton="primary" (click)="closeRouteSheet()">Keep browsing</button>
+				}
+
+				@if (routeSheet()!.mode === 'stale') {
+					<p class="mono">Data stale or missing</p>
+					<h2>Refresh before deciding on {{ routeSheet()!.context.spot.name }}.</h2>
+					<div class="reason status-unknown"><strong>Missing input</strong><p>{{ routeSheet()!.context.spot.status.reasons[0] }}</p></div>
+					<button class="primary" libButton="primary" (click)="closeRouteSheet()">Refresh data</button>
+					<button class="text-button" libButton="text" (click)="planRouteSheetSpotForLater()">Save for later</button>
+				}
+			</article>
+		</section>
+	}
+
+	@if (returnSheet()) {
+		<section class="modal-backdrop">
+			<article class="route-sheet"><span class="grabber"></span><p class="mono">Welcome back from Maps</p><h2>Did you make it to {{ nextStop()?.title }}?</h2><p class="sheet-copy">We cannot tell automatically. A quick tap keeps the timeline accurate and unlocks the next stop.</p><button class="primary sheet-option" libButton="primary" (click)="markActiveStopDone()"><strong>Mark as done</strong><span>Stop {{ today().stopProgress }} before update</span></button><button class="secondary" libButton="secondary" (click)="returnSheet.set(false)">Re-open in Maps</button><button class="text-button" libButton="text" (click)="returnSheet.set(false)">Not there yet</button></article>
+		</section>
+	}
+
+	@if (filterOpen()) {
+		<section class="modal-backdrop">
+			<article class="filters"><span class="grabber"></span><header><h2>Filters</h2><button (click)="resetFilters()">Reset</button></header><p class="mono">Status</p><div class="status-chips"><button lib-chip [variant]="statusFilters().includes('green') ? 'success' : 'default'" (click)="toggleStatusFilter('green')"><svg lucideCheck [size]="14" /> Open</button><button lib-chip [variant]="statusFilters().includes('yellow') ? 'warning' : 'default'" (click)="toggleStatusFilter('yellow')"><svg lucideTriangleAlert [size]="14" /> Caution</button><button lib-chip [variant]="statusFilters().includes('red') ? 'danger' : 'default'" (click)="toggleStatusFilter('red')">⊘ Closed</button><button lib-chip [variant]="statusFilters().includes('unknown') ? 'neutral' : 'default'" (click)="toggleStatusFilter('unknown')">? No data</button></div><p class="mono">Vehicle</p><div class="segmented"><button [class.active]="vehicleFilter() === 'car_2wd'" (click)="setVehicleFilter('car_2wd')">2WD ok</button><button [class.active]="vehicleFilter() === 'car_4wd'" (click)="setVehicleFilter('car_4wd')">4WD only</button><button [class.active]="vehicleFilter() === 'any'" (click)="setVehicleFilter('any')">Any</button></div><button class="toggle-row" (click)="setShowFRoads(!showFRoads())">Show F-roads <span class="toggle" [class.on]="showFRoads()"></span></button><p class="mono">Max drive · one way <strong>{{ maxDriveMinutes() }} min</strong></p><div class="drive-options"><button lib-chip [active]="maxDriveMinutes() === 60" (click)="setMaxDriveMinutes(60)">60</button><button lib-chip [active]="maxDriveMinutes() === 90" (click)="setMaxDriveMinutes(90)">90</button><button lib-chip [active]="maxDriveMinutes() === 180" (click)="setMaxDriveMinutes(180)">180</button></div><p class="mono">Category</p><div class="chips">@for (category of availableCategories(); track category) { <button lib-chip [active]="categoryFilters().includes(category)" (click)="toggleCategoryFilter(category)">{{ category }}</button> }</div><button class="primary" libButton="primary" (click)="filterOpen.set(false)">{{ exploreLoading() ? 'Refreshing...' : 'Show ' + visibleSpots().length + ' spots' }}</button></article>
+		</section>
+	}
+</main>

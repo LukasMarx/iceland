@@ -1,0 +1,16 @@
+<main class="admin-shell">
+	<aside>
+		<strong>IslandHub Admin</strong>
+		<nav><a>Spots</a><a>Categories</a><a>Reports</a><a>Sources</a></nav>
+	</aside>
+	<section>
+		<p>Walking skeleton</p>
+		<h1>Content operations will live here.</h1>
+		<div class="cards">
+			@for (item of queues; track item.label) {
+				<article><span>{{ item.label }}</span><strong>{{ item.value }}</strong><p>{{ item.hint }}</p></article>
+			}
+		</div>
+	</section>
+</main>
+<router-outlet></router-outlet>

@@ -1,0 +1,9 @@
+<button class="attraction-photo" (click)="openSpot.emit()"><span>[ {{ spot.category }} · {{ spot.name }} ]</span></button>
+<div class="attraction-body">
+	<h2>{{ spot.name }} <span lib-chip [variant]="variant" size="sm">{{ spot.status.label }}</span></h2>
+	<p>{{ spot.category }} · {{ spot.distanceKm }} km</p>
+	<p class="attraction-copy">{{ spot.status.reasons[0] }}</p>
+	<div class="attraction-actions">
+		<button libButton="primary" [libButtonSize]="'sm'" (click)="$event.stopPropagation(); planRoute.emit()">Route planen →</button>
+	</div>
+</div>

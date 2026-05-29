@@ -1,0 +1,42 @@
+<div class="wizard-body">
+	<h1>Back to {{ service.base()?.name }}?</h1>
+	<p class="wizard-subtitle">Choose how you want your trip to end — it shapes the whole route.</p>
+
+	<div class="wizard-trip-cards">
+		<button
+			class="wizard-trip-card"
+			[class.selected]="service.tripType() === 'return'"
+			(click)="selectTripType('return')"
+		>
+			<div class="wizard-trip-card-head">
+				<div>
+					<span class="wizard-trip-kicker">DAY TRIP</span>
+					<h2>Return to {{ service.base()?.name }}</h2>
+					<p>Loops back to your starting base. Great for single-day excursions.</p>
+				</div>
+				<span class="wizard-trip-icon">↺</span>
+			</div>
+		</button>
+
+		<button
+			class="wizard-trip-card"
+			[class.selected]="service.tripType() === 'one-way'"
+			(click)="selectTripType('one-way')"
+		>
+			<div class="wizard-trip-card-head">
+				<div>
+					<span class="wizard-trip-kicker">ROAD TRIP</span>
+					<h2>End somewhere else</h2>
+					<p>One-way multi-day trip. You pick your overnight destination.</p>
+				</div>
+				<span class="wizard-trip-icon">→</span>
+			</div>
+		</button>
+	</div>
+</div>
+
+<div class="wizard-footer">
+	<button libButton="primary" [disabled]="!service.tripType()" (click)="continue()">
+		{{ continueLabel }}
+	</button>
+</div>

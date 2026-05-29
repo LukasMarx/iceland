@@ -1,0 +1,53 @@
+<section class="screen today-view">
+	<header class="today-head">
+		<lib-screen-intro kicker="Today · Thu 14 May" [title]="app.today().title"></lib-screen-intro>
+		<span lib-chip [outlined]="true"><b class="recheck-dot"></b>Re-checked {{ app.today().recheckedMinutesAgo }} min ago</span>
+	</header>
+	<lib-stats-dark class="today-stats">
+		<div><span>Stops</span><strong>{{ app.today().stopProgress }} <small>done</small></strong></div>
+		<div><span>Drive</span><strong>{{ app.minutesToDrive(app.today().driveMinutes) }} <small>net</small></strong></div>
+		<div><span>Daylight</span><strong>{{ app.today().daylightLeft }} <small>left</small></strong></div>
+	</lib-stats-dark>
+	<div class="warning"><b>!</b><span><strong>Status updated:</strong> {{ app.today().update }}</span></div>
+	<ol class="timeline">
+		@for (stop of app.today().stops; track stop.id) {
+			<li [ngClass]="[app.statusClass(stop.status), stop.state]">
+				<span class="node">
+					@if (stop.state === 'done') {
+						<svg lucideCheck [size]="14" />
+					} @else if (stop.state === 'start') {
+						A
+					} @else if (stop.state === 'return') {
+						B
+					} @else if (stop.status !== 'green') {
+						!
+					} @else {
+						<svg lucideCheck [size]="14" />
+					}
+				</span>
+				<div>
+					<div class="timeline-row-head">
+						<strong>{{ stop.title }}</strong>
+						@if (stop.state === 'start') {
+							<span class="state-label">start</span>
+						} @else if (stop.state === 'return') {
+							<span class="state-label">return</span>
+						} @else if (stop.state === 'active') {
+							<span class="next-label">NEXT</span><span class="grip">⋮</span>
+						} @else if (stop.state === 'open') {
+							<span class="grip">⋮</span>
+						}
+					</div>
+					@if (stop.state !== 'start') {
+						<p>{{ stop.meta }}</p>
+					}
+					@if (stop.note) { <em>{{ stop.note }}</em> }
+				</div>
+			</li>
+		}
+	</ol>
+	<div class="today-actions">
+		<button class="primary sticky" libButton="primary" (click)="app.openNavigation()"><svg lucideArrowRight [size]="18" /> {{ app.navigationLabel() }}</button>
+		<button class="down-button"><svg lucideChevronsDown [size]="22" /></button>
+	</div>
+</section>

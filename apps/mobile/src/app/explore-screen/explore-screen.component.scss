@@ -1,0 +1,62 @@
+:host {
+	display: block;
+}
+
+h1,
+h2,
+h3,
+p {
+	margin: 0;
+}
+
+.screen {
+	min-height: 100vh;
+	padding: 36px 20px 108px;
+}
+
+.discover-view {
+	padding-top: 54px;
+	background: #f3eee5;
+}
+
+.discover-head {
+	display: flex;
+	gap: 14px;
+	align-items: flex-start;
+	justify-content: space-between;
+}
+
+.discover-head lib-screen-intro {
+	--screen-intro-title-font-size: 36px;
+	--screen-intro-title-line-height: 1.02;
+}
+
+.saved-pill {
+	flex: 0 0 auto;
+}
+
+.discover-chips {
+	display: flex;
+	gap: 10px;
+	margin: 28px -22px 22px;
+	padding: 0 22px 2px;
+	overflow-x: auto;
+}
+
+.discover-chips [lib-chip] {
+	flex: 0 0 auto;
+}
+
+.discover-map {
+	position: relative;
+	height: 230px;
+	margin-bottom: 22px;
+	overflow: hidden;
+	border: 1px solid var(--line);
+	border-radius: 22px;
+}
+
+.attraction-list {
+	display: grid;
+	gap: 18px;
+}

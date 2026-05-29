@@ -1,0 +1,36 @@
+<div class="wizard-body">
+	<h1>Which route?</h1>
+	<p class="wizard-subtitle">
+		Adding <strong>{{ service.targetSpot()?.name }}</strong> — routes sorted by how little longer they get.
+	</p>
+
+	<div class="wizard-route-list">
+		@for (entry of routeEntries(); track entry.route.id) {
+			<button
+				class="wizard-route-item"
+				[class.selected]="selectedRouteId() === entry.route.id"
+				(click)="selectRoute(entry.route.id)"
+			>
+				<div class="wizard-route-item-head">
+					<div class="wizard-route-item-text">
+						<strong>{{ entry.route.title }}</strong>
+						<span>{{ entry.route.stops }} stops · {{ entry.route.distanceKm }} km</span>
+					</div>
+					<div class="wizard-route-item-added">
+						<span class="wizard-route-added-label">+{{ entry.addedKm }} km</span>
+						<span class="wizard-route-added-sub">+{{ entry.addedMinutes }} min</span>
+					</div>
+				</div>
+			</button>
+		}
+		@if (routeEntries().length === 0) {
+			<p class="wizard-empty">No routes yet. Create one first.</p>
+		}
+	</div>
+</div>
+
+<div class="wizard-footer">
+	<button libButton="primary" [disabled]="!selectedRouteId()" (click)="confirm()">
+		{{ confirmLabel }}
+	</button>
+</div>

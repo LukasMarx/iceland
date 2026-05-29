@@ -1,0 +1,7 @@
+vitest.config.*.timestamp*
+.angular
+.nx
+dist
+
+node_modules
+tmp

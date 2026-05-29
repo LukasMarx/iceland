@@ -1,0 +1,40 @@
+<div class="wizard-body">
+	<h1>Where do you start?</h1>
+	<p class="wizard-subtitle">Your starting point anchors the distance ring and first road segment.</p>
+
+	<button class="wizard-location-btn" (click)="selectCurrentLocation()">
+		<span class="wizard-location-icon">✦</span> Use current location
+	</button>
+
+	<div class="wizard-search-row">
+		<span class="wizard-search-icon">⌕</span>
+		<input class="wizard-search" type="text" placeholder="Search cities, towns, hotels…" readonly />
+	</div>
+
+	<p class="wizard-section-label">SUGGESTED BASES</p>
+
+	<div class="wizard-list">
+		@for (base of service.bases; track base.id) {
+			<button
+				class="wizard-list-item"
+				[class.selected]="service.base()?.id === base.id"
+				(click)="selectBase(base)"
+			>
+				<span class="wizard-item-icon" [class.hotel]="base.type === 'hotel'">
+					{{ base.type === 'hotel' ? '⊞' : '⌂' }}
+				</span>
+				<div class="wizard-item-text">
+					<strong>{{ base.name }}</strong>
+					<span>{{ base.region }}</span>
+				</div>
+				@if (service.base()?.id === base.id) {
+					<span class="wizard-check">✓</span>
+				}
+			</button>
+		}
+	</div>
+</div>
+
+<div class="wizard-footer">
+	<button libButton="primary" [disabled]="!service.base()" (click)="continue()">Continue →</button>
+</div>

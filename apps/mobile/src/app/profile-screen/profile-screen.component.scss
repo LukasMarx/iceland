@@ -1,0 +1,97 @@
+.profile-head {
+	display: flex;
+	align-items: center;
+	gap: 18px;
+}
+
+.profile-head > span {
+	display: grid;
+	place-items: center;
+	width: 80px;
+	height: 80px;
+	border-radius: 50%;
+	background: #101114;
+	color: white;
+	font-size: 27px;
+	font-weight: 900;
+}
+
+.profile-head p {
+	color: var(--muted);
+	font-size: 16px;
+	line-height: 1.35;
+}
+
+.premium {
+	margin-top: 24px;
+	padding: 20px;
+	border-radius: 20px;
+	background: #101114;
+	color: white;
+}
+
+.premium h2 {
+	margin-top: 12px;
+	font-size: 25px;
+}
+
+.premium p {
+	color: rgba(255, 255, 255, 0.66);
+}
+
+.premium button {
+	margin-top: 18px;
+	padding: 14px 18px;
+	border-radius: 12px;
+	background: var(--paper);
+	font-weight: 900;
+}
+
+.settings {
+	margin-top: 24px;
+	overflow: hidden;
+	border: 1px solid var(--line);
+	border-radius: 16px;
+	background: var(--card);
+}
+
+.settings h3 {
+	margin: 18px 16px 8px;
+	color: var(--muted);
+	font-family: Consolas, monospace;
+	font-size: 14px;
+	font-weight: 400;
+	text-transform: uppercase;
+}
+
+.settings button {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	width: 100%;
+	min-height: 58px;
+	padding: 0 16px;
+	border-top: 1px solid #e6e3dd;
+	background: white;
+	text-align: left;
+	font-weight: 800;
+}
+
+.settings span {
+	color: var(--muted);
+	font-size: 16px;
+	line-height: 1.35;
+}
+
+.toggle {
+	width: 46px;
+	height: 28px;
+	border-radius: 999px;
+	background: #c7c3ba;
+	box-shadow: inset 20px 0 0 white;
+}
+
+.toggle.on {
+	background: var(--green);
+	box-shadow: inset -20px 0 0 white;
+}

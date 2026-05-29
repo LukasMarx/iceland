@@ -1,0 +1,79 @@
+<div class="wizard-map-view route-stop-picker">
+  <div class="wizard-map">
+    <lib-map
+      [markers]="wizardMarkers()"
+      [routes]="routeLines()"
+      [autoFit]="true"
+    ></lib-map>
+  </div>
+
+  <div class="wizard-bottom-sheet stops-sheet" [class.expanded]="manualMode()">
+    <button class="wizard-sheet-handle-row" (click)="manualMode.set(!manualMode())">
+      <span class="wizard-sheet-handle"></span>
+      <span class="wizard-sheet-peek-label">{{ selectedStops().length || recommendedStopIds().length }} Stopps bis {{ destinationName }}</span>
+    </button>
+
+    <div class="stops-summary">
+      <div>
+        <span>Direkt</span>
+        <strong>{{ minutesToDrive(directDriveMinutes()) }}</strong>
+      </div>
+      <div>
+        <span>Mit Stopps</span>
+        <strong>{{ minutesToDrive(totalTripMinutes()) }}</strong>
+      </div>
+      <div>
+        <span>Status</span>
+        <strong>{{ statusIcon(highestStatus()) }} {{ statusLabel(highestStatus()) }}</strong>
+      </div>
+    </div>
+
+    @if (!manualMode()) {
+      <div class="wizard-recommendation">
+        <p class="wizard-section-label">EMPFEHLUNG</p>
+        <h2>Gute Stopps entlang deiner Strecke</h2>
+        <p>Sortiert nach Fahrzeit, Sicherheitsstatus und sinnvoller Aufenthaltsdauer.</p>
+        <div class="route-preview-stops">
+          @for (spot of recommendedStops(); track spot.id) {
+            <button class="route-preview-stop" [style.background]="attractionImage(spot)" (click)="chooseManually()">
+              <span>{{ statusIcon(spot.status.status) }} {{ statusLabel(spot.status.status) }}</span>
+              <strong>{{ spot.name }}</strong>
+            </button>
+          }
+        </div>
+      </div>
+
+      <div class="wizard-sheet-actions">
+        <button libButton="primary" (click)="useRecommended()">Empfohlene Route übernehmen</button>
+        <button libButton="secondary" (click)="chooseManually()">Stopps selbst auswählen</button>
+        <button libButton="text" (click)="driveDirectly()">Direkt zum Ziel fahren</button>
+      </div>
+    } @else {
+      <div class="manual-stop-head">
+        <div>
+          <strong>{{ selectedStops().length }} ausgewählt</strong>
+          <span>{{ minutesToDrive(totalTripMinutes()) }} gesamt</span>
+        </div>
+        <span lib-chip [variant]="statusVariant(highestStatus())" size="sm">{{ statusIcon(highestStatus()) }} {{ statusLabel(highestStatus()) }}</span>
+      </div>
+
+      <div class="wizard-sheet-list stop-list">
+        @for (spot of candidateStops(); track spot.id) {
+          <button class="wizard-list-item stop-item" [class.selected]="isSelected(spot)" (click)="toggleStop(spot)">
+            <span class="stop-photo-thumb" role="img" [attr.aria-label]="spot.name + ' Foto'" [style.background]="attractionImage(spot)"></span>
+            <div class="wizard-item-text">
+              <strong>{{ spot.name }}</strong>
+              <span>{{ spot.category }} · +{{ minutesToDrive(extraDriveMinutes(spot)) }} · {{ spot.stayMinutes }} min</span>
+              <em>{{ statusLabel(spot.status.status) }} · {{ spot.status.reasons[0] }}</em>
+            </div>
+            <span class="wizard-check">{{ isSelected(spot) ? '✓' : '+' }}</span>
+          </button>
+        }
+      </div>
+
+      <div class="wizard-sheet-footer">
+        <button libButton="primary" (click)="continue()">Routenentwurf ansehen</button>
+      </div>
+    }
+  </div>
+</div>

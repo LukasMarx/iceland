@@ -1,0 +1,19 @@
+<div class="rd-stop-photo" [ngClass]="'rd-photo-' + spot.status.status">
+	<span lib-chip [variant]="variant" size="sm"><svg lucideCheck [size]="12" /> {{ spot.status.label }}</span>
+	<span class="rd-category-badge mono">[ {{ spot.category.toUpperCase() }} ]</span>
+</div>
+<div class="rd-stop-body">
+	@if (removable) {
+		<button class="rd-remove" (click)="remove.emit()"><svg lucideX [size]="18" /></button>
+	}
+	<h3 class="rd-spot-name">{{ spot.name }}</h3>
+	<p class="rd-spot-type">{{ spot.category }}</p>
+	<div class="rd-chips">
+		<span lib-chip variant="default"><svg lucideArrowRight [size]="14" /> {{ minutesToDrive(driveFromPrevMinutes) }}</span>
+		<span lib-chip variant="default"><svg lucideClock [size]="14" /> ~{{ spot.stayMinutes }}m stay</span>
+		<span lib-chip variant="default">{{ spot.status.roadStatus }}</span>
+	</div>
+	@if (spot.status.reasons[0]) {
+		<p class="rd-note" [class.rd-note-amber]="spot.status.status === 'yellow'">{{ spot.status.reasons[0] }}</p>
+	}
+</div>

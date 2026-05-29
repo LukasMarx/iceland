@@ -1,0 +1,59 @@
+<div class="wizard-body route-draft-body">
+  <p class="wizard-section-label">ROUTENENTWURF</p>
+  <h1>{{ routeTitle }}</h1>
+  <p class="wizard-subtitle">Prüfe die Etappe, bevor daraus deine aktive Tagesroute wird.</p>
+
+  <lib-stats-dark class="draft-stats">
+    <div><span>Gesamt</span><strong>{{ minutesToDrive(totalTripMinutes()) }}</strong></div>
+    <div><span>Fahrt</span><strong>{{ minutesToDrive(totalDriveMinutes()) }}</strong></div>
+    <div><span>Stopps</span><strong>{{ selectedStops().length }}</strong></div>
+  </lib-stats-dark>
+
+  <div class="draft-status-row">
+    <span lib-chip [variant]="statusVariant(highestStatus())" size="sm">{{ statusIcon(highestStatus()) }} {{ statusLabel(highestStatus()) }}</span>
+    <span>Geprüft vor {{ app.explore().dataAgeMinutes }} min</span>
+  </div>
+
+  <ol class="draft-timeline">
+    <li class="start">
+      <span class="draft-node">A</span>
+      <div>
+        <strong>{{ service.base()?.name }}</strong>
+        <p>Startpunkt</p>
+      </div>
+    </li>
+
+    @for (spot of selectedStops(); track spot.id) {
+      <li [class.warning]="spot.status.status !== 'green'">
+        <span class="draft-node">{{ statusIcon(spot.status.status) }}</span>
+        <div>
+          <strong>{{ spot.name }}</strong>
+          <p>{{ minutesToDrive(extraDriveMinutes(spot)) }} Fahrt · {{ spot.stayMinutes }} min Aufenthalt</p>
+          @if (spot.status.status !== 'green') {
+            <em>{{ spot.status.reasons[0] }}</em>
+          }
+        </div>
+      </li>
+    }
+
+    <li class="destination">
+      <span class="draft-node">B</span>
+      <div>
+        <strong>{{ destinationName }}</strong>
+        <p>Ziel für diese Etappe</p>
+      </div>
+    </li>
+  </ol>
+</div>
+
+<div class="wizard-footer draft-footer">
+  <button libButton="primary" (click)="startToday()">{{ service.flow() === 'edit' ? 'Änderungen übernehmen' : 'Heute starten' }}</button>
+  @if (service.flow() === 'edit') {
+    <button libButton="secondary" (click)="editStops()">Stopps weiter bearbeiten</button>
+  } @else {
+    <div class="draft-secondary-actions">
+      <button libButton="secondary" (click)="saveToTrip()">Zur Reise speichern</button>
+      <button libButton="secondary" [libButtonBlock]="false" (click)="editStops()">Bearbeiten</button>
+    </div>
+  }
+</div>

@@ -1,0 +1,13 @@
+<section class="wizard-overlay screen">
+	<header class="wizard-header">
+		<button class="wizard-back" (click)="back()">‹</button>
+		<div class="wizard-steps">
+			@for (dot of service.stepDots(); track dot) {
+				<span class="wizard-step-dot" [class.active]="dot === service.step()"></span>
+			}
+		</div>
+		<span class="wizard-step-label">Step {{ service.step() }} of {{ service.totalSteps }}</span>
+	</header>
+
+	<router-outlet />
+</section>

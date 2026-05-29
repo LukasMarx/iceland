@@ -1,0 +1,69 @@
+<section class="screen route-detail-view">
+	<div class="rd-back">
+		<button class="rd-back-btn" (click)="app.closeRouteDetail()"><svg lucideChevronLeft [size]="18" /> Routes</button>
+	</div>
+
+	@if (app.selectedRoute(); as route) {
+		<div class="rd-title-row">
+			<h1>{{ route.title }}</h1>
+			<span lib-chip [variant]="app.statusVariant(route.highestStatus)" size="sm"><svg lucideCheck [size]="12" /> {{ app.routeStatusSummary(route) }}</span>
+		</div>
+		<p class="rd-from mono">From {{ app.explore().hub.name }} · Thu 14 May</p>
+
+		<lib-stats-dark>
+			<div><span>DISTANCE</span><strong>{{ route.distanceKm }} km</strong></div>
+			<div><span>DRIVE</span><strong>{{ app.minutesToDrive(route.driveMinutes) }}</strong></div>
+			<div><span>TOTAL</span><strong>{{ app.minutesToDrive(app.routeDetailTotalMinutes()) }}</strong></div>
+			<div><span>STOPS</span><strong>{{ route.stops }}</strong></div>
+		</lib-stats-dark>
+
+		<div class="rd-map">
+			<lib-map
+				[markers]="routeMarkers()"
+				[routes]="routeLines()"
+				[center]="routeCenter()"
+				[autoFit]="true"
+			></lib-map>
+		</div>
+
+		<p class="mono rd-section-label">STOP BY STOP</p>
+
+		<div class="rd-stop-row">
+			<span class="rd-node">A</span>
+			<div class="rd-stop-meta">
+				<strong>{{ app.explore().hub.name }}</strong>
+				<p>Hub · your base</p>
+			</div>
+		</div>
+
+		@for (entry of app.selectedRouteStops(); track entry.spot.id) {
+			<div class="rd-connector">
+				<span><svg lucideClock [size]="14" /> {{ app.minutesToDrive(entry.driveFromPrevMinutes) }} drive</span>
+				<span>{{ entry.distanceKm }} km</span>
+			</div>
+
+			<lib-route-stop-card
+				[spot]="entry.spot"
+				[driveFromPrevMinutes]="entry.driveFromPrevMinutes"
+				[distanceKm]="entry.distanceKm"
+				[variant]="app.statusVariant(entry.spot.status.status)"
+				[removable]="false"
+				(remove)="app.removeSpotFromSelectedRoute(entry.spot.id)"
+			></lib-route-stop-card>
+		}
+
+		<div class="rd-stop-row rd-return-row">
+			<span class="rd-node">B</span>
+			<div class="rd-stop-meta">
+				<strong>{{ app.explore().hub.name }}</strong>
+			</div>
+		</div>
+
+		<div class="rd-bottom-actions">
+			<button class="primary" libButton="primary" (click)="app.startRoute(route)"><svg lucideArrowRight [size]="18" /> Start route</button>
+			<button class="rd-tune-btn" (click)="app.editRoute(route)"><svg lucideSlidersHorizontal [size]="18" /></button>
+		</div>
+	} @else {
+		<p class="mono">No route selected.</p>
+	}
+</section>

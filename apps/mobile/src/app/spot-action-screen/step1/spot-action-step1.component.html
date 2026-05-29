@@ -1,0 +1,42 @@
+<div class="wizard-body">
+	<h1>What do you want to do?</h1>
+	<p class="wizard-subtitle">Choose how you want to plan your visit to <strong>{{ service.targetSpot()?.name }}</strong>.</p>
+
+	<div class="wizard-trip-cards">
+		<button
+			class="wizard-trip-card"
+			[class.selected]="service.action() === 'direct-route'"
+			(click)="selectAction('direct-route')"
+		>
+			<div class="wizard-trip-card-head">
+				<div>
+					<span class="wizard-trip-kicker">DIRECT ROUTE</span>
+					<h2>Create a route there</h2>
+					<p>Builds a new day trip straight to this spot and back.</p>
+				</div>
+				<span class="wizard-trip-icon">→</span>
+			</div>
+		</button>
+
+		<button
+			class="wizard-trip-card"
+			[class.selected]="service.action() === 'add-to-route'"
+			(click)="selectAction('add-to-route')"
+		>
+			<div class="wizard-trip-card-head">
+				<div>
+					<span class="wizard-trip-kicker">ADD TO ROUTE</span>
+					<h2>Add to an existing route</h2>
+					<p>Inserts this stop into one of your planned routes.</p>
+				</div>
+				<span class="wizard-trip-icon">＋</span>
+			</div>
+		</button>
+	</div>
+</div>
+
+<div class="wizard-footer">
+	<button libButton="primary" [disabled]="!service.action()" (click)="continue()">
+		{{ continueLabel }}
+	</button>
+</div>

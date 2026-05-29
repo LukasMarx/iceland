@@ -1,0 +1,58 @@
+<div class="wizard-map-view">
+	<!-- Map -->
+	<div class="wizard-map">
+		<lib-map
+			[markers]="wizardMarkers()"
+			[autoFit]="true"
+			(markerClick)="onMarkerClick($event)"
+		></lib-map>
+	</div>
+
+	<!-- Bottom sheet -->
+	<div class="wizard-bottom-sheet" [class.expanded]="service.sheetExpanded()">
+		<button
+			class="wizard-sheet-handle-row"
+			(click)="service.sheetExpanded.set(!service.sheetExpanded())"
+		>
+			<span class="wizard-sheet-handle"></span>
+			<span class="wizard-sheet-peek-label">
+				@if (service.endHotel()) {
+					{{ service.endHotel()?.name }} · {{ service.endHotel()?.distanceKm }} km
+				} @else {
+					{{ service.hotels.length }} hotels in this region
+				}
+			</span>
+		</button>
+
+		<div class="wizard-sheet-list">
+			@for (hotel of service.hotels; track hotel.id) {
+				<button
+					class="wizard-list-item hotel-item"
+					[class.selected]="service.endHotel()?.id === hotel.id"
+					(click)="selectEndHotel(hotel)"
+				>
+					<div class="hotel-photo-thumb"></div>
+					<div class="wizard-item-text">
+						<strong>{{ hotel.name }}</strong>
+						<span>{{ hotel.region }}</span>
+						<div class="hotel-meta">
+							@for (dot of [1, 2, 3, 4]; track dot) {
+								<span class="hotel-dot" [class.filled]="dot <= hotel.stars">●</span>
+							}
+							<em>{{ hotel.distanceKm }} km from start</em>
+						</div>
+					</div>
+					@if (service.endHotel()?.id === hotel.id) {
+						<span class="wizard-check">✓</span>
+					}
+				</button>
+			}
+		</div>
+
+		@if (service.endHotel()) {
+			<div class="wizard-sheet-footer">
+				<button libButton="primary" (click)="continue()">Plan stops along the route →</button>
+			</div>
+		}
+	</div>
+</div>
