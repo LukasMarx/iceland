@@ -5,3 +5,7 @@ dist
 
 node_modules
 tmp
+prisma/*.db
+prisma/*.db-journal
+prisma/*.db-shm
+prisma/*.db-wal

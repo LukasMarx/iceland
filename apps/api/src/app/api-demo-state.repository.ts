@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { RouteStop, TripSummary } from '@islandhub/domain';
+import type { DemoState } from '@prisma/client';
+import { PrismaService } from './prisma.service';
 
 export interface ApiDemoState {
   savedSpotIds: string[];
@@ -13,15 +15,70 @@ export interface ApiDemoState {
 
 @Injectable()
 export class ApiDemoStateRepository {
-  private state = createInitialState();
+  private readonly stateId = 'seed';
+  private schemaReady?: Promise<void>;
 
-  snapshot(): ApiDemoState {
-    return cloneState(this.state);
+  constructor(private readonly prisma: PrismaService) {}
+
+  async snapshot(): Promise<ApiDemoState> {
+    await this.ensureSchema();
+
+    const record = await this.prisma.demoState.findUnique({
+      where: { id: this.stateId },
+    });
+
+    if (!record) {
+      return this.reset();
+    }
+
+    return hydrateState(record);
   }
 
-  update(mutator: (state: ApiDemoState) => ApiDemoState): ApiDemoState {
-    this.state = cloneState(mutator(this.snapshot()));
-    return this.snapshot();
+  async update(mutator: (state: ApiDemoState) => ApiDemoState): Promise<ApiDemoState> {
+    const nextState = cloneState(mutator(await this.snapshot()));
+    return this.persist(nextState);
+  }
+
+  async reset(): Promise<ApiDemoState> {
+    await this.ensureSchema();
+    return this.persist(createInitialState());
+  }
+
+  private async persist(state: ApiDemoState): Promise<ApiDemoState> {
+    await this.ensureSchema();
+
+    const payload = serializeState(state);
+    const saved = await this.prisma.demoState.upsert({
+      where: { id: this.stateId },
+      create: {
+        id: this.stateId,
+        ...payload,
+      },
+      update: payload,
+    });
+
+    return hydrateState(saved);
+  }
+
+  private async ensureSchema(): Promise<void> {
+    if (!this.schemaReady) {
+      this.schemaReady = this.prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "DemoState" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "savedSpotIdsJson" TEXT NOT NULL,
+          "todayTitle" TEXT NOT NULL,
+          "todayStopProgress" TEXT NOT NULL,
+          "todayDriveMinutes" INTEGER NOT NULL,
+          "todayUpdate" TEXT NOT NULL,
+          "routeStopsJson" TEXT NOT NULL,
+          "tripJson" TEXT NOT NULL,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      `).then(() => undefined);
+    }
+
+    await this.schemaReady;
   }
 }
 
@@ -76,4 +133,28 @@ function cloneState(state: ApiDemoState): ApiDemoState {
       days: state.trip.days.map((day) => ({ ...day })),
     },
   };
+}
+
+function serializeState(state: ApiDemoState) {
+  return {
+    savedSpotIdsJson: JSON.stringify(state.savedSpotIds),
+    todayTitle: state.todayTitle,
+    todayStopProgress: state.todayStopProgress,
+    todayDriveMinutes: state.todayDriveMinutes,
+    todayUpdate: state.todayUpdate,
+    routeStopsJson: JSON.stringify(state.routeStops),
+    tripJson: JSON.stringify(state.trip),
+  };
+}
+
+function hydrateState(record: DemoState): ApiDemoState {
+  return cloneState({
+    savedSpotIds: JSON.parse(record.savedSpotIdsJson) as string[],
+    todayTitle: record.todayTitle,
+    todayStopProgress: record.todayStopProgress,
+    todayDriveMinutes: record.todayDriveMinutes,
+    todayUpdate: record.todayUpdate,
+    routeStops: JSON.parse(record.routeStopsJson) as RouteStop[],
+    trip: JSON.parse(record.tripJson) as TripSummary,
+  });
 }

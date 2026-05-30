@@ -1,0 +1,1183 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis]
+}
+
+enum Locale {
+  en
+  de
+  is
+}
+
+enum UnitSystem {
+  metric
+  imperial
+}
+
+enum TemperatureUnit {
+  C
+  F
+}
+
+enum Currency {
+  EUR
+  ISK
+  USD
+  GBP
+}
+
+enum PlanningPhase {
+  ideas
+  fixed_hub
+  roadtrip
+}
+
+enum VehicleProfile {
+  car_2wd
+  car_4wd
+  unknown
+}
+
+enum SafetyLevel {
+  green
+  yellow
+  red
+  unknown
+}
+
+enum RouteDirection {
+  ONE_WAY @map("ONE_WAY")
+  LOOP
+}
+
+enum PlaceType {
+  city
+  hotel
+  home
+  airport
+  hub
+  custom
+}
+
+enum PlaceSource {
+  database
+  osm
+  user_location
+  seed
+  affiliate
+}
+
+enum TripMemberRole {
+  owner
+  editor
+  viewer
+}
+
+enum TripDayStatus {
+  empty
+  draft
+  planned
+  active
+  done
+}
+
+enum RouteLifecycle {
+  draft
+  planned
+  active_today
+  done
+  archived
+}
+
+enum RouteSource {
+  wizard
+  spot_action
+  manual
+  suggestion
+  draft_day
+}
+
+enum RouteStopState {
+  pending
+  active
+  done
+  skipped
+}
+
+enum MediaType {
+  image
+  video
+}
+
+enum SourceType {
+  road
+  weather
+  safetravel
+  operator
+  manual
+  unknown
+}
+
+enum StatusEntityType {
+  spot
+  route
+  road_segment
+}
+
+enum ReportStatus {
+  pending
+  accepted
+  rejected
+  archived
+}
+
+enum ReportType {
+  road_issue
+  weather_issue
+  closure
+  crowding
+  media_update
+  spot_info
+  other
+}
+
+enum OfflineCacheMode {
+  map_area
+  today_route
+  trip_core
+}
+
+enum OfflineCacheJobState {
+  queued
+  running
+  completed
+  failed
+}
+
+enum EntitlementSource {
+  free
+  purchase
+  admin
+  trial
+  trip_owner
+}
+
+enum PurchaseProvider {
+  apple
+  google
+  stripe
+  admin
+}
+
+enum SubscriptionPlan {
+  free
+  premium
+  trial
+}
+
+enum NotificationChannel {
+  push
+  email
+  in_app
+}
+
+enum AuditAction {
+  create
+  update
+  delete
+  calculate
+  override
+  unsafe_confirm
+  ingest
+  login
+}
+
+enum TripPace {
+  slow
+  moderate
+  fast
+}
+
+enum BookingState {
+  unknown
+  available
+  on_request
+  sold_out
+}
+
+model User {
+  id           String           @id @default(uuid()) @db.Uuid
+  email        String?          @unique
+  displayName  String
+  initials     String
+  joinedAt     DateTime         @default(now())
+  subscription SubscriptionPlan @default(free)
+  deletedAt    DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  authIdentities    AuthIdentity[]
+  preferences       UserPreference?
+  ownedTrips        Trip[]             @relation("OwnedTrips")
+  tripMemberships   TripMember[]       @relation("TripMemberUser")
+  communityReports  CommunityReport[]  @relation("CommunityReportUser")
+  pushTokens        PushToken[]
+  entitlements      Entitlement[]
+  purchases         Purchase[]
+  affiliateClicks   AffiliateClick[]
+  offlineCacheJobs  OfflineCacheJob[]
+  auditEvents       AuditEvent[]
+  idempotencyKeys   IdempotencyKey[]
+  emergencyContacts EmergencyContact[]
+  sentInvites       TripMember[]       @relation("TripMemberInviter")
+  reviewedReports   CommunityReport[]  @relation("CommunityReportReviewer")
+
+  @@index([subscription])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model AuthIdentity {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @db.Uuid
+  provider       String
+  providerUserId String
+  email          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@unique([userId, provider])
+  @@index([email])
+  @@map("auth_identities")
+}
+
+model UserPreference {
+  userId                     String          @id @db.Uuid
+  locale                     Locale          @default(en)
+  units                      UnitSystem      @default(metric)
+  temperatureUnit            TemperatureUnit @default(C)
+  currency                   Currency        @default(EUR)
+  pushAlertsTomorrowRoute    Boolean         @default(true)
+  notifyStatusWorsensEnRoute Boolean         @default(true)
+  createdAt                  DateTime        @default(now())
+  updatedAt                  DateTime        @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
+}
+
+model EmergencyContact {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  name      String
+  phone     String?
+  email     String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, sortOrder])
+  @@map("emergency_contacts")
+}
+
+model Trip {
+  id            String         @id @default(uuid()) @db.Uuid
+  ownerId       String         @db.Uuid
+  title         String
+  planningPhase PlanningPhase  @default(fixed_hub)
+  startsOn      DateTime       @db.Date
+  endsOn        DateTime       @db.Date
+  timezone      String         @default("Atlantic/Reykjavik")
+  vehicle       VehicleProfile @default(unknown)
+  pace          TripPace?
+  activeHubId   String?        @db.Uuid
+  /// @deprecated Redundant with archivedAt — migrate queries to `archivedAt IS NULL` and remove this field.
+  isActive      Boolean        @default(true)
+  version       Int            @default(1)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  archivedAt    DateTime?
+
+  owner            User                   @relation("OwnedTrips", fields: [ownerId], references: [id], onDelete: Restrict)
+  activeHub        Hub?                   @relation("TripActiveHub", fields: [activeHubId], references: [id], onDelete: SetNull)
+  members          TripMember[]
+  hubs             Hub[]                  @relation("TripHubs")
+  days             TripDay[]
+  routes           Route[]
+  savedSpots       SavedSpot[]
+  routeSuggestions RouteSuggestionCache[]
+  spotStatus       SpotStatusSnapshot[]
+  routeStatus      RouteStatusSnapshot[]
+  offlineCacheJobs OfflineCacheJob[]
+  statusAudits     StatusAudit[]
+  affiliateClicks  AffiliateClick[]
+
+  @@index([ownerId, isActive])
+  @@index([startsOn, endsOn])
+  @@map("trips")
+}
+
+model TripMember {
+  id         String         @id @default(uuid()) @db.Uuid
+  tripId     String         @db.Uuid
+  userId     String         @db.Uuid
+  role       TripMemberRole @default(viewer)
+  invitedBy  String?        @db.Uuid
+  acceptedAt DateTime?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  trip    Trip  @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user    User  @relation("TripMemberUser", fields: [userId], references: [id], onDelete: Cascade)
+  inviter User? @relation("TripMemberInviter", fields: [invitedBy], references: [id], onDelete: SetNull)
+
+  @@unique([tripId, userId])
+  @@index([userId, role])
+  @@map("trip_members")
+}
+
+model TripDay {
+  id        String        @id @default(uuid()) @db.Uuid
+  tripId    String        @db.Uuid
+  date      DateTime      @db.Date
+  title     String?
+  status    TripDayStatus @default(empty)
+  notes     String?
+  version   Int           @default(1)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  trip   Trip    @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  routes Route[]
+
+  @@unique([tripId, date])
+  @@index([tripId, status])
+  @@map("trip_days")
+}
+
+model Hub {
+  id        String                                 @id @default(uuid()) @db.Uuid
+  tripId    String                                 @db.Uuid
+  placeId   String?
+  name      String
+  type      PlaceType                              @default(hub)
+  startsOn  DateTime?                              @db.Date
+  endsOn    DateTime?                              @db.Date
+  sortOrder Int                                    @default(0)
+  lat       Float
+  lon       Float
+  /// PostGIS geography point for fast ST_DWithin/ST_Distance queries. Keep in sync with lat/lon in migrations or write paths.
+  location  Unsupported("geography(Point, 4326)")?
+  createdAt DateTime                               @default(now())
+  updatedAt DateTime                               @updatedAt
+
+  trip           Trip                  @relation("TripHubs", fields: [tripId], references: [id], onDelete: Cascade)
+  place          Place?                @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  activeForTrips Trip[]                @relation("TripActiveHub")
+  spotStatus     SpotStatusSnapshot[]
+  routeStatus    RouteStatusSnapshot[]
+  statusAudits   StatusAudit[]
+
+  @@index([tripId, sortOrder])
+  @@index([location], type: Gist)
+  @@map("hubs")
+}
+
+model Place {
+  id          String                                 @id
+  source      PlaceSource                            @default(database)
+  sourceId    String?
+  type        PlaceType
+  name        String
+  region      String?
+  countryCode String                                 @default("IS")
+  lat         Float
+  lon         Float
+  /// PostGIS geography point for nearby place/hotel search.
+  location    Unsupported("geography(Point, 4326)")?
+  metadata    Json?
+  createdAt   DateTime                               @default(now())
+  updatedAt   DateTime                               @updatedAt
+
+  hubs              Hub[]
+  hotelProfile      HotelProfile?
+  media             MediaAsset[]
+  routeStarts       Route[]       @relation("RouteStartPlace")
+  routeDestinations Route[]       @relation("RouteDestinationPlace")
+  routeStops        RouteStop[]
+
+  @@unique([source, sourceId])
+  @@index([type, region])
+  @@index([location], type: Gist)
+  @@map("places")
+}
+
+model HotelProfile {
+  placeId            String   @id
+  stars              Int?
+  bookingState       BookingState @default(unknown)
+  affiliatePartnerId String?      @db.Uuid
+  bookingUrl         String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  place            Place             @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  affiliatePartner AffiliatePartner? @relation(fields: [affiliatePartnerId], references: [id], onDelete: SetNull)
+
+  @@index([bookingState])
+  @@map("hotel_profiles")
+}
+
+model Category {
+  id            String   @id
+  parentId      String?
+  icon          String?
+  defaultLocale Locale   @default(en)
+  sortOrder     Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  parent          Category?             @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children        Category[]            @relation("CategoryTree")
+  translations    CategoryTranslation[]
+  spots           SpotCategory[]
+  affiliateOffers AffiliateOffer[]
+
+  @@index([parentId, sortOrder])
+  @@map("categories")
+}
+
+model CategoryTranslation {
+  id          String   @id @default(uuid()) @db.Uuid
+  categoryId  String
+  locale      Locale
+  label       String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, locale])
+  @@map("category_translations")
+}
+
+model Spot {
+  id              String                                 @id
+  slug            String                                 @unique
+  region          String?
+  defaultLocale   Locale                                 @default(en)
+  visitMinutes    Int                                    @default(30)
+  minVehicle      VehicleProfile                         @default(car_2wd)
+  isFRoad         Boolean                                @default(false)
+  popularityScore Int                                    @default(0)
+  manualRank      Int                                    @default(0)
+  lat             Float
+  lon             Float
+  /// PostGIS geography point used for Explore radius, alternatives, and nearest-neighbor queries.
+  location        Unsupported("geography(Point, 4326)")?
+  isPublished     Boolean                                @default(false)
+  createdAt       DateTime                               @default(now())
+  updatedAt       DateTime                               @updatedAt
+
+  translations     SpotTranslation[]
+  categories       SpotCategory[]
+  media            MediaAsset[]
+  savedByTrips     SavedSpot[]
+  routeStops       RouteStop[]
+  statusSnapshots  SpotStatusSnapshot[]
+  roadSegments     SpotRoadSegment[]
+  communityReports CommunityReport[]
+  affiliateOffers  AffiliateOffer[]
+
+  @@index([isPublished, manualRank])
+  @@index([region])
+  @@index([minVehicle, isFRoad])
+  @@index([location], type: Gist)
+  @@map("spots")
+}
+
+model SpotTranslation {
+  id               String   @id @default(uuid()) @db.Uuid
+  spotId           String
+  locale           Locale
+  name             String
+  shortDescription String?
+  longDescription  String?
+  safetyNotes      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  spot Spot @relation(fields: [spotId], references: [id], onDelete: Cascade)
+
+  @@unique([spotId, locale])
+  @@index([locale, name])
+  @@map("spot_translations")
+}
+
+model SpotCategory {
+  spotId     String
+  categoryId String
+  sortOrder  Int    @default(0)
+
+  spot     Spot     @relation(fields: [spotId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([spotId, categoryId])
+  @@index([categoryId, sortOrder])
+  @@map("spot_categories")
+}
+
+model MediaAsset {
+  id           String    @id @default(uuid()) @db.Uuid
+  type         MediaType
+  url          String
+  thumbnailUrl String?
+  alt          String
+  credit       String?
+  width        Int?
+  height       Int?
+  sortOrder    Int       @default(0)
+  spotId       String?
+  placeId      String?
+  offerId      String?   @db.Uuid
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  spot  Spot?           @relation(fields: [spotId], references: [id], onDelete: Cascade)
+  place Place?          @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  offer AffiliateOffer? @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  @@index([spotId, sortOrder])
+  @@index([placeId, sortOrder])
+  @@index([offerId, sortOrder])
+  @@map("media_assets")
+}
+
+model SavedSpot {
+  id        String   @id @default(uuid()) @db.Uuid
+  tripId    String   @db.Uuid
+  spotId    String
+  sortOrder Int      @default(0)
+  note      String?
+  createdAt DateTime @default(now())
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  spot Spot @relation(fields: [spotId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, spotId])
+  @@index([tripId, sortOrder])
+  @@map("saved_spots")
+}
+
+model Route {
+  id                  String                                 @id @default(uuid()) @db.Uuid
+  tripId              String                                 @db.Uuid
+  tripDayId           String?                                @db.Uuid
+  title               String
+  date                DateTime?                              @db.Date
+  lifecycle           RouteLifecycle                         @default(planned)
+  direction           RouteDirection
+  source              RouteSource                            @default(manual)
+  startPlaceId        String?
+  startName           String
+  startType           PlaceType                              @default(custom)
+  startLat            Float
+  startLon            Float
+  startLocation       Unsupported("geography(Point, 4326)")?
+  destinationPlaceId  String?
+  destinationName     String?
+  destinationType     PlaceType?
+  destinationLat      Float?
+  destinationLon      Float?
+  destinationLocation Unsupported("geography(Point, 4326)")?
+  totalDriveMinutes   Int                                    @default(0)
+  totalTripMinutes    Int                                    @default(0)
+  distanceKm          Float                                  @default(0)
+  highestStatus       SafetyLevel                            @default(unknown)
+  statusReason        String?
+  /// Unique token set when lifecycle = active_today; prevents duplicate active routes per trip. Cleared on archive.
+  activeKey           String?                                @unique
+  version             Int                                    @default(1)
+  createdAt           DateTime                               @default(now())
+  updatedAt           DateTime                               @updatedAt
+  archivedAt          DateTime?
+
+  trip             Trip                  @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  tripDay          TripDay?              @relation(fields: [tripDayId], references: [id], onDelete: SetNull)
+  startPlace       Place?                @relation("RouteStartPlace", fields: [startPlaceId], references: [id], onDelete: SetNull)
+  destinationPlace Place?                @relation("RouteDestinationPlace", fields: [destinationPlaceId], references: [id], onDelete: SetNull)
+  stops            RouteStop[]
+  statusSnapshots  RouteStatusSnapshot[]
+
+  @@index([tripId, lifecycle, date])
+  @@index([tripDayId])
+  @@index([highestStatus])
+  @@index([startLocation], type: Gist)
+  @@index([destinationLocation], type: Gist)
+  @@map("routes")
+}
+
+model RouteStop {
+  id                       String                                 @id @default(uuid()) @db.Uuid
+  routeId                  String                                 @db.Uuid
+  spotId                   String?
+  placeId                  String?
+  position                 Int
+  title                    String
+  lat                      Float
+  lon                      Float
+  location                 Unsupported("geography(Point, 4326)")?
+  state                    RouteStopState                         @default(pending)
+  arriveAt                 DateTime?
+  departAt                 DateTime?
+  completedAt              DateTime?
+  visitMinutes             Int                                    @default(0)
+  driveMinutesFromPrevious Int?
+  distanceKmFromPrevious   Float?
+  /// Reference to the source SpotStatusSnapshot. statusLevel and statusReason are denormalized for join-free reads; keep in sync on snapshot writes.
+  statusSnapshotId         String?                                @db.Uuid
+  statusLevel              SafetyLevel                            @default(unknown)
+  statusReason             String?
+  createdAt                DateTime                               @default(now())
+  updatedAt                DateTime                               @updatedAt
+
+  route          Route               @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  spot           Spot?               @relation(fields: [spotId], references: [id], onDelete: SetNull)
+  place          Place?              @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  statusSnapshot SpotStatusSnapshot? @relation(fields: [statusSnapshotId], references: [id], onDelete: SetNull)
+
+  @@unique([routeId, position])
+  @@index([routeId, state])
+  @@index([spotId])
+  @@index([location], type: Gist)
+  @@map("route_stops")
+}
+
+model RouteSuggestionCache {
+  suggestionId String         @id
+  tripId       String         @db.Uuid
+  date         DateTime       @db.Date
+  vehicle      VehicleProfile
+  payload      Json
+  reason       String
+  expiresAt    DateTime
+  createdAt    DateTime       @default(now())
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([tripId, date, expiresAt])
+  @@map("route_suggestion_cache")
+}
+
+model SpotStatusSnapshot {
+  id            String         @id @default(uuid()) @db.Uuid
+  spotId        String
+  tripId        String?        @db.Uuid
+  hubId         String?        @db.Uuid
+  vehicle       VehicleProfile @default(unknown)
+  targetDate    DateTime?      @db.Date
+  level         SafetyLevel
+  label         String
+  reason        String
+  reasons       Json?
+  roadStatus    Json?
+  weatherStatus Json?
+  vehicleStatus Json?
+  calculatedAt  DateTime       @default(now())
+  validUntil    DateTime?
+  version       Int            @default(1)
+
+  spot         Spot                    @relation(fields: [spotId], references: [id], onDelete: Cascade)
+  trip         Trip?                   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  hub          Hub?                    @relation(fields: [hubId], references: [id], onDelete: SetNull)
+  sourceStamps StatusSourceTimestamp[]
+  routeStops   RouteStop[]
+
+  @@index([spotId, tripId, hubId, vehicle, targetDate, calculatedAt])
+  @@index([level, validUntil])
+  @@map("spot_status_snapshots")
+}
+
+model RouteStatusSnapshot {
+  id           String         @id @default(uuid()) @db.Uuid
+  routeId      String         @db.Uuid
+  tripId       String?        @db.Uuid
+  hubId        String?        @db.Uuid
+  vehicle      VehicleProfile @default(unknown)
+  targetDate   DateTime?      @db.Date
+  level        SafetyLevel
+  label        String
+  reason       String
+  reasons      Json?
+  calculatedAt DateTime       @default(now())
+  validUntil   DateTime?
+  version      Int            @default(1)
+
+  route        Route                   @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  trip         Trip?                   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  hub          Hub?                    @relation(fields: [hubId], references: [id], onDelete: SetNull)
+  sourceStamps StatusSourceTimestamp[]
+
+  @@index([routeId, vehicle, targetDate, calculatedAt])
+  @@index([tripId, level, validUntil])
+  @@map("route_status_snapshots")
+}
+
+model StatusSourceTimestamp {
+  id                    String     @id @default(uuid()) @db.Uuid
+  spotStatusSnapshotId  String?    @db.Uuid
+  routeStatusSnapshotId String?    @db.Uuid
+  source                SourceType
+  label                 String
+  checkedAt             DateTime
+  validUntil            DateTime?
+  url                   String?
+  metadata              Json?
+
+  spotStatusSnapshot  SpotStatusSnapshot?  @relation(fields: [spotStatusSnapshotId], references: [id], onDelete: Cascade)
+  routeStatusSnapshot RouteStatusSnapshot? @relation(fields: [routeStatusSnapshotId], references: [id], onDelete: Cascade)
+
+  @@index([source, checkedAt])
+  @@index([spotStatusSnapshotId])
+  @@index([routeStatusSnapshotId])
+  @@map("status_source_timestamps")
+}
+
+model StatusAudit {
+  id                String           @id @default(uuid()) @db.Uuid
+  entityType        StatusEntityType
+  entityId          String
+  tripId            String?          @db.Uuid
+  hubId             String?          @db.Uuid
+  vehicle           VehicleProfile?
+  evaluatedAt       DateTime?
+  sourceSnapshotIds String[]
+  ruleVersions      String[]
+  resultingStatus   SafetyLevel
+  reasons           Json?
+  calculatedAt      DateTime         @default(now())
+
+  trip Trip? @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  hub  Hub?  @relation(fields: [hubId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, calculatedAt])
+  @@index([tripId, calculatedAt])
+  @@map("status_audits")
+}
+
+model OfficialRoadSegment {
+  id              String                                          @id
+  sourceSegmentId String                                          @unique
+  roadNumber      String?
+  name            String?
+  isFRoad         Boolean                                         @default(false)
+  surfaceType     String?
+  centerLat       Float?
+  centerLon       Float?
+  /// Segment geometry from Vegagerdin WFS. Use raw SQL for ST_Intersects/ST_DWithin corridor queries.
+  geometry        Unsupported("geometry(MultiLineString, 4326)")?
+  createdAt       DateTime                                        @default(now())
+  updatedAt       DateTime                                        @updatedAt
+
+  spotLinks          SpotRoadSegment[]
+  conditionSnapshots OfficialRoadConditionSnapshot[]
+
+  @@index([roadNumber])
+  @@index([isFRoad])
+  @@index([geometry], type: Gist)
+  @@map("official_road_segments")
+}
+
+model SpotRoadSegment {
+  spotId        String
+  roadSegmentId String
+  relevance     Int    @default(100)
+
+  spot        Spot                @relation(fields: [spotId], references: [id], onDelete: Cascade)
+  roadSegment OfficialRoadSegment @relation(fields: [roadSegmentId], references: [id], onDelete: Cascade)
+
+  @@id([spotId, roadSegmentId])
+  @@index([roadSegmentId])
+  @@map("spot_road_segments")
+}
+
+model OfficialRoadConditionSnapshot {
+  id              String    @id @default(uuid()) @db.Uuid
+  roadSegmentId   String
+  sourceSegmentId String
+  surfaceState    String?
+  additionalInfo  String?
+  isClosed        Boolean   @default(false)
+  weightLimit     String?
+  raw             Json?
+  sourceUpdatedAt DateTime
+  ingestedAt      DateTime  @default(now())
+  validUntil      DateTime?
+
+  roadSegment OfficialRoadSegment @relation(fields: [roadSegmentId], references: [id], onDelete: Cascade)
+
+  @@index([roadSegmentId, sourceUpdatedAt])
+  @@index([isClosed, validUntil])
+  @@map("official_road_condition_snapshots")
+}
+
+model OfficialWeatherStation {
+  id         String                                 @id
+  sourceId   String                                 @unique
+  name       String
+  region     String?
+  lat        Float
+  lon        Float
+  location   Unsupported("geography(Point, 4326)")?
+  elevationM Int?
+  createdAt  DateTime                               @default(now())
+  updatedAt  DateTime                               @updatedAt
+
+  snapshots OfficialWeatherSnapshot[]
+
+  @@index([region])
+  @@index([location], type: Gist)
+  @@map("official_weather_stations")
+}
+
+model OfficialWeatherSnapshot {
+  id              String    @id @default(uuid()) @db.Uuid
+  stationId       String
+  observedAt      DateTime
+  forecastFor     DateTime?
+  temperatureC    Float?
+  windSpeedMs     Float?
+  windGustMs      Float?
+  precipitationMm Float?
+  visibilityM     Int?
+  snowOrIce       Boolean?
+  raw             Json?
+  ingestedAt      DateTime  @default(now())
+  validUntil      DateTime?
+
+  station OfficialWeatherStation @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@index([stationId, observedAt])
+  @@index([forecastFor])
+  @@map("official_weather_snapshots")
+}
+
+model RoutingLegCache {
+  id                  String                                     @id @default(uuid()) @db.Uuid
+  cacheKey            String                                     @unique
+  provider            String                                     @default("valhalla")
+  vehicle             VehicleProfile
+  originKind          String
+  originRefId         String?
+  originLat           Float
+  originLon           Float
+  originLocation      Unsupported("geography(Point, 4326)")?
+  destinationKind     String
+  destinationRefId    String?
+  destinationLat      Float
+  destinationLon      Float
+  destinationLocation Unsupported("geography(Point, 4326)")?
+  distanceKm          Float
+  driveMinutes        Int
+  routeGeometry       Unsupported("geometry(LineString, 4326)")?
+  warnings            Json?
+  sourceUpdatedAt     DateTime?
+  validUntil          DateTime
+  createdAt           DateTime                                   @default(now())
+  updatedAt           DateTime                                   @updatedAt
+
+  @@index([vehicle, validUntil])
+  @@index([originRefId, destinationRefId, vehicle])
+  @@index([originLocation], type: Gist)
+  @@index([destinationLocation], type: Gist)
+  @@index([routeGeometry], type: Gist)
+  @@map("routing_leg_cache")
+}
+
+model IsochroneCache {
+  id             String                                       @id @default(uuid()) @db.Uuid
+  cacheKey       String                                       @unique
+  provider       String                                       @default("valhalla")
+  vehicle        VehicleProfile
+  centerLat      Float
+  centerLon      Float
+  centerLocation Unsupported("geography(Point, 4326)")?
+  minutes        Int
+  polygon        Unsupported("geometry(MultiPolygon, 4326)")?
+  validUntil     DateTime
+  createdAt      DateTime                                     @default(now())
+  updatedAt      DateTime                                     @updatedAt
+
+  @@index([vehicle, minutes, validUntil])
+  @@index([centerLocation], type: Gist)
+  @@index([polygon], type: Gist)
+  @@map("isochrone_cache")
+}
+
+model CommunityReport {
+  id         String                                 @id @default(uuid()) @db.Uuid
+  userId     String                                 @db.Uuid
+  spotId     String?
+  type       ReportType
+  status     ReportStatus                           @default(pending)
+  title      String
+  body       String?
+  lat        Float?
+  lon        Float?
+  location   Unsupported("geography(Point, 4326)")?
+  reviewedBy String?                                @db.Uuid
+  reviewedAt DateTime?
+  createdAt  DateTime                               @default(now())
+  updatedAt  DateTime                               @updatedAt
+
+  user     User  @relation("CommunityReportUser", fields: [userId], references: [id], onDelete: Cascade)
+  spot     Spot? @relation(fields: [spotId], references: [id], onDelete: SetNull)
+  reviewer User? @relation("CommunityReportReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([spotId, status])
+  @@index([location], type: Gist)
+  @@map("community_reports")
+}
+
+model FeatureFlag {
+  key          String   @id
+  description  String?
+  enabled      Boolean  @default(false)
+  rolloutGroup String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  entitlements Entitlement[]
+
+  @@index([enabled, rolloutGroup])
+  @@map("feature_flags")
+}
+
+model Entitlement {
+  id         String            @id @default(uuid()) @db.Uuid
+  userId     String            @db.Uuid
+  featureKey String
+  source     EntitlementSource
+  validFrom  DateTime          @default(now())
+  validUntil DateTime?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feature FeatureFlag @relation(fields: [featureKey], references: [key], onDelete: Cascade)
+
+  @@unique([userId, featureKey, source])
+  @@index([featureKey, validUntil])
+  @@map("entitlements")
+}
+
+model Purchase {
+  id                    String           @id @default(uuid()) @db.Uuid
+  userId                String           @db.Uuid
+  provider              PurchaseProvider
+  providerTransactionId String           @unique
+  productKey            String
+  amountCents           Int?
+  currency              Currency?
+  purchasedAt           DateTime
+  validUntil            DateTime?
+  raw                   Json?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purchasedAt])
+  @@map("purchases")
+}
+
+model AffiliatePartner {
+  id         String   @id @default(uuid()) @db.Uuid
+  key        String   @unique
+  name       String
+  websiteUrl String?
+  isActive   Boolean  @default(true)
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  hotelProfiles HotelProfile[]
+  offers        AffiliateOffer[]
+  clicks        AffiliateClick[]
+
+  @@index([isActive])
+  @@map("affiliate_partners")
+}
+
+model AffiliateOffer {
+  id              String    @id @default(uuid()) @db.Uuid
+  partnerId       String    @db.Uuid
+  spotId          String?
+  categoryId      String?
+  title           String
+  description     String?
+  targetUrl       String
+  disclosureLabel String
+  rank            Int       @default(0)
+  validFrom       DateTime?
+  validUntil      DateTime?
+  isActive        Boolean   @default(true)
+  metadata        Json?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  partner  AffiliatePartner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  spot     Spot?            @relation(fields: [spotId], references: [id], onDelete: SetNull)
+  category Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  media    MediaAsset[]
+  clicks   AffiliateClick[]
+
+  @@index([partnerId, isActive])
+  @@index([spotId, rank])
+  @@map("affiliate_offers")
+}
+
+model AffiliateClick {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String?  @db.Uuid
+  partnerId String   @db.Uuid
+  offerId   String?  @db.Uuid
+  tripId    String?  @db.Uuid
+  context   String
+  createdAt DateTime @default(now())
+  metadata  Json?
+
+  user    User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  partner AffiliatePartner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  offer   AffiliateOffer?  @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  trip    Trip?            @relation(fields: [tripId], references: [id], onDelete: SetNull)
+
+  @@index([partnerId, createdAt])
+  @@index([userId, createdAt])
+  @@map("affiliate_clicks")
+}
+
+model PushToken {
+  id         String              @id @default(uuid()) @db.Uuid
+  userId     String              @db.Uuid
+  token      String              @unique
+  platform   String
+  channel    NotificationChannel @default(push)
+  enabled    Boolean             @default(true)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  lastSeenAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, enabled])
+  @@map("push_tokens")
+}
+
+model OfflineCacheJob {
+  id              String               @id @default(uuid()) @db.Uuid
+  userId          String               @db.Uuid
+  tripId          String?              @db.Uuid
+  mode            OfflineCacheMode
+  state           OfflineCacheJobState @default(queued)
+  progressPercent Int                  @default(0)
+  label           String
+  centerLat       Float?
+  centerLon       Float?
+  radiusKm        Float?
+  /// Resource keys bundled in this cache job (e.g. tile-set IDs, route IDs, spot IDs).
+  includes        String[]
+  estimatedBytes  BigInt?
+  errorCode       String?
+  errorMessage    String?
+  completedAt     DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trip Trip? @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([userId, state, createdAt])
+  @@index([tripId, mode])
+  @@map("offline_cache_jobs")
+}
+
+/// WARN: @@unique([userId, scope, key]) does not deduplicate anonymous requests (userId = NULL)
+/// because PostgreSQL treats NULLs as distinct in unique constraints.
+model IdempotencyKey {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String?  @db.Uuid
+  key         String
+  scope       String
+  requestHash String
+  response    Json?
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, scope, key])
+  @@index([expiresAt])
+  @@map("idempotency_keys")
+}
+
+model AuditEvent {
+  id         String      @id @default(uuid()) @db.Uuid
+  userId     String?     @db.Uuid
+  action     AuditAction
+  entityType String
+  entityId   String?
+  requestId  String?
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([userId, createdAt])
+  @@map("audit_events")
+}
+
+model OfficialRawIngest {
+  id          String     @id @default(uuid()) @db.Uuid
+  source      SourceType
+  sourceKey   String
+  fetchedAt   DateTime   @default(now())
+  expiresAt   DateTime
+  payload     Json
+  contentHash String
+
+  @@index([source, sourceKey, fetchedAt])
+  @@index([expiresAt])
+  @@map("official_raw_ingests")
+}
+
+/// Temporary compatibility store for the current seed API while domain persistence is rolled in.
+model DemoState {
+  id                String   @id
+  savedSpotIdsJson  String
+  todayTitle        String
+  todayStopProgress String
+  todayDriveMinutes Int
+  todayUpdate       String
+  routeStopsJson    String
+  tripJson          String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}

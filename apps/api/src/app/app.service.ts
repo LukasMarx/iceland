@@ -106,8 +106,8 @@ export class AppService {
     };
   }
 
-  getToday(): TodayResponse {
-    const state = this.stateRepository.snapshot();
+  async getToday(): Promise<TodayResponse> {
+    const state = await this.stateRepository.snapshot();
 
     return {
       title: state.todayTitle,
@@ -135,9 +135,9 @@ export class AppService {
     };
   }
 
-  addRouteStop(spotId: string, position: 'recommended' | 'end'): RouteMutationResponse {
+  async addRouteStop(spotId: string, position: 'recommended' | 'end'): Promise<RouteMutationResponse> {
     const spot = this.findSpot(spotId);
-    this.stateRepository.update((state) => {
+    await this.stateRepository.update((state) => {
       const routeStops = [...state.routeStops];
       const alreadyInRoute = routeStops.some((stop) => stop.spotId === spot.id);
 
@@ -169,13 +169,11 @@ export class AppService {
     });
 
     return {
-      today: {
-        ...this.getToday(),
-      },
+      today: await this.getToday(),
     };
   }
 
-  createTodayRoute(spotId: string): RouteMutationResponse {
+  async createTodayRoute(spotId: string): Promise<RouteMutationResponse> {
     const spot = this.findSpot(spotId);
     const routeStops: RouteStop[] = [
       { id: 'start', title: this.hub.name, meta: 'start', driveFromPreviousMinutes: 0, stayMinutes: 0, status: 'green', state: 'start' },
@@ -192,7 +190,7 @@ export class AppService {
       },
       { id: 'return', title: this.hub.name, meta: 'return', driveFromPreviousMinutes: spot.driveMinutes, stayMinutes: 0, status: 'green', state: 'return' },
     ];
-    this.stateRepository.update((state) => ({
+    await this.stateRepository.update((state) => ({
       ...state,
       routeStops,
       todayTitle: `${spot.name} out-and-back`,
@@ -202,19 +200,21 @@ export class AppService {
     }));
 
     return {
-      today: this.getToday(),
+      today: await this.getToday(),
     };
   }
 
-  getRouteSuggestions(): RouteSuggestionsResponse {
+  async getRouteSuggestions(): Promise<RouteSuggestionsResponse> {
+    const savedSpots = await this.savedSpots();
+
     return {
-      savedSpots: this.savedSpots(),
-      routes: this.buildRouteSuggestions(),
+      savedSpots,
+      routes: this.buildRouteSuggestions(savedSpots),
     };
   }
 
-  startSuggestedRoute(routeId: string): RouteMutationResponse {
-    const route = this.buildRouteSuggestions().find((candidate) => candidate.id === routeId);
+  async startSuggestedRoute(routeId: string): Promise<RouteMutationResponse> {
+    const route = this.buildRouteSuggestions(await this.savedSpots()).find((candidate) => candidate.id === routeId);
 
     if (!route) {
       throw new NotFoundException(`Route suggestion ${routeId} not found`);
@@ -242,7 +242,7 @@ export class AppService {
       }),
       { id: 'return', title: this.hub.name, meta: route.id === 'wind-light-loop' ? `18' drive` : 'return', driveFromPreviousMinutes: Math.max(18, Math.round(route.driveMinutes / 5)), stayMinutes: 0, status: 'green', state: 'return' },
     ];
-    this.stateRepository.update((state) => ({
+    await this.stateRepository.update((state) => ({
       ...state,
       routeStops,
       todayTitle: route.title,
@@ -251,11 +251,11 @@ export class AppService {
       todayUpdate: route.id === 'wind-light-loop' ? 'Seljalandsfoss wind gusts rising to 24 m/s. Still passable.' : `${route.title} started from saved highlights. Status rechecked against current seed snapshots.`,
     }));
 
-    return { today: this.getToday() };
+    return { today: await this.getToday() };
   }
 
-  markStopDone(stopId: string): RouteMutationResponse {
-    this.stateRepository.update((state) => {
+  async markStopDone(stopId: string): Promise<RouteMutationResponse> {
+    await this.stateRepository.update((state) => {
       const routeStops = state.routeStops.map((stop) => ({ ...stop }));
       const activeIndex = routeStops.findIndex((stop) => stop.id === stopId || (stopId === 'active' && stop.state === 'active'));
 
@@ -281,17 +281,17 @@ export class AppService {
     });
 
     return {
-      today: this.getToday(),
+      today: await this.getToday(),
     };
   }
 
-  getTrip(): TripResponse {
-    return { trip: this.stateRepository.snapshot().trip };
+  async getTrip(): Promise<TripResponse> {
+    return { trip: (await this.stateRepository.snapshot()).trip };
   }
 
-  saveSpot(spotId: string): SaveSpotResponse {
+  async saveSpot(spotId: string): Promise<SaveSpotResponse> {
     const spot = this.findSpot(spotId);
-    const state = this.stateRepository.update((currentState) => ({
+    const state = await this.stateRepository.update((currentState) => ({
       ...currentState,
       savedSpotIds: Array.from(new Set([...currentState.savedSpotIds, spot.id])),
     }));
@@ -303,21 +303,21 @@ export class AppService {
     };
   }
 
-  getSavedSpots(): SavedSpotsResponse {
-    const state = this.stateRepository.snapshot();
+  async getSavedSpots(): Promise<SavedSpotsResponse> {
+    const state = await this.stateRepository.snapshot();
 
     return {
       savedSpotIds: state.savedSpotIds,
-      spots: this.savedSpots(),
+      spots: await this.savedSpots(),
     };
   }
 
-  planSpotForLater(spotId: string): PlanSpotResponse {
+  async planSpotForLater(spotId: string): Promise<PlanSpotResponse> {
     const spot = this.findSpot(spotId);
     const title = `Draft - ${spot.name}`;
     let alreadyPlanned = false;
 
-    const state = this.stateRepository.update((currentState) => {
+    const state = await this.stateRepository.update((currentState) => {
       alreadyPlanned = currentState.trip.days.some((day) => day.title === title);
 
       if (alreadyPlanned) {
@@ -453,9 +453,7 @@ export class AppService {
     });
   }
 
-  private buildRouteSuggestions(): AttractionRouteSummary[] {
-    const savedSpots = this.savedSpots();
-
+  private buildRouteSuggestions(savedSpots: Spot[]): AttractionRouteSummary[] {
     if (savedSpots.length === 0) {
       return [];
     }
@@ -491,8 +489,8 @@ export class AppService {
     };
   }
 
-  private savedSpots(): Spot[] {
-    return this.stateRepository.snapshot().savedSpotIds.map((spotId) => this.findSpot(spotId));
+  private async savedSpots(): Promise<Spot[]> {
+    return (await this.stateRepository.snapshot()).savedSpotIds.map((spotId) => this.findSpot(spotId));
   }
 
   private progressLabel(routeStops: RouteStop[]): string {

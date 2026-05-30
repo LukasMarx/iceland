@@ -1,16 +1,27 @@
-import { Test } from '@nestjs/testing';
+import { Test, TestingModule } from '@nestjs/testing';
 import { ApiDemoStateRepository } from './api-demo-state.repository';
 import { AppService } from './app.service';
+import { PrismaService } from './prisma.service';
+
+process.env.DATABASE_URL = 'file:./prisma/service.test.db';
 
 describe('AppService', () => {
   let service: AppService;
+  let app: TestingModule;
+  let stateRepository: ApiDemoStateRepository;
 
   beforeEach(async () => {
-    const app = await Test.createTestingModule({
-      providers: [AppService, ApiDemoStateRepository],
+    app = await Test.createTestingModule({
+      providers: [AppService, ApiDemoStateRepository, PrismaService],
     }).compile();
 
     service = app.get<AppService>(AppService);
+    stateRepository = app.get<ApiDemoStateRepository>(ApiDemoStateRepository);
+    await stateRepository.reset();
+  });
+
+  afterEach(async () => {
+    await app.close();
   });
 
   describe('getData', () => {
@@ -39,15 +50,15 @@ describe('AppService', () => {
       });
     });
 
-    it('marks active stop done and advances the route', () => {
-      const response = service.markStopDone('seljalandsfoss');
+    it('marks active stop done and advances the route', async () => {
+      const response = await service.markStopDone('seljalandsfoss');
 
       expect(response.today.stopProgress).toContain('/');
       expect(response.today.stops.find((stop) => stop.id === 'bruarfoss')?.state).toEqual('active');
     });
 
-    it('creates an out-and-back route from a spot', () => {
-      const response = service.createTodayRoute('geysir');
+    it('creates an out-and-back route from a spot', async () => {
+      const response = await service.createTodayRoute('geysir');
 
       expect(response.today.title).toEqual('Geysir out-and-back');
       expect(response.today.stopProgress).toEqual('0/1');
@@ -57,17 +68,17 @@ describe('AppService', () => {
   });
 
   describe('spot actions', () => {
-    it('saves spots idempotently', () => {
-      service.saveSpot('geysir');
-      const response = service.saveSpot('geysir');
+    it('saves spots idempotently', async () => {
+      await service.saveSpot('geysir');
+      const response = await service.saveSpot('geysir');
 
       expect(response.savedSpotIds.filter((spotId) => spotId === 'geysir')).toHaveLength(1);
       expect(response.message).toContain('saved');
     });
 
-    it('plans a spot on a draft day once', () => {
-      service.planSpotForLater('bruarfoss');
-      const response = service.planSpotForLater('bruarfoss');
+    it('plans a spot on a draft day once', async () => {
+      await service.planSpotForLater('bruarfoss');
+      const response = await service.planSpotForLater('bruarfoss');
 
       expect(response.trip.days.filter((day) => day.title === 'Draft - Bruarfoss')).toHaveLength(1);
       expect(response.message).toContain('already');
@@ -75,16 +86,16 @@ describe('AppService', () => {
   });
 
   describe('route suggestions', () => {
-    it('builds suggestions from saved spots', () => {
-      const response = service.getRouteSuggestions();
+    it('builds suggestions from saved spots', async () => {
+      const response = await service.getRouteSuggestions();
 
       expect(response.savedSpots.map((spot) => spot.id)).toEqual(['geysir', 'gullfoss', 'thingvellir', 'bruarfoss', 'kerid']);
       expect(response.routes.map((route) => route.id)).toEqual(['wind-light-loop', 'craters-geothermal', 'south-extended']);
       expect(response.routes[0]).toMatchObject({ title: 'Wind-light loop', stops: 4, distanceKm: 168 });
     });
 
-    it('starts a suggested route into today', () => {
-      const response = service.startSuggestedRoute('wind-light-loop');
+    it('starts a suggested route into today', async () => {
+      const response = await service.startSuggestedRoute('wind-light-loop');
 
       expect(response.today.title).toEqual('Wind-light loop');
       expect(response.today.stopProgress).toEqual('2/4');

@@ -8,6 +8,9 @@
     "dev:api": "nx serve api",
     "dev:admin": "nx serve admin --port=4201",
     "build": "nx run-many -t build --projects=mobile,admin,api",
+    "prisma:generate": "prisma generate",
+    "prisma:db:push": "prisma db push",
+    "prisma:studio": "prisma studio",
     "test": "nx run-many -t test --projects=domain,api-contracts,map,i18n,api,mobile",
     "lint": "nx run-many -t lint --projects=mobile,admin,api,domain,api-contracts,map,i18n,ui,mobile-e2e,api-e2e"
   },
@@ -82,8 +85,10 @@
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
+    "@prisma/client": "^6.17.1",
     "axios": "^1.6.0",
     "maplibre-gl": "^5.24.0",
+    "prisma": "^6.17.1",
     "reflect-metadata": "^0.1.13",
     "rxjs": "~7.8.0"
   }
