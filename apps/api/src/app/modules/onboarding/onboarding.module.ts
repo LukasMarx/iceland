@@ -1,0 +1,11 @@
+import { Module } from '@nestjs/common';
+import { OnboardingController } from './onboarding.controller';
+import { OnboardingService } from './onboarding.service';
+import { PrismaService } from '../../prisma.service';
+import { DemoContextService } from '../../common/demo-context.service';
+
+@Module({
+  controllers: [OnboardingController],
+  providers: [OnboardingService, PrismaService, DemoContextService],
+})
+export class OnboardingModule {}
