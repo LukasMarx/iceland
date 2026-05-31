@@ -1,10 +1,20 @@
 import type { Route } from '@angular/router';
-import { setupCompleteGuard, setupPendingGuard } from './setup.guard';
+import { authPendingGuard, setupCompleteGuard, setupPendingGuard } from './setup.guard';
 
 const guarded = [setupCompleteGuard];
 
 export const appRoutes: Route[] = [
-  { path: '', pathMatch: 'full', redirectTo: 'setup' },
+  { path: '', pathMatch: 'full', redirectTo: 'auth' },
+  {
+    path: 'auth',
+    canActivate: [authPendingGuard],
+    loadComponent: () => import('./auth-screen/auth-screen.component').then((component) => component.AuthScreenComponent),
+  },
+  {
+    path: 'register',
+    canActivate: [authPendingGuard],
+    loadComponent: () => import('./register-screen/register-screen.component').then((component) => component.RegisterScreenComponent),
+  },
   {
     path: 'setup',
     canActivate: [setupPendingGuard],
@@ -63,5 +73,5 @@ export const appRoutes: Route[] = [
     canActivate: guarded,
     loadComponent: () => import('./profile-screen/profile-screen.component').then((component) => component.ProfileScreenComponent),
   },
-  { path: '**', redirectTo: 'setup' },
+  { path: '**', redirectTo: 'auth' },
 ];

@@ -1,6 +1,7 @@
-import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { SEED_SPOTS, SEED_CHECKED_AT, SEED_VALID_UNTIL } from './seed-spots';
+import { RequestContextService } from '../modules/auth/request-context.service';
 
 export const DEMO_USER_ID = '00000000-0000-0000-0000-000000000001';
 export const DEMO_TRIP_ID = '00000000-0000-0000-0000-000000000002';
@@ -10,7 +11,10 @@ export const DEMO_HUB_ID = '00000000-0000-0000-0000-000000000003';
 export class DemoContextService implements OnModuleInit {
   private readonly logger = new Logger(DemoContextService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly requestContext: RequestContextService,
+  ) {}
 
   async onModuleInit(): Promise<void> {
     await this.seed().catch((err: Error) => {
@@ -19,14 +23,30 @@ export class DemoContextService implements OnModuleInit {
   }
 
   getUserId(): string {
-    return DEMO_USER_ID;
+    return this.requestContext.getUserId() ?? DEMO_USER_ID;
   }
 
   getTripId(): string {
+    const tripId = this.requestContext.getTripId();
+    if (tripId) {
+      return tripId;
+    }
+    if (this.requestContext.hasAuthenticatedUser()) {
+      throw new NotFoundException('Active trip not found for authenticated user');
+    }
+
     return DEMO_TRIP_ID;
   }
 
   getHubId(): string {
+    const hubId = this.requestContext.getHubId();
+    if (hubId) {
+      return hubId;
+    }
+    if (this.requestContext.hasAuthenticatedUser()) {
+      throw new NotFoundException('Active hub not found for authenticated user');
+    }
+
     return DEMO_HUB_ID;
   }
 

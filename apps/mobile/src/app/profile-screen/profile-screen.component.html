@@ -1,11 +1,12 @@
 <section class="screen profile-view">
-	@if (app.me(); as me) {
+	@if (auth.isAuthenticated() && app.me(); as me) {
 		<header class="profile-head">
 			<span>{{ me.user.initials }}</span>
 			<div>
 				<h1>{{ me.user.displayName }}</h1>
 				<p>{{ me.user.email }} · joined {{ joinedLabel(me.user.joinedAt) }}</p>
 			</div>
+			<button class="sign-out" type="button" (click)="auth.signOut()">Sign out</button>
 		</header>
 		<article class="premium">
 			<p class="mono">IslandHub · {{ me.subscription.plan }}</p>
@@ -40,10 +41,20 @@
 				Cached today route <span>{{ me.offline.cachedTodayRouteStops ?? 0 }} stops ›</span>
 			</button>
 		</div>
+	} @else if (auth.isGuest()) {
+		<article class="guest-card">
+			<p class="mono">Guest mode</p>
+			<h1>Sign in when you want sync.</h1>
+			<p>Your current trip stays available on this device. Sign in to sync hubs, saved spots and profile settings across devices.</p>
+			<div class="guest-actions">
+				<button class="primary" type="button" (click)="auth.signOut()">Open sign in</button>
+				<button type="button" (click)="app.navigateToTab('explore')">Keep exploring</button>
+			</div>
+		</article>
 	} @else {
 		<div class="settings">
 			<h3>Profile</h3>
-			<button>Loading API profile…</button>
+			<button (click)="auth.signOut()">Sign in to load your profile…</button>
 		</div>
 	}
 </section>

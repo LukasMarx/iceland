@@ -1,0 +1,85 @@
+<section class="auth-screen screen">
+	<header class="auth-topbar">
+		<div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>IslandHub</div>
+		<button class="locale-pill" type="button" (click)="switchLocale()">{{ locale() }} <span>⌄</span></button>
+	</header>
+
+	@if (auth.step() === 'email') {
+		<div class="auth-copy auth-copy-email">
+			<h2>Create your<br />IslandHub account.</h2>
+			<p>Save hubs, routes and spots across devices and pick up where you left off.</p>
+		</div>
+
+		<label class="auth-field" for="register-email">
+			<span class="field-icon" aria-hidden="true"><svg lucideMail [size]="18" /></span>
+			<input
+				#emailInput
+				id="register-email"
+				type="email"
+				inputmode="email"
+				autocomplete="email"
+				placeholder="you@somewhere.is"
+				[value]="auth.email()"
+				(input)="auth.email.set(emailInput.value)"
+			/>
+		</label>
+
+		<button class="primary-cta" libButton="primary" type="button" [disabled]="auth.pending()" (click)="continueWithEmail(emailInput.value)">
+			Continue with email <span>→</span>
+		</button>
+
+		<div class="auth-divider"><span></span><b>OR</b><span></span></div>
+
+		<div class="social-row">
+			<button class="social-button" libButton="secondary" [libButtonBlock]="false" type="button" [disabled]="auth.pending()" (click)="auth.continueWithSocial('apple')">
+				<strong>Apple</strong>
+			</button>
+			<button class="social-button" libButton="secondary" [libButtonBlock]="false" type="button" [disabled]="auth.pending()" (click)="auth.continueWithSocial('google')">
+				<strong>Google</strong>
+			</button>
+		</div>
+
+		<button class="mode-link" libButton="text" type="button" (click)="goToSignIn()">Already have an account? Sign in</button>
+	} @else {
+		<header class="password-head">
+			<button class="back-button" type="button" (click)="auth.backToEmailStep('register')">‹</button>
+			<div class="brand centered"><span class="brand-mark"><i></i><i></i><i></i></span>IslandHub</div>
+		</header>
+
+		<div class="auth-copy auth-copy-password">
+			<h1>Create your password</h1>
+			<p>{{ auth.emailLabel() }}</p>
+		</div>
+
+		<label class="auth-field password-field" for="register-password">
+			<span class="field-icon" aria-hidden="true"><svg lucideKeyRound [size]="18" /></span>
+			<input
+				#passwordInput
+				id="register-password"
+				[autofocus]="true"
+				[type]="showPassword() ? 'text' : 'password'"
+				autocomplete="new-password"
+				placeholder="Create password"
+				[value]="password()"
+				(input)="password.set(passwordInput.value)"
+			/>
+			<button class="inline-action" type="button" (click)="showPassword.set(!showPassword())">{{ showPassword() ? 'HIDE' : 'SHOW' }}</button>
+		</label>
+
+		<button class="primary-cta" libButton="primary" type="button" [disabled]="auth.pending()" (click)="submitPassword()">{{ primaryLabel() }}</button>
+
+		<button class="mode-link" libButton="text" type="button" (click)="goToSignIn()">Already have an account? Sign in</button>
+	}
+
+	@if (auth.error()) {
+		<p class="auth-message error">{{ auth.error() }}</p>
+	}
+
+	@if (auth.info()) {
+		<p class="auth-message info">{{ auth.info() }}</p>
+	}
+
+	<footer class="auth-footer">
+		<p>{{ auth.step() === 'password' ? 'Use at least 8 characters. Your saved hubs, routes and spots will sync once the account is created.' : 'By continuing you accept the Terms · Privacy · Source notice (Veður.is · Vegagerðin)' }}</p>
+	</footer>
+</section>

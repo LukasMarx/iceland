@@ -2,6 +2,7 @@ import { NgClass } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { LibButtonDirective, LibChipComponent, LucideCalendarDays, LucideCheck, LucideCircleUser, LucideCompass, LucideNavigation, LucideRoute, LucideTriangleAlert, LucideX } from '@islandhub/ui';
+import { AuthService } from './auth.service';
 import { AppStateService } from './app-state.service';
 
 @Component({
@@ -13,9 +14,13 @@ import { AppStateService } from './app-state.service';
 })
 export class App {
   private readonly appState = inject(AppStateService);
+  private readonly auth = inject(AuthService);
 
   protected readonly activeTab = this.appState.activeTab;
+  protected readonly authReady = this.auth.ready;
+  protected readonly authRestoring = this.auth.isRestoringSession;
   protected readonly setupDone = this.appState.setupDone;
+  protected readonly authRoute = this.appState.authRoute;
   protected readonly selectedSpot = this.appState.selectedSpot;
   protected readonly filterOpen = this.appState.filterOpen;
   protected readonly routeSheet = this.appState.routeSheet;

@@ -1,8 +1,11 @@
 <section class="screen today-view">
 	<header class="today-head">
-		<lib-screen-intro [kicker]="app.today().dateLabel" [title]="app.today().title"></lib-screen-intro>
+		<lib-screen-intro [kicker]="app.today().dateLabel" [title]="screenTitle()"></lib-screen-intro>
+		@if (hasStops()) {
 		<span lib-chip [outlined]="true"><b class="recheck-dot"></b>Re-checked {{ app.today().recheckedMinutesAgo }} min ago</span>
+		}
 	</header>
+	@if (hasStops()) {
 	<lib-stats-dark class="today-stats">
 		<div><span>Stops</span><strong>{{ app.today().stopProgress }} <small>done</small></strong></div>
 		<div><span>Drive</span><strong>{{ app.minutesToDrive(app.today().driveMinutes) }} <small>net</small></strong></div>
@@ -50,4 +53,15 @@
 		<button class="primary sticky" libButton="primary" (click)="app.openNavigation()"><svg lucideArrowRight [size]="18" /> {{ app.navigationLabel() }}</button>
 		<button class="down-button"><svg lucideChevronsDown [size]="22" /></button>
 	</div>
+	} @else {
+	<lib-illustrated-empty-state
+		class="today-empty-state"
+		testId="today-empty-state"
+		actionTestId="today-empty-primary-cta"
+		variant="today"
+		title="No route active yet"
+		[message]="emptyStateMessage()"
+		[actionLabel]="emptyStateActionLabel()"
+		(action)="handleEmptyStateAction()"></lib-illustrated-empty-state>
+	}
 </section>

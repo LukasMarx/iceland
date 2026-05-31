@@ -2,6 +2,10 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import type {
   AddRouteStopRequest,
+  AuthLoginRequest,
+  AuthRegisterRequest,
+  AuthResponse,
+  SocialAuthRequest,
   AttractionRouteSummary,
   CreateTodayRouteRequest,
   ExploreQuery,
@@ -40,6 +44,18 @@ import { API_BASE_URL } from './api-base-url.token';
 export class IslandhubApiService {
   private readonly http = inject(HttpClient);
   private readonly apiBaseUrl = inject(API_BASE_URL);
+
+  register(request: AuthRegisterRequest): Promise<AuthResponse> {
+    return this.post<unknown>('/auth/register', request).then((response) => this.normalizeAuthResponse(response));
+  }
+
+  login(request: AuthLoginRequest): Promise<AuthResponse> {
+    return this.post<unknown>('/auth/login', request).then((response) => this.normalizeAuthResponse(response));
+  }
+
+  loginWithSocial(request: SocialAuthRequest): Promise<AuthResponse> {
+    return this.post<unknown>('/auth/social', request).then((response) => this.normalizeAuthResponse(response));
+  }
 
   getHealth(): Promise<HealthResponse> {
     return this.get<HealthResponse>('/health');
@@ -391,6 +407,21 @@ export class IslandhubApiService {
         pushAlertsTomorrowRoute: Boolean(safety['pushAlertsTomorrowRoute']),
         notifyStatusWorsensEnRoute: Boolean(safety['notifyStatusWorsensEnRoute']),
         emergencyContactsCount: this.numberValue(safety['emergencyContactsCount'], 0),
+      },
+    };
+  }
+
+  private normalizeAuthResponse(response: unknown): AuthResponse {
+    const raw = this.record(response);
+    const user = this.record(raw['user']);
+
+    return {
+      accessToken: this.stringValue(raw['accessToken']),
+      user: {
+        id: this.stringValue(user['id']),
+        displayName: this.stringValue(user['displayName'], 'IslandHub User'),
+        initials: this.stringValue(user['initials'], 'IH'),
+        email: this.stringValue(user['email']),
       },
     };
   }

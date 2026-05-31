@@ -1,3 +1,11 @@
+.onboarding {
+	padding-bottom: 190px;
+}
+
+.screen {
+	padding: 24px;
+}
+
 .brand {
 	display: flex;
 	gap: 10px;
@@ -12,12 +20,8 @@
 	background: linear-gradient(90deg, #101114 0 4px, transparent 4px 7px, #101114 7px 11px, transparent 11px 14px, #101114 14px 16px);
 }
 
-.hero-copy {
-	margin-top: 68px;
-}
 
 .hero-copy p {
-	margin-top: 18px;
 	max-width: 360px;
 }
 
@@ -143,36 +147,30 @@
 
 .calendar-card {
 	margin-top: 34px;
-	padding: 24px 16px 18px;
+	padding: 0;
 }
-
-.calendar-grid {
-	display: grid;
-	grid-template-columns: repeat(7, 1fr);
-	gap: 4px;
-	margin-top: 24px;
-}
-
-.calendar-grid span {
-	display: grid;
-	place-items: center;
-	min-height: 40px;
-	border-radius: 10px;
-	color: #2f333a;
-	font-size: 17px;
-}
-
-.calendar-grid .range { background: #e8e1d6; }
-.calendar-grid .edge { background: #101114; color: white; font-weight: 900; }
 
 .calendar-card footer {
 	display: grid;
-	grid-template-columns: 1fr 1fr 1fr;
+	grid-template-columns: auto 1fr auto;
+	align-items: end;
 	gap: 10px;
 	margin-top: 18px;
 	padding: 16px;
 	border-radius: 14px;
 	background: #e8e1d6;
+}
+
+.calendar-card footer strong {
+	text-align: center;
+	font-size: 24px;
+	line-height: 1;
+	white-space: nowrap;
+}
+
+.calendar-card footer b {
+	justify-self: end;
+	text-align: right;
 }
 
 .calendar-card footer span,

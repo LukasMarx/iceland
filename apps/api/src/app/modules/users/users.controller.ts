@@ -1,6 +1,8 @@
 import { Body, Controller, Get, HttpCode, Patch } from '@nestjs/common';
+import { RequireAuth } from '../auth/require-auth.decorator';
 import { UsersService } from './users.service';
 
+@RequireAuth()
 @Controller('me')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}

@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { AuthService } from '../auth.service';
 import { AppScreenBase } from '../screen-base';
 
 @Component({
@@ -8,6 +9,8 @@ import { AppScreenBase } from '../screen-base';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProfileScreenComponent extends AppScreenBase {
+  protected readonly auth = inject(AuthService);
+
   protected joinedLabel(joinedAt: string): string {
     if (!joinedAt) return '';
 

@@ -1,5 +1,14 @@
 <main class="phone-shell" [class.is-offline]="offlineMode()">
-	@if (!setupDone()) {
+	@if (!authReady()) {
+		<section class="boot-screen screen">
+			<div class="boot-card">
+				<div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>IslandHub</div>
+				<p class="mono">Restoring session</p>
+				<h1>{{ authRestoring() ? 'Checking your account…' : 'Loading IslandHub…' }}</h1>
+				<p>We are restoring your trip context before the app opens.</p>
+			</div>
+		</section>
+	} @else if (!setupDone() || authRoute()) {
 		<router-outlet></router-outlet>
 	} @else {
 		<section class="app-frame">

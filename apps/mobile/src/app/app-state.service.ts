@@ -1,4 +1,4 @@
-import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
 import type {
@@ -17,6 +17,7 @@ import type {
   StartSuggestedRouteRequest,
   TodayResponse,
   TripResponse,
+  VehicleProfile,
 } from '@islandhub/api-contracts';
 import type { Hub, SafetyStatus, Spot } from '@islandhub/domain';
 import { projectIcelandPoint } from '@islandhub/map';
@@ -25,11 +26,13 @@ import { I18nService } from '@islandhub/i18n';
 import { filter } from 'rxjs';
 import { AddRouteWizardService } from './add-route-screen/add-route-wizard.service';
 import type { WizardBase } from './add-route-screen/add-route-wizard.service';
+import { AuthService } from './auth.service';
 import { IslandhubApiService } from './islandhub-api.service';
 import { RoutePlanningService } from './route-planning.service';
 import { SpotActionWizardService } from './spot-action-screen/spot-action-wizard.service';
 
 type VehicleFilter = 'car_2wd' | 'car_4wd' | 'any';
+type SetupPlanningMode = 'draft' | 'hub' | 'road-trip';
 
 type RouteSheetMode = 'insert' | 'create' | 'alternatives' | 'stale';
 
@@ -79,6 +82,16 @@ const emptyTrip: TripResponse = {
 };
 
 const genericSpotBackground = 'linear-gradient(135deg, #dfe7e2 0%, #8da39a 48%, #52655f 100%)';
+const SETUP_STORAGE_KEY = 'islandhub.mobile.setup';
+
+interface StoredSetupState {
+  done: boolean;
+  step: number;
+  planningMode?: SetupPlanningMode;
+  vehicle?: VehicleProfile;
+  rangeStart?: string;
+  rangeEnd?: string;
+}
 
 @Injectable({ providedIn: 'root' })
 export class AppStateService {
@@ -87,6 +100,7 @@ export class AppStateService {
   readonly spotActionWizard = inject(SpotActionWizardService);
   readonly setupStep = signal(0);
   readonly setupDone = signal(false);
+  readonly authRoute = signal(false);
   readonly selectedSpot = signal<SpotContextResponse | null>(null);
   readonly filterOpen = signal(false);
   readonly routeSheet = signal<{ mode: RouteSheetMode; context: SpotContextResponse; preview?: InsertPreviewResponse } | null>(null);
@@ -104,6 +118,10 @@ export class AppStateService {
   readonly savedSpotIds = signal<string[]>([]);
   readonly exploreLoading = signal(false);
   readonly activeRoute = signal(true);
+  readonly setupPlanningSelection = signal<SetupPlanningMode | null>(null);
+  readonly setupVehicleSelection = signal<VehicleProfile | null>(null);
+  readonly setupSelectedStartDate = signal<string | null>(null);
+  readonly setupSelectedEndDate = signal<string | null>(null);
   readonly statusFilters = signal<SafetyStatus[]>(['green', 'yellow', 'unknown', 'red']);
   readonly categoryFilters = signal<string[]>([]);
   readonly categoryOptions = signal<string[]>([]);
@@ -122,9 +140,12 @@ export class AppStateService {
   private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
   private readonly api = inject(IslandhubApiService);
+  private readonly auth = inject(AuthService);
   private readonly routePlanning = inject(RoutePlanningService);
   private readonly i18n = inject(I18nService);
+  private readonly storage = this.resolveStorage();
   private exploreRequestId = 0;
+  private lastLoadedSessionKey: string | null = null;
 
   readonly visibleSpots = computed(() => {
     const order: Record<SafetyStatus, number> = { green: 0, yellow: 1, unknown: 2, red: 3 };
@@ -180,9 +201,22 @@ export class AppStateService {
 
   readonly savedSpots = computed(() => this.savedSpotIds().map((spotId) => this.findSpot(spotId)).filter((spot): spot is Spot => Boolean(spot)));
 
+  readonly setupSelectedDates = computed(() => {
+    const start = this.setupSelectedStartDate();
+    const end = this.setupSelectedEndDate();
+
+    if (!start || !end) {
+      return [];
+    }
+
+    return this.buildSetupDateRange(start, end);
+  });
+
   readonly setupCalendar = computed(() => {
+    const selectedDates = this.setupSelectedDates();
     const datedDays = this.trip().trip.days.filter((day) => day.date);
-    const firstDate = datedDays[0]?.date;
+    const dates = selectedDates.length > 0 ? selectedDates : datedDays.map((day) => day.date!).filter(Boolean);
+    const firstDate = dates[0];
     const monthLabel = firstDate
       ? new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${firstDate}T00:00:00.000Z`))
       : this.trip().trip.dates;
@@ -190,14 +224,15 @@ export class AppStateService {
 
     return {
       monthLabel,
+      dates,
       weekDays: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
       cells: [
         ...Array.from({ length: leadingEmptyCells }, (_, index) => ({ id: `empty-${index}`, label: '', inRange: false, edge: false })),
-        ...datedDays.map((day, index) => ({
-          id: day.date ?? `${index}`,
-          label: day.day,
+        ...dates.map((date, index) => ({
+          id: date,
+          label: Number(date.slice(-2)),
           inRange: true,
-          edge: index === 0 || index === datedDays.length - 1,
+          edge: index === 0 || index === dates.length - 1,
         })),
       ],
     };
@@ -221,7 +256,30 @@ export class AppStateService {
       .slice(0, 2);
   });
 
+  readonly setupPlanningMode = computed<SetupPlanningMode>(() => this.setupPlanningSelection() ?? this.deriveSetupPlanningMode());
+
+  readonly setupVehicle = computed<VehicleProfile>(() => this.setupVehicleSelection() ?? this.trip().trip.vehicle ?? 'unknown');
+
+  readonly setupDateSummary = computed(() => {
+    const selectedDates = this.setupSelectedDates();
+
+    if (selectedDates.length > 0) {
+      return {
+        nights: Math.max(selectedDates.length - 1, 0),
+        label: this.formatSetupDateRange(selectedDates[0], selectedDates[selectedDates.length - 1]),
+        source: 'Setup',
+      };
+    }
+
+    return {
+      nights: this.explore().hub.nights,
+      label: this.explore().hub.dateRange || this.trip().trip.dates,
+      source: 'API trip',
+    };
+  });
+
   constructor() {
+    this.restoreSetupState();
     this.router.events
       .pipe(
         filter((event): event is NavigationEnd => event instanceof NavigationEnd),
@@ -229,21 +287,46 @@ export class AppStateService {
       )
       .subscribe(() => this.syncRouteState());
     this.syncRouteState();
-    void this.loadApi();
+    effect(() => {
+      if (!this.auth.ready()) {
+        return;
+      }
+
+      const mode = this.auth.mode();
+      const accessToken = this.auth.accessToken();
+
+      if (mode === 'none') {
+        this.resetSetupState();
+        this.me.set(null);
+        this.lastLoadedSessionKey = null;
+        return;
+      }
+
+      this.restoreSetupState();
+      const sessionKey = `${mode}:${accessToken ?? 'guest'}`;
+      if (sessionKey === this.lastLoadedSessionKey) {
+        return;
+      }
+
+      this.lastLoadedSessionKey = sessionKey;
+      this.me.set(null);
+      void this.loadApi();
+    });
   }
 
   continueSetup(): void {
     if (this.setupStep() >= this.setupScreens.length - 1) {
-      this.setupDone.set(true);
+      this.completeSetup();
       this.navigateToTab('explore');
       return;
     }
 
     this.setupStep.update((step) => step + 1);
+    this.persistSetupState();
   }
 
   skipSetup(): void {
-    this.setupDone.set(true);
+    this.completeSetup();
     this.navigateToTab('explore');
   }
 
@@ -611,6 +694,10 @@ export class AppStateService {
   }
 
   async cacheCurrentTripMap(): Promise<void> {
+    if (!this.requireSignedIn('Sign in to sync offline maps across devices.')) {
+      return;
+    }
+
     const hub = this.explore().hub;
 
     try {
@@ -627,6 +714,10 @@ export class AppStateService {
   }
 
   async setProfilePreference(request: Partial<MeResponse['preferences']>): Promise<void> {
+    if (!this.requireSignedIn('Sign in to save profile preferences.')) {
+      return;
+    }
+
     const current = this.me();
     if (!current) return;
 
@@ -639,6 +730,10 @@ export class AppStateService {
   }
 
   async toggleSafetyPreference(key: 'pushAlertsTomorrowRoute' | 'notifyStatusWorsensEnRoute'): Promise<void> {
+    if (!this.requireSignedIn('Sign in to save safety preferences.')) {
+      return;
+    }
+
     const current = this.me();
     if (!current) return;
 
@@ -648,6 +743,35 @@ export class AppStateService {
     } catch {
       this.markApiOffline('Could not update safety preferences.');
     }
+  }
+
+  selectSetupPlanningMode(mode: SetupPlanningMode): void {
+    this.setupPlanningSelection.set(mode);
+    this.persistSetupState();
+  }
+
+  selectSetupVehicle(vehicle: VehicleProfile): void {
+    this.setupVehicleSelection.set(vehicle);
+    this.trip.update((trip) => ({
+      trip: {
+        ...trip.trip,
+        vehicle,
+      },
+    }));
+    this.setVehicleFilter(vehicle === 'unknown' ? 'any' : vehicle);
+    this.persistSetupState();
+  }
+
+  setSetupDateRange(startDate: string, endDate: string): void {
+    const [normalizedStart, normalizedEnd] = startDate <= endDate ? [startDate, endDate] : [endDate, startDate];
+
+    if (!this.isIsoDate(normalizedStart) || !this.isIsoDate(normalizedEnd)) {
+      return;
+    }
+
+    this.setupSelectedStartDate.set(normalizedStart);
+    this.setupSelectedEndDate.set(normalizedEnd);
+    this.persistSetupState();
   }
 
   toggleStatusFilter(status: SafetyStatus): void {
@@ -783,6 +907,7 @@ export class AppStateService {
 
   private syncRouteState(): void {
     const path = this.router.url.split('?')[0].replace(/^\//, '') || 'setup';
+    this.authRoute.set(path === 'auth');
 
     if (path === 'explore' || path === 'routes' || path.startsWith('routes/add') || path === 'route-detail' || path === 'today' || path === 'trip' || path === 'profile' || path.startsWith('spot-action')) {
       let tab: MainTab;
@@ -831,10 +956,14 @@ export class AppStateService {
       this.today.set(emptyToday);
     }
 
-    try {
-      await this.loadMe();
-    } catch {
-      this.actionNotice.set('Could not load profile.');
+    if (this.auth.isAuthenticated()) {
+      try {
+        await this.loadMe();
+      } catch {
+        this.actionNotice.set('Could not load profile.');
+      }
+    } else {
+      this.me.set(null);
     }
 
     try {
@@ -997,6 +1126,16 @@ export class AppStateService {
     return this.trip().trip.days.find((day) => day.today)?.date;
   }
 
+  private requireSignedIn(message: string): boolean {
+    if (this.auth.isAuthenticated()) {
+      return true;
+    }
+
+    this.actionNotice.set(message);
+    void this.router.navigateByUrl('/auth');
+    return false;
+  }
+
   private markApiOffline(message: string): void {
     this.apiState.set('offline');
     this.offlineMode.set(true);
@@ -1025,5 +1164,108 @@ export class AppStateService {
 
   private findSpot(spotId: string): Spot | undefined {
     return this.explore().spots.find((spot) => spot.id === spotId);
+  }
+
+  private completeSetup(): void {
+    this.setupDone.set(true);
+    this.setupStep.set(this.setupScreens.length - 1);
+    this.persistSetupState();
+  }
+
+  private resetSetupState(): void {
+    this.setupDone.set(false);
+    this.setupStep.set(0);
+    this.setupPlanningSelection.set(null);
+    this.setupVehicleSelection.set(null);
+    this.setupSelectedStartDate.set(null);
+    this.setupSelectedEndDate.set(null);
+    this.storage?.removeItem(SETUP_STORAGE_KEY);
+  }
+
+  private restoreSetupState(): void {
+    const rawState = this.storage?.getItem(SETUP_STORAGE_KEY);
+    if (!rawState) {
+      return;
+    }
+
+    try {
+      const state = JSON.parse(rawState) as Partial<StoredSetupState>;
+      const normalizedStep = Math.max(0, Math.min(this.setupScreens.length - 1, Number.isFinite(state.step) ? Number(state.step) : 0));
+      const done = Boolean(state.done);
+
+      this.setupDone.set(done);
+      this.setupStep.set(done ? this.setupScreens.length - 1 : normalizedStep);
+      this.setupPlanningSelection.set(this.isSetupPlanningMode(state.planningMode) ? state.planningMode : null);
+      this.setupVehicleSelection.set(this.isSetupVehicle(state.vehicle) ? state.vehicle : null);
+      this.setupSelectedStartDate.set(this.isIsoDate(state.rangeStart) ? state.rangeStart : null);
+      this.setupSelectedEndDate.set(this.isIsoDate(state.rangeEnd) ? state.rangeEnd : null);
+    } catch {
+      this.storage?.removeItem(SETUP_STORAGE_KEY);
+    }
+  }
+
+  private persistSetupState(): void {
+    if (!this.storage || !this.auth.isAuthenticated()) {
+      return;
+    }
+
+    const state: StoredSetupState = {
+      done: this.setupDone(),
+      step: this.setupDone() ? this.setupScreens.length - 1 : this.setupStep(),
+      planningMode: this.setupPlanningSelection() ?? undefined,
+      vehicle: this.setupVehicleSelection() ?? undefined,
+      rangeStart: this.setupSelectedStartDate() ?? undefined,
+      rangeEnd: this.setupSelectedEndDate() ?? undefined,
+    };
+
+    this.storage.setItem(SETUP_STORAGE_KEY, JSON.stringify(state));
+  }
+
+  private deriveSetupPlanningMode(): SetupPlanningMode {
+    const trip = this.trip().trip;
+
+    if ((trip.totalRoutes ?? 0) > 0) {
+      return 'road-trip';
+    }
+
+    if (trip.hub.id) {
+      return 'hub';
+    }
+
+    return trip.status === 'draft' ? 'draft' : 'hub';
+  }
+
+  private isSetupPlanningMode(value: unknown): value is SetupPlanningMode {
+    return value === 'draft' || value === 'hub' || value === 'road-trip';
+  }
+
+  private isSetupVehicle(value: unknown): value is VehicleProfile {
+    return value === 'car_2wd' || value === 'car_4wd' || value === 'unknown';
+  }
+
+  private isIsoDate(value: unknown): value is string {
+    return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+  }
+
+  private buildSetupDateRange(start: string, end: string): string[] {
+    const dates: string[] = [];
+    const current = new Date(`${start}T00:00:00.000Z`);
+    const last = new Date(`${end}T00:00:00.000Z`);
+
+    while (current <= last) {
+      dates.push(current.toISOString().slice(0, 10));
+      current.setUTCDate(current.getUTCDate() + 1);
+    }
+
+    return dates;
+  }
+
+  private formatSetupDateRange(start: string, end: string): string {
+    const formatter = new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+    return `${formatter.format(new Date(`${start}T00:00:00.000Z`))} - ${formatter.format(new Date(`${end}T00:00:00.000Z`))}`;
+  }
+
+  private resolveStorage(): Storage | null {
+    return typeof window === 'undefined' ? null : window.localStorage;
   }
 }

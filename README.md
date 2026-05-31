@@ -31,6 +31,28 @@ npm run dev:mobile
 
 The mobile app falls back to identical seed data if the API is not running. With the API running, it reads from `http://localhost:3000/api`.
 
+## Authentication
+
+The API now supports both email/password auth and social login token exchange:
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/social` with `provider = google | apple`
+
+Protected trip/profile endpoints require a Bearer token in `Authorization`.
+
+Set these environment variables for non-demo auth flows:
+
+- `JWT_SECRET` for signed access tokens
+- `GOOGLE_CLIENT_ID` for Google ID token verification
+- `APPLE_CLIENT_ID` for Apple ID token verification
+
+For the mobile web client, also configure the matching front-end values in [apps/mobile/src/environments/environment.ts](apps/mobile/src/environments/environment.ts) and [apps/mobile/src/environments/environment.prod.ts](apps/mobile/src/environments/environment.prod.ts):
+
+- `googleClientId`
+- `appleClientId`
+- `appleRedirectUri`
+
 ## Verification
 
 ```bash

@@ -1,21 +1,57 @@
 <section class="screen routes-view route-picker">
-	<lib-screen-intro [kicker]="app.explore().dateLabel + ' · checked ' + app.explore().dataAgeMinutes + ' min ago'" title="Trips">
-        <p screenIntroSubtitle class="routes-subcopy">{{ app.routeSuggestions().length }} routes built from <strong>{{ app.savedCount() }} saved spots</strong></p>
+	<lib-screen-intro [kicker]="app.explore().dateLabel + ' · checked ' + app.explore().dataAgeMinutes + ' min ago'"
+		title="Trips">
+		@if (hasRoutes()) {
+		<p screenIntroSubtitle class="routes-subcopy">{{ app.routeSuggestions().length }} routes built from <strong>{{
+				app.savedCount() }} saved spots</strong></p>
+		} @else {
+		<p screenIntroSubtitle class="routes-subcopy">Build your first day-trip plan from places you save in Explore.
+		</p>
+		}
 	</lib-screen-intro>
-		<button screenIntroAction class="add-route-btn" libButton="secondary" (click)="app.addCustomRoute()"><svg lucidePlus [size]="18" />Add route</button>
+	@if (hasRoutes()) {
+	<button screenIntroAction class="add-route-btn" libButton="secondary" (click)="app.addCustomRoute()"><svg lucidePlus
+			[size]="18" />Add route</button>
+	}
 
 	<div class="route-list cards">
+		@if (hasRoutes()) {
 		@for (route of app.routeSuggestions(); track route.id; let index = $index) {
-			<article class="route-card route-card-clickable" [ngClass]="app.routeCardClass(route, index)" tabindex="0" (click)="app.startRoute(route)" (keydown.enter)="app.startRoute(route)" (keydown.space)="$event.preventDefault(); app.startRoute(route)">
-				<div class="route-card-head"><h2>{{ route.title }}</h2>@if (index === 0) { <span>Recommended</span> }</div>
-				<p>{{ route.summary }}</p>
-				<div class="route-meta"><span lib-chip [variant]="app.statusVariant(route.highestStatus)">● {{ app.routeStatusSummary(route) }}</span><b>{{ app.minutesToDrive(route.driveMinutes) }}</b><em>·</em><b>{{ route.stops }} stops</b><em>·</em><b>{{ route.distanceKm }} km</b></div>
-				<div class="route-tags">@for (spotId of route.spotIds; track spotId) { <span class="route-destination-image" role="img" [attr.aria-label]="app.routeSpotName(spotId) + ' destination'" [style.background]="app.routeSpotImage(spotId)"><span>{{ app.routeSpotName(spotId) }}</span></span> }</div>
-				<div class="route-actions"><button class="primary" libButton="primary" (click)="$event.stopPropagation(); app.startRoute(route)">Start route <svg lucideArrowRight [size]="16" /></button><button class="tune-button" (click)="$event.stopPropagation(); app.openRouteDetail(route)"><svg lucideSlidersHorizontal [size]="18" /></button></div>
-			</article>
+		<article class="route-card route-card-clickable" [ngClass]="app.routeCardClass(route, index)" tabindex="0"
+			(click)="app.startRoute(route)" (keydown.enter)="app.startRoute(route)"
+			(keydown.space)="$event.preventDefault(); app.startRoute(route)">
+			<div class="route-card-head">
+				<h2>{{ route.title }}</h2>@if (index === 0) { <span>Recommended</span> }
+			</div>
+			<p>{{ route.summary }}</p>
+			<div class="route-meta"><span lib-chip [variant]="app.statusVariant(route.highestStatus)">● {{
+					app.routeStatusSummary(route) }}</span><b>{{ app.minutesToDrive(route.driveMinutes)
+					}}</b><em>·</em><b>{{ route.stops }} stops</b><em>·</em><b>{{ route.distanceKm }} km</b></div>
+			<div class="route-tags">@for (spotId of route.spotIds; track spotId) { <span class="route-destination-image"
+					role="img" [attr.aria-label]="app.routeSpotName(spotId) + ' destination'"
+					[style.background]="app.routeSpotImage(spotId)"><span>{{ app.routeSpotName(spotId) }}</span></span>
+				}</div>
+			<div class="route-actions"><button class="primary" libButton="primary"
+					(click)="$event.stopPropagation(); app.startRoute(route)">Start route <svg lucideArrowRight
+						[size]="16" /></button><button class="tune-button"
+					(click)="$event.stopPropagation(); app.openRouteDetail(route)"><svg lucideSlidersHorizontal
+						[size]="18" /></button></div>
+		</article>
 		}
-		@if (app.routeSuggestions().length === 0) { <lib-empty-state title="No routes yet" message="Save attractions in Explore to build day trips."></lib-empty-state> }
+		} @else {
+		<lib-illustrated-empty-state
+			testId="routes-empty-state"
+			actionTestId="routes-empty-primary-cta"
+			variant="route"
+			[title]="'No routes yet'"
+			[message]="'Build your first day-trip plan from scratch'"
+			[actionLabel]="'Create route'"
+			(action)="handleEmptyStateAction()"></lib-illustrated-empty-state>
+		}
 	</div>
-		<button screenIntroAction class="add-route-btn" libButton="secondary" (click)="app.addCustomRoute()"><svg lucidePlus [size]="18" />Add route</button>
+	@if (hasRoutes()) {
+	<button screenIntroAction class="add-route-btn" libButton="secondary" (click)="app.addCustomRoute()"><svg lucidePlus
+			[size]="18" />Add route</button>
+	}
 
 </section>

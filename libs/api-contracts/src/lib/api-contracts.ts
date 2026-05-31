@@ -88,6 +88,35 @@ export interface UserPreferences {
   currency: string;
 }
 
+export type AuthProvider = 'password' | 'google' | 'apple';
+
+export interface AuthUser {
+  id: string;
+  displayName: string;
+  initials: string;
+  email: string;
+}
+
+export interface AuthResponse {
+  accessToken: string;
+  user: AuthUser;
+}
+
+export interface AuthLoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface AuthRegisterRequest extends AuthLoginRequest {
+  displayName?: string;
+}
+
+export interface SocialAuthRequest {
+  provider: Exclude<AuthProvider, 'password'>;
+  idToken: string;
+  displayName?: string;
+}
+
 export interface MeResponse {
   user: {
     id: string;

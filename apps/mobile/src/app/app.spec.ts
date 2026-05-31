@@ -6,12 +6,15 @@ import type { Spot } from '@islandhub/domain';
 import { API_BASE_URL } from './api-base-url.token';
 import { App } from './app';
 import { AppStateService } from './app-state.service';
+import { AuthService } from './auth.service';
 import { appRoutes } from './app.routes';
 
 describe('App', () => {
   let http: HttpTestingController;
 
   beforeEach(async () => {
+    localStorage.clear();
+
     await TestBed.configureTestingModule({
       imports: [App],
       providers: [
@@ -27,10 +30,12 @@ describe('App', () => {
 
   afterEach(() => {
     http.verify();
+    localStorage.clear();
   });
 
   it('renders the IslandHub onboarding promise', async () => {
     const fixture = TestBed.createComponent(App);
+    await enterAuthenticatedMode(fixture);
     await flushInitialApi(http);
     const router = TestBed.inject(Router);
     await router.navigateByUrl('/setup');
@@ -42,9 +47,66 @@ describe('App', () => {
     expect(compiled.textContent).toContain("See what's open today");
   });
 
+  it('updates locale from the onboarding language selector', async () => {
+    const fixture = TestBed.createComponent(App);
+    const router = TestBed.inject(Router);
+
+    await enterAuthenticatedMode(fixture);
+    await flushInitialApi(http);
+    await router.navigateByUrl('/setup');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    (compiled.querySelector('[data-testid="setup-locale-de"]') as HTMLButtonElement).click();
+
+    http.expectOne('http://localhost:3000/api/me/preferences').flush({
+      preferences: {
+        locale: 'de',
+        units: 'metric',
+        temperatureUnit: 'C',
+        currency: 'EUR',
+      },
+      safety: {
+        pushAlertsTomorrowRoute: true,
+        notifyStatusWorsensEnRoute: true,
+        emergencyContactsCount: 0,
+      },
+    });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(compiled.querySelector('[data-testid="setup-locale-de"]')?.classList.contains('active')).toBe(true);
+  });
+
+  it('stores a selected onboarding date range and reflects it in the setup summary', async () => {
+    const fixture = TestBed.createComponent(App);
+    const appState = TestBed.inject(AppStateService);
+    const router = TestBed.inject(Router);
+
+    await enterAuthenticatedMode(fixture);
+    await flushInitialApi(http);
+    appState.setupStep.set(2);
+    await router.navigateByUrl('/setup');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    appState.setSetupDateRange('2026-05-13', '2026-05-18');
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(appState.setupCalendar().dates).toEqual(['2026-05-13', '2026-05-14', '2026-05-15', '2026-05-16', '2026-05-17', '2026-05-18']);
+    expect(appState.setupDateSummary().nights).toBe(5);
+    expect(compiled.textContent).toContain('May 13 - May 18');
+    expect(localStorage.getItem('islandhub.mobile.setup')).toContain('"rangeStart":"2026-05-13"');
+    expect(localStorage.getItem('islandhub.mobile.setup')).toContain('"rangeEnd":"2026-05-18"');
+  });
+
   it('reloads Explore from the API when filters change', async () => {
     const fixture = TestBed.createComponent(App);
     const appState = TestBed.inject(AppStateService);
+    await enterAuthenticatedMode(fixture);
     await flushInitialApi(http);
     await fixture.whenStable();
 
@@ -64,6 +126,7 @@ describe('App', () => {
   it('saves the selected spot through the API', async () => {
     const fixture = TestBed.createComponent(App);
     const appState = TestBed.inject(AppStateService);
+    await enterAuthenticatedMode(fixture);
     await flushInitialApi(http);
     await fixture.whenStable();
 
@@ -89,9 +152,92 @@ describe('App', () => {
     http.expectOne('http://localhost:3000/api/routes/suggestions').flush(mockRouteSuggestionsResponse());
     await savePromise;
   });
+
+  it('restores completed onboarding after a reload', async () => {
+    const fixture = TestBed.createComponent(App);
+    const appState = TestBed.inject(AppStateService);
+
+    await enterAuthenticatedMode(fixture);
+    await flushInitialApi(http);
+    await fixture.whenStable();
+
+    appState.skipSetup();
+
+    expect(localStorage.getItem('islandhub.mobile.setup')).toBe(JSON.stringify({ done: true, step: appState.setupScreens.length - 1 }));
+
+    const restoredState = TestBed.runInInjectionContext(() => new AppStateService());
+
+    expect(restoredState.setupDone()).toBe(true);
+    expect(restoredState.setupStep()).toBe(restoredState.setupScreens.length - 1);
+  });
+
+  it('updates vehicle selection from onboarding and refreshes Explore', async () => {
+    const fixture = TestBed.createComponent(App);
+    const appState = TestBed.inject(AppStateService);
+    const router = TestBed.inject(Router);
+
+    await enterAuthenticatedMode(fixture);
+    await flushInitialApi(http);
+
+    appState.setupStep.set(3);
+    await router.navigateByUrl('/setup');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    (compiled.querySelector('[data-testid="setup-vehicle-4wd"]') as HTMLElement).click();
+
+    const exploreRequest = http.expectOne((request) => request.url.endsWith('/api/explore') && request.params.get('vehicle') === 'car_4wd');
+    exploreRequest.flush({ ...mockExploreResponse(), vehicle: 'car_4wd' });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(appState.setupVehicle()).toBe('car_4wd');
+    expect(compiled.querySelector('[data-testid="setup-vehicle-4wd"]')?.classList.contains('selected')).toBe(true);
+  });
+
+  it('shows the routes empty placeholder and hides add route buttons when no routes exist', async () => {
+    const fixture = TestBed.createComponent(App);
+    const appState = TestBed.inject(AppStateService);
+    const router = TestBed.inject(Router);
+
+    await enterAuthenticatedMode(fixture);
+    await flushInitialApi(http, mockEmptyRouteSuggestionsResponse());
+    appState.skipSetup();
+    await router.navigateByUrl('/routes');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelector('[data-testid="routes-empty-state"]')?.textContent).toContain('No routes');
+    expect(compiled.querySelector('[data-testid="routes-empty-primary-cta"]')?.textContent).toContain('Create your first trip');
+    expect(compiled.querySelectorAll('.add-route-btn')).toHaveLength(0);
+  });
+
+  it('shows the today empty placeholder when no route has started yet', async () => {
+    const fixture = TestBed.createComponent(App);
+    const appState = TestBed.inject(AppStateService);
+    const router = TestBed.inject(Router);
+
+    await enterAuthenticatedMode(fixture);
+    await flushInitialApi(http);
+    appState.skipSetup();
+    await router.navigateByUrl('/today');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelector('[data-testid="today-empty-state"]')?.textContent).toContain('No route active yet');
+    expect(compiled.querySelector('[data-testid="today-empty-primary-cta"]')?.textContent).toContain('Choose a route');
+    expect(compiled.querySelectorAll('.timeline li')).toHaveLength(0);
+  });
 });
 
-async function flushInitialApi(http: HttpTestingController): Promise<void> {
+async function flushInitialApi(http: HttpTestingController, routeSuggestionsResponse = mockRouteSuggestionsResponse()): Promise<void> {
   http.expectOne('http://localhost:3000/api/health').flush({ status: 'ok', service: 'islandhub-api', mode: 'seed', version: 'test', checkedAt: '2026-05-25T07:42:00.000Z' });
   await settleApiStep();
   http.expectOne('http://localhost:3000/api/trip').flush({
@@ -120,29 +266,19 @@ async function flushInitialApi(http: HttpTestingController): Promise<void> {
     stops: [],
   });
   await settleApiStep();
-
-  http.expectOne('http://localhost:3000/api/me').flush(mockMeResponse());
-  await settleApiStep();
-
-  http.expectOne('http://localhost:3000/api/saved-spots').flush({ savedSpotIds: ['geysir'], spots: [mockSpot] });
-  await settleApiStep();
-  http.expectOne('http://localhost:3000/api/routes/suggestions').flush(mockRouteSuggestionsResponse());
-}
-
-function mockMeResponse() {
-  return {
+  http.expectOne('http://localhost:3000/api/me').flush({
     user: {
       id: 'user-1',
-      displayName: 'API User',
-      initials: 'AU',
-      email: 'api@example.com',
-      joinedAt: '2026-05-13T00:00:00.000Z',
+      displayName: 'Lukas',
+      initials: 'LK',
+      email: 'lukas@pixx.io',
+      joinedAt: '2026-05-25T07:42:00.000Z',
     },
     subscription: {
       plan: 'free',
       trialAvailable: true,
-      headline: 'Live re-checks every 15 min, night-before route alerts.',
-      subcopy: 'Safety basics are free.',
+      headline: 'Headline',
+      subcopy: 'Subcopy',
     },
     preferences: {
       locale: 'en',
@@ -156,7 +292,27 @@ function mockMeResponse() {
       emergencyContactsCount: 0,
     },
     offline: {},
-  };
+  });
+  await settleApiStep();
+
+  http.expectOne('http://localhost:3000/api/saved-spots').flush({ savedSpotIds: ['geysir'], spots: [mockSpot] });
+  await settleApiStep();
+  http.expectOne('http://localhost:3000/api/routes/suggestions').flush(routeSuggestionsResponse);
+}
+
+async function enterAuthenticatedMode(fixture: { whenStable(): Promise<unknown> }): Promise<void> {
+  const auth = TestBed.inject(AuthService);
+  auth.mode.set('authenticated');
+  auth.accessToken.set('token-123');
+  auth.user.set({
+    id: 'user-1',
+    displayName: 'Lukas',
+    initials: 'LK',
+    email: 'lukas@pixx.io',
+  });
+  auth.ready.set(true);
+  await fixture.whenStable();
+  await settleApiStep();
 }
 
 async function settleApiStep(): Promise<void> {
@@ -202,6 +358,13 @@ function mockRouteSuggestionsResponse() {
         reason: 'Best conditions for your saved waterfalls today.',
       },
     ],
+  };
+}
+
+function mockEmptyRouteSuggestionsResponse() {
+  return {
+    savedSpots: [],
+    routes: [],
   };
 }
 

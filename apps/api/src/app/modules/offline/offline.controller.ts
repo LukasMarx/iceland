@@ -1,6 +1,8 @@
 import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
+import { RequireAuth } from '../auth/require-auth.decorator';
 import { OfflineService } from './offline.service';
 
+@RequireAuth()
 @Controller('offline')
 export class OfflineController {
   constructor(private readonly offlineService: OfflineService) {}

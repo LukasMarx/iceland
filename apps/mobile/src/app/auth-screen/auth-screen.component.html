@@ -1,0 +1,104 @@
+<section class="auth-screen screen" data-testid="auth-screen">
+	<header class="auth-topbar">
+		<div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>IslandHub</div>
+		<button class="locale-pill" type="button" (click)="switchLocale()">{{ locale() }} <span>⌄</span></button>
+	</header>
+
+	<!-- <div class="auth-hero">
+		<div class="auth-rings"></div>
+		<div class="auth-mascot" [class.dozing]="auth.step() === 'password'">
+			<span class="mascot-shadow"></span>
+			<span class="mascot-body"></span>
+			<span class="mascot-face"></span>
+			<span class="mascot-eye left"></span>
+			<span class="mascot-eye right"></span>
+			<span class="mascot-wing"></span>
+			<span class="mascot-beak"></span>
+			<span class="mascot-feet"></span>
+		</div>
+		<p class="mascot-chip mono">{{ auth.step() === 'password' ? 'LUNDI IS DOZING' : "HI, I'M LUNDI · YOUR GUIDE" }}</p>
+	</div> -->
+    <img src="assets/logo.png" alt="Illustration of a cute bird character named Lundi, who is wearing a raincoat and holding an umbrella. Lundi is standing on a small island with waves around it, symbolizing the Icelandic theme of the app." class="auth-hero-image" />
+
+	@if (auth.step() === 'email') {
+		<div class="auth-copy auth-copy-email">
+			<h2>Iceland,<br />before you go.</h2>
+			<p>Sign in to sync your hubs and saved spots across devices.</p>
+		</div>
+
+		<label class="auth-field" for="auth-email">
+			<span class="field-icon" aria-hidden="true"><svg lucideMail [size]="18" /></span>
+			<input
+				#emailInput
+				id="auth-email"
+				data-testid="auth-email-input"
+				type="email"
+				inputmode="email"
+				autocomplete="email"
+				placeholder="you@somewhere.is"
+				[value]="auth.email()"
+				(input)="auth.email.set(emailInput.value)"
+			/>
+		</label>
+
+		<button class="primary-cta" libButton="primary" type="button" data-testid="auth-continue-email" [disabled]="auth.pending()" (click)="continueWithEmail(emailInput.value)">
+			Continue with email <span>→</span>
+		</button>
+
+		<div class="auth-divider"><span></span><b>OR</b><span></span></div>
+
+		<div class="social-row">
+			<button class="social-button" libButton="secondary" [libButtonBlock]="false" type="button" [disabled]="auth.pending()" (click)="auth.continueWithSocial('apple')">
+				<strong>Apple</strong>
+			</button>
+			<button class="social-button" libButton="secondary" [libButtonBlock]="false" type="button" [disabled]="auth.pending()" (click)="auth.continueWithSocial('google')">
+				<strong>Google</strong>
+			</button>
+		</div>
+
+		<button class="mode-link" libButton="text" type="button" (click)="goToRegister()">Need an account? Create one</button>
+	} @else {
+		<header class="password-head">
+			<button class="back-button" type="button" (click)="auth.backToEmailStep('login')">‹</button>
+			<div class="brand centered"><span class="brand-mark"><i></i><i></i><i></i></span>IslandHub</div>
+		</header>
+
+		<div class="auth-copy auth-copy-password">
+			<h1>Welcome back!</h1>
+			<p>{{ auth.emailLabel() }}</p>
+		</div>
+
+		<label class="auth-field password-field" for="auth-password">
+			<span class="field-icon" aria-hidden="true"><svg lucideKeyRound [size]="18" /></span>
+			<input
+				#passwordInput
+				id="auth-password"
+				data-testid="auth-password-input"
+				[autofocus]="true"
+				[type]="showPassword() ? 'text' : 'password'"
+				autocomplete="current-password"
+				placeholder="Password"
+				[value]="password()"
+				(input)="password.set(passwordInput.value)"
+			/>
+			<button class="inline-action" type="button" (click)="showPassword.set(!showPassword())">{{ showPassword() ? 'HIDE' : 'SHOW' }}</button>
+		</label>
+
+		<button class="primary-cta" libButton="primary" type="button" data-testid="auth-submit-password" [disabled]="auth.pending()" (click)="submitPassword()">{{ primaryLabel() }}</button>
+
+		<div class="password-links">
+			<button libButton="text" type="button" (click)="auth.showPasswordResetHint()">Forgot password?</button>
+		</div>
+
+		<button class="mode-link" libButton="text" type="button" (click)="goToRegister()">Need an account? Create one</button>
+	}
+
+	@if (auth.error()) {
+		<p class="auth-message error" data-testid="auth-error">{{ auth.error() }}</p>
+	}
+
+	@if (auth.info()) {
+		<p class="auth-message info" data-testid="auth-info">{{ auth.info() }}</p>
+	}
+
+</section>
