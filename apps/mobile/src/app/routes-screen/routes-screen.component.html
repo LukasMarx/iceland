@@ -1,5 +1,5 @@
 <section class="screen routes-view route-picker">
-	<lib-screen-intro kicker="Thu 14 May · 07:42" title="Trips">
+	<lib-screen-intro [kicker]="app.explore().dateLabel + ' · checked ' + app.explore().dataAgeMinutes + ' min ago'" title="Trips">
         <p screenIntroSubtitle class="routes-subcopy">{{ app.routeSuggestions().length }} routes built from <strong>{{ app.savedCount() }} saved spots</strong></p>
 	</lib-screen-intro>
 		<button screenIntroAction class="add-route-btn" libButton="secondary" (click)="app.addCustomRoute()"><svg lucidePlus [size]="18" />Add route</button>

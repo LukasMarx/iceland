@@ -74,6 +74,7 @@ describe('App', () => {
       secondaryAction: 'Save spot',
       sourceSummary: 'Seed status shaped like official road and weather data.',
     });
+    await settleApiStep();
     await fixture.whenStable();
 
     const savePromise = appState.saveSelectedSpot();
@@ -92,17 +93,7 @@ describe('App', () => {
 
 async function flushInitialApi(http: HttpTestingController): Promise<void> {
   http.expectOne('http://localhost:3000/api/health').flush({ status: 'ok', service: 'islandhub-api', mode: 'seed', version: 'test', checkedAt: '2026-05-25T07:42:00.000Z' });
-  http.expectOne((request) => request.url === 'http://localhost:3000/api/explore').flush(mockExploreResponse());
-  http.expectOne('http://localhost:3000/api/today').flush({
-    title: 'Wind-light loop',
-    dateLabel: 'Today - Thu 14 May',
-    recheckedMinutesAgo: 8,
-    stopProgress: '2/4',
-    driveMinutes: 200,
-    daylightLeft: '14h 32',
-    update: 'Status updated.',
-    stops: [],
-  });
+  await settleApiStep();
   http.expectOne('http://localhost:3000/api/trip').flush({
     trip: {
       title: 'Iceland spring run',
@@ -113,13 +104,64 @@ async function flushInitialApi(http: HttpTestingController): Promise<void> {
       days: [],
     },
   });
+  await settleApiStep();
+  const exploreRequest = http.match((request) => request.urlWithParams.includes('/api/explore'))[0];
+  expect(exploreRequest).toBeTruthy();
+  exploreRequest.flush(mockExploreResponse());
+  await settleApiStep();
+  http.expectOne('http://localhost:3000/api/today').flush({
+    title: 'Wind-light loop',
+    dateLabel: 'Today - Thu 14 May',
+    recheckedMinutesAgo: 8,
+    stopProgress: '2/4',
+    driveMinutes: 200,
+    daylightLeft: '14h 32',
+    update: 'Status updated.',
+    stops: [],
+  });
+  await settleApiStep();
 
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
+  http.expectOne('http://localhost:3000/api/me').flush(mockMeResponse());
+  await settleApiStep();
 
   http.expectOne('http://localhost:3000/api/saved-spots').flush({ savedSpotIds: ['geysir'], spots: [mockSpot] });
+  await settleApiStep();
   http.expectOne('http://localhost:3000/api/routes/suggestions').flush(mockRouteSuggestionsResponse());
+}
+
+function mockMeResponse() {
+  return {
+    user: {
+      id: 'user-1',
+      displayName: 'API User',
+      initials: 'AU',
+      email: 'api@example.com',
+      joinedAt: '2026-05-13T00:00:00.000Z',
+    },
+    subscription: {
+      plan: 'free',
+      trialAvailable: true,
+      headline: 'Live re-checks every 15 min, night-before route alerts.',
+      subcopy: 'Safety basics are free.',
+    },
+    preferences: {
+      locale: 'en',
+      units: 'metric',
+      temperatureUnit: 'C',
+      currency: 'EUR',
+    },
+    safety: {
+      pushAlertsTomorrowRoute: true,
+      notifyStatusWorsensEnRoute: true,
+      emergencyContactsCount: 0,
+    },
+    offline: {},
+  };
+}
+
+async function settleApiStep(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
 }
 
 function mockExploreResponse() {

@@ -9,6 +9,8 @@ import type {
   ExploreResponse,
   HealthResponse,
   InsertPreviewResponse,
+  MeResponse,
+  RouteSuggestion,
   RouteSuggestionsResponse,
   SaveSpotResponse,
   SpotContextResponse,
@@ -16,17 +18,15 @@ import type {
   TodayResponse,
   TripResponse,
 } from '@islandhub/api-contracts';
-import type { SafetyStatus, Spot } from '@islandhub/domain';
+import type { Hub, SafetyStatus, Spot } from '@islandhub/domain';
 import { projectIcelandPoint } from '@islandhub/map';
 import type { LibChipVariant } from '@islandhub/ui';
 import { I18nService } from '@islandhub/i18n';
 import { filter } from 'rxjs';
-import { AddRouteWizardService, WIZARD_BASES } from './add-route-screen/add-route-wizard.service';
+import { AddRouteWizardService } from './add-route-screen/add-route-wizard.service';
 import type { WizardBase } from './add-route-screen/add-route-wizard.service';
 import { IslandhubApiService } from './islandhub-api.service';
 import { RoutePlanningService } from './route-planning.service';
-import { seedExplore, seedRouteSuggestions, seedSpots, seedToday, seedTrip, buildSpotContext } from './seed-data';
-import { spotImageBackground } from './spot-images';
 import { SpotActionWizardService } from './spot-action-screen/spot-action-wizard.service';
 
 type VehicleFilter = 'car_2wd' | 'car_4wd' | 'any';
@@ -34,6 +34,51 @@ type VehicleFilter = 'car_2wd' | 'car_4wd' | 'any';
 type RouteSheetMode = 'insert' | 'create' | 'alternatives' | 'stale';
 
 type MainTab = 'explore' | 'routes' | 'today' | 'trip' | 'profile';
+
+type ApiState = 'checking' | 'online' | 'offline';
+
+type RouteSummary = AttractionRouteSummary & { suggestionId?: string; expiresAt?: string };
+
+const emptyHub: Hub = {
+  id: '',
+  name: 'Loading hub',
+  location: { lat: 64.9, lon: -18.5 },
+  dateRange: '',
+  nights: 0,
+};
+
+const emptyExplore: ExploreResponse = {
+  hub: emptyHub,
+  dateLabel: 'Loading',
+  vehicle: 'unknown',
+  dataAgeMinutes: 0,
+  spots: [],
+  smartRoutes: [],
+};
+
+const emptyToday: TodayResponse = {
+  title: 'Loading today',
+  dateLabel: 'Today',
+  recheckedMinutesAgo: 0,
+  stopProgress: '0/0',
+  driveMinutes: 0,
+  daylightLeft: '',
+  update: 'Loading live route data.',
+  stops: [],
+};
+
+const emptyTrip: TripResponse = {
+  trip: {
+    title: 'Loading trip',
+    dates: '',
+    vehicle: 'unknown',
+    pace: '',
+    hub: emptyHub,
+    days: [],
+  },
+};
+
+const genericSpotBackground = 'linear-gradient(135deg, #dfe7e2 0%, #8da39a 48%, #52655f 100%)';
 
 @Injectable({ providedIn: 'root' })
 export class AppStateService {
@@ -45,22 +90,23 @@ export class AppStateService {
   readonly selectedSpot = signal<SpotContextResponse | null>(null);
   readonly filterOpen = signal(false);
   readonly routeSheet = signal<{ mode: RouteSheetMode; context: SpotContextResponse; preview?: InsertPreviewResponse } | null>(null);
-  readonly selectedRoute = signal<AttractionRouteSummary | null>(null);
+  readonly selectedRoute = signal<RouteSummary | null>(null);
   readonly returnSheet = signal(false);
   readonly actionNotice = signal<string | null>(null);
   readonly offlineMode = signal(false);
   readonly apiHealth = signal<HealthResponse | null>(null);
-  readonly apiState = signal<'checking' | 'online' | 'seed-fallback'>('checking');
-  readonly explore = signal<ExploreResponse>(seedExplore);
-  readonly today = signal<TodayResponse>(seedToday);
-  readonly trip = signal<TripResponse>(seedTrip);
-  readonly routeSuggestions = signal<AttractionRouteSummary[]>(seedRouteSuggestions);
-  readonly savedSpotIds = signal<string[]>(['geysir', 'gullfoss', 'thingvellir', 'bruarfoss', 'kerid']);
+  readonly me = signal<MeResponse | null>(null);
+  readonly apiState = signal<ApiState>('checking');
+  readonly explore = signal<ExploreResponse>(emptyExplore);
+  readonly today = signal<TodayResponse>(emptyToday);
+  readonly trip = signal<TripResponse>(emptyTrip);
+  readonly routeSuggestions = signal<RouteSummary[]>([]);
+  readonly savedSpotIds = signal<string[]>([]);
   readonly exploreLoading = signal(false);
   readonly activeRoute = signal(true);
   readonly statusFilters = signal<SafetyStatus[]>(['green', 'yellow', 'unknown', 'red']);
-  readonly categoryFilters = signal(['Waterfall', 'Geothermal', 'Nature reserve']);
-  readonly categoryOptions = signal(['Waterfall', 'Geothermal', 'Nature reserve']);
+  readonly categoryFilters = signal<string[]>([]);
+  readonly categoryOptions = signal<string[]>([]);
   readonly vehicleFilter = signal<VehicleFilter>('car_2wd');
   readonly showFRoads = signal(true);
   readonly maxDriveMinutes = signal(180);
@@ -68,9 +114,9 @@ export class AppStateService {
   readonly setupScreens = [
     { kicker: '01 - 05', title: "See what's open today.", body: 'Iceland changes by the hour. IslandHub merges road, weather, vehicle and daylight status into one daily decision surface.' },
     { kicker: '02 - 05', title: 'Where are you in planning?', body: 'Pick the shortest setup path. You can switch later.' },
-    { kicker: '03 - 05', title: 'When are you going?', body: 'May 13-22 gives 9 nights, late spring daylight and a useful F-road warning window.' },
+    { kicker: '03 - 05', title: 'When are you going?', body: 'Your trip dates come from the active API trip and drive daylight and route checks.' },
     { kicker: '04 - 05', title: 'What will you be driving?', body: '2WD hides F-roads by default. 4WD unlocks them, but river crossings still need judgement.' },
-    { kicker: '05 - 05', title: 'Where are you staying?', body: 'Your hub is the centre of every daily reach calculation. Demo hub: Reykholt Cabin.' },
+    { kicker: '05 - 05', title: 'Where are you staying?', body: 'Your hub is the centre of every daily reach calculation. We use your active trip hub from the API.' },
   ];
 
   private readonly destroyRef = inject(DestroyRef);
@@ -93,7 +139,7 @@ export class AppStateService {
         return false;
       }
 
-      if (!selectedCategories.includes(spot.category)) {
+      if (selectedCategories.length > 0 && !selectedCategories.includes(spot.category)) {
         return false;
       }
 
@@ -134,6 +180,47 @@ export class AppStateService {
 
   readonly savedSpots = computed(() => this.savedSpotIds().map((spotId) => this.findSpot(spotId)).filter((spot): spot is Spot => Boolean(spot)));
 
+  readonly setupCalendar = computed(() => {
+    const datedDays = this.trip().trip.days.filter((day) => day.date);
+    const firstDate = datedDays[0]?.date;
+    const monthLabel = firstDate
+      ? new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${firstDate}T00:00:00.000Z`))
+      : this.trip().trip.dates;
+    const leadingEmptyCells = firstDate ? (new Date(`${firstDate}T00:00:00.000Z`).getUTCDay() + 6) % 7 : 0;
+
+    return {
+      monthLabel,
+      weekDays: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+      cells: [
+        ...Array.from({ length: leadingEmptyCells }, (_, index) => ({ id: `empty-${index}`, label: '', inRange: false, edge: false })),
+        ...datedDays.map((day, index) => ({
+          id: day.date ?? `${index}`,
+          label: day.day,
+          inRange: true,
+          edge: index === 0 || index === datedDays.length - 1,
+        })),
+      ],
+    };
+  });
+
+  readonly insertPreviewLabels = computed(() => {
+    const sheet = this.routeSheet();
+    const preview = sheet?.preview;
+
+    return {
+      after: this.stopTitle(preview?.recommendedAfterStopId) ?? this.nextStop()?.title ?? this.explore().hub.name,
+      before: this.stopTitle(preview?.recommendedBeforeStopId),
+    };
+  });
+
+  readonly saferAlternatives = computed(() => {
+    const excludedSpotId = this.routeSheet()?.context.spot.id;
+
+    return this.visibleSpots()
+      .filter((spot) => spot.id !== excludedSpotId && (spot.status.status === 'green' || spot.status.status === 'yellow'))
+      .slice(0, 2);
+  });
+
   constructor() {
     this.router.events
       .pipe(
@@ -160,13 +247,18 @@ export class AppStateService {
     this.navigateToTab('explore');
   }
 
-  openSpot(spot: Spot): void {
-    const fallback = buildSpotContext(spot);
-    this.selectedSpot.set(fallback);
+  retryApi(): void {
+    this.offlineMode.set(false);
+    void this.loadApi();
+  }
 
-    void this.api.getSpotContext(spot.id)
+  openSpot(spot: Spot): void {
+    void this.api.getSpotContext(spot.id, this.activeTripDate())
       .then((context) => this.selectedSpot.set(context))
-      .catch(() => this.selectedSpot.set(fallback));
+      .catch(() => {
+        this.markApiOffline(`Could not load ${spot.name}.`);
+        this.selectedSpot.set(null);
+      });
   }
 
   openMapPoint(pointId: string): void {
@@ -200,11 +292,11 @@ export class AppStateService {
   }
 
   isAllCategories(): boolean {
-    return this.categoryFilters().length === this.availableCategories().length;
+    return this.categoryFilters().length === 0 || this.categoryFilters().length === this.availableCategories().length;
   }
 
   setCategoryPreset(category: string | null): void {
-    this.categoryFilters.set(category ? [category] : this.availableCategories());
+    this.categoryFilters.set(category ? [category] : []);
     void this.loadExplore();
   }
 
@@ -228,10 +320,10 @@ export class AppStateService {
 
     if (mode === 'insert') {
       try {
-        const preview = await this.api.previewInsert(context.spot.id);
+        const preview = await this.api.previewInsert(context.spot.id, this.activeTripDate());
         this.routeSheet.set({ mode, context, preview });
       } catch {
-        this.routeSheet.set({ mode, context, preview: this.routePlanning.fallbackInsertPreview(context.spot) });
+        this.markApiOffline('Could not load the route insert preview.');
       }
     }
   }
@@ -240,12 +332,12 @@ export class AppStateService {
     this.routeSheet.set(null);
   }
 
-  openRouteDetail(route: AttractionRouteSummary): void {
+  openRouteDetail(route: RouteSummary): void {
     this.selectedRoute.set(route);
     void this.router.navigateByUrl('/route-detail');
   }
 
-  editRoute(route: AttractionRouteSummary): void {
+  editRoute(route: RouteSummary): void {
     this.selectedRoute.set(route);
     this.wizard.initEdit(this.currentWizardBase(), route.id, route.title, route.spotIds);
     void this.router.navigateByUrl('/routes/add/step4');
@@ -269,27 +361,41 @@ export class AppStateService {
     void this.router.navigateByUrl('/spot-action/step1');
   }
 
-  createDirectRouteFromSpot(): void {
+  async createDirectRouteFromSpot(): Promise<void> {
     const spot = this.spotActionWizard.targetSpot();
     if (!spot) return;
 
-    const newRoute = this.routePlanning.createDirectRouteFromSpot(spot, this.explore().hub);
-    this.routeSuggestions.update((routes) => [newRoute, ...routes]);
-    this.actionNotice.set(this.i18n.t('route.createdForSpot', { spot: spot.name }));
-    void this.router.navigateByUrl('/routes');
+    try {
+      const response = await this.api.createPlannedRoute({
+        title: `${spot.name} route`,
+        start: this.wizardBasePayload(this.currentWizardBase()),
+        direction: 'LOOP',
+        spotIds: [spot.id],
+        source: 'spot_action',
+      });
+      this.routeSuggestions.update((routes) => [response.route, ...routes]);
+      this.actionNotice.set(this.i18n.t('route.createdForSpot', { spot: spot.name }));
+      void this.router.navigateByUrl('/routes');
+    } catch {
+      this.markApiOffline(`Could not create route for ${spot.name}.`);
+    }
   }
 
-  addSpotToExistingRoute(routeId: string): void {
+  async addSpotToExistingRoute(routeId: string): Promise<void> {
     const spot = this.spotActionWizard.targetSpot();
     if (!spot) return;
 
     const route = this.routeSuggestions().find((candidate) => candidate.id === routeId);
     if (!route) return;
 
-    const updatedRoute = this.routePlanning.addSpotToRoute(route, spot);
-    this.routeSuggestions.update((routes) => routes.map((candidate) => candidate.id === routeId ? updatedRoute : candidate));
-    this.actionNotice.set(this.i18n.t('route.spotAdded', { spot: spot.name, route: route.title }));
-    void this.router.navigateByUrl('/routes');
+    try {
+      const response = await this.api.addPlannedStop(routeId, spot.id);
+      this.routeSuggestions.update((routes) => routes.map((candidate) => candidate.id === routeId ? response.route : candidate));
+      this.actionNotice.set(this.i18n.t('route.spotAdded', { spot: spot.name, route: route.title }));
+      void this.router.navigateByUrl('/routes');
+    } catch {
+      this.markApiOffline(`Could not add ${spot.name} to ${route.title}.`);
+    }
   }
 
   closeRouteDetail(): void {
@@ -297,7 +403,7 @@ export class AppStateService {
     void this.router.navigateByUrl('/routes');
   }
 
-  applyWizardRouteEdit(): void {
+  async applyWizardRouteEdit(): Promise<void> {
     const route = this.selectedRoute();
 
     if (!route) {
@@ -305,11 +411,19 @@ export class AppStateService {
       return;
     }
 
-    const updatedRoute = this.routePlanning.updateRouteFromSpotIds(route, this.wizard.selectedStopIds(), this.explore().spots);
-    this.selectedRoute.set(updatedRoute);
-    this.routeSuggestions.update((routes) => routes.map((candidate) => candidate.id === updatedRoute.id ? updatedRoute : candidate));
-    this.actionNotice.set(this.i18n.t('route.updated'));
-    void this.router.navigateByUrl('/route-detail');
+    try {
+      const response = await this.api.updatePlannedRoute(route.id, {
+        title: this.wizard.editingRouteTitle() ?? route.title,
+        start: this.wizardBasePayload(this.wizard.base() ?? this.currentWizardBase()),
+        spotIds: this.wizard.selectedStopIds(),
+      });
+      this.selectedRoute.set(response.route);
+      this.routeSuggestions.update((routes) => routes.map((candidate) => candidate.id === response.route.id ? response.route : candidate));
+      this.actionNotice.set(this.i18n.t('route.updated'));
+      void this.router.navigateByUrl('/route-detail');
+    } catch {
+      this.markApiOffline('Could not update route.');
+    }
   }
 
   routeDetailTotalMinutes(): number {
@@ -347,7 +461,7 @@ export class AppStateService {
     }
 
     const spot = sheet.context.spot;
-    const request: AddRouteStopRequest = { spotId: spot.id, position };
+    const request: AddRouteStopRequest = { spotId: spot.id, position, date: this.activeTripDate() };
 
     try {
       const response = await this.api.addRouteStop(request);
@@ -357,12 +471,9 @@ export class AppStateService {
       this.navigateToTab('today');
       return;
     } catch {
-      this.today.set(this.routePlanning.insertStop(this.today(), spot, position, this.minutesToDrive.bind(this)));
+      this.markApiOffline(`Could not add ${spot.name} to today's route.`);
+      return;
     }
-
-    this.routeSheet.set(null);
-    this.activeRoute.set(true);
-    this.navigateToTab('today');
   }
 
   async createRouteFromSpot(): Promise<void> {
@@ -373,7 +484,7 @@ export class AppStateService {
     }
 
     const spot = sheet.context.spot;
-    const request: CreateTodayRouteRequest = { spotId: spot.id };
+    const request: CreateTodayRouteRequest = { spotId: spot.id, date: this.activeTripDate(), replaceExisting: true };
 
     try {
       const response = await this.api.createTodayRoute(request);
@@ -384,14 +495,9 @@ export class AppStateService {
       this.actionNotice.set(response.today.update);
       return;
     } catch {
-      const today = this.routePlanning.todayRouteFromSpot(this.today(), spot, this.explore().hub, this.minutesToDrive.bind(this));
-      this.today.set(today);
-      this.actionNotice.set(today.update);
+      this.markApiOffline(`Could not create today's route for ${spot.name}.`);
+      return;
     }
-
-    this.routeSheet.set(null);
-    this.activeRoute.set(true);
-    this.navigateToTab('today');
   }
 
   async saveSelectedSpot(): Promise<void> {
@@ -433,37 +539,24 @@ export class AppStateService {
       this.trip.set({ trip: response.trip });
       this.actionNotice.set(response.message);
     } catch {
-      this.trip.update((tripResponse) => {
-        const title = `Draft - ${spot.name}`;
-
-        if (tripResponse.trip.days.some((day) => day.title === title)) {
-          return tripResponse;
-        }
-
-        return this.routePlanning.addDraftDay(
-          tripResponse,
-          title,
-          `${spot.category} - ${this.minutesToDrive(spot.driveMinutes)} from hub`,
-          spot.status.status,
-        );
-      });
-      this.actionNotice.set(this.i18n.t('trip.spotAddedToDraft', { spot: spot.name }));
+      this.markApiOffline(`Could not plan ${spot.name} for later.`);
+      return;
     }
 
     this.routeSheet.set(null);
     this.navigateToTab('trip');
   }
 
-  async startRoute(route: AttractionRouteSummary): Promise<void> {
-    const request: StartSuggestedRouteRequest = { routeId: route.id };
+  async startRoute(route: RouteSummary): Promise<void> {
+    const request: StartSuggestedRouteRequest = { suggestionId: route.suggestionId ?? route.id, date: this.activeTripDate(), replaceExisting: true };
 
     try {
       const response = await this.api.startSuggestedRoute(request);
       this.today.set(response.today);
       this.actionNotice.set(this.i18n.t('route.started', { route: route.title }));
     } catch {
-      this.today.set(this.routePlanning.todayRouteFromSuggestion(this.today(), route, this.explore(), this.minutesToDrive.bind(this)));
-      this.actionNotice.set(this.i18n.t('route.startedLocally', { route: route.title }));
+      this.markApiOffline(`Could not start ${route.title}.`);
+      return;
     }
 
     this.selectedRoute.set(null);
@@ -476,7 +569,14 @@ export class AppStateService {
   }
 
   routeSpotImage(spotId: string): string {
-    return spotImageBackground(spotId);
+    const spot = this.findSpot(spotId);
+    return spot ? this.spotBackground(spot) : genericSpotBackground;
+  }
+
+  spotBackground(spot: Spot): string {
+    const imageUrl = spot.media?.find((media) => media.type === 'image' && media.url)?.url;
+
+    return imageUrl ? `linear-gradient(145deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.24)), url("${imageUrl}")` : genericSpotBackground;
   }
 
   routeStatusSummary(route: AttractionRouteSummary): string {
@@ -500,15 +600,54 @@ export class AppStateService {
     }
 
     try {
-      const response = await this.api.markStopDone(activeStop.id);
+      const response = await this.api.markStopDone(activeStop.id, this.activeTripDate());
       this.today.set(response.today);
       this.returnSheet.set(false);
       return;
     } catch {
-      this.today.set(this.routePlanning.markActiveStopDone(this.today()));
+      this.markApiOffline(`Could not mark ${activeStop.title} as done.`);
+      return;
     }
+  }
 
-    this.returnSheet.set(false);
+  async cacheCurrentTripMap(): Promise<void> {
+    const hub = this.explore().hub;
+
+    try {
+      const response = await this.api.cacheOfflineRegions({
+        mode: 'map-area',
+        label: `${hub.name} map area`,
+        regions: [{ lat: hub.location.lat, lon: hub.location.lon, radiusKm: 60 }],
+      });
+      this.actionNotice.set(response.message);
+      await this.loadMe();
+    } catch {
+      this.markApiOffline('Could not start offline cache.');
+    }
+  }
+
+  async setProfilePreference(request: Partial<MeResponse['preferences']>): Promise<void> {
+    const current = this.me();
+    if (!current) return;
+
+    try {
+      const update = await this.api.updatePreferences(request);
+      this.me.set({ ...current, preferences: update.preferences, safety: update.safety });
+    } catch {
+      this.markApiOffline('Could not update profile preferences.');
+    }
+  }
+
+  async toggleSafetyPreference(key: 'pushAlertsTomorrowRoute' | 'notifyStatusWorsensEnRoute'): Promise<void> {
+    const current = this.me();
+    if (!current) return;
+
+    try {
+      const update = await this.api.updatePreferences({ safety: { [key]: !current.safety[key] } });
+      this.me.set({ ...current, preferences: update.preferences, safety: update.safety });
+    } catch {
+      this.markApiOffline('Could not update safety preferences.');
+    }
   }
 
   toggleStatusFilter(status: SafetyStatus): void {
@@ -556,7 +695,7 @@ export class AppStateService {
 
   resetFilters(): void {
     this.statusFilters.set(['green', 'yellow', 'unknown', 'red']);
-    this.categoryFilters.set(this.availableCategories());
+    this.categoryFilters.set([]);
     this.vehicleFilter.set('car_2wd');
     this.showFRoads.set(true);
     this.maxDriveMinutes.set(180);
@@ -591,33 +730,51 @@ export class AppStateService {
     return hours > 0 ? `${hours}h ${remainder.toString().padStart(2, '0')}` : `${remainder}m`;
   }
 
-  setWizardTodayRoute(params: {
+  async setWizardTodayRoute(params: {
     baseName: string;
     destinationName: string;
     selectedStops: Spot[];
     directDriveMinutes: number;
     totalDriveMinutes: number;
-  }): void {
-    this.today.set(this.routePlanning.wizardTodayRoute({
-      current: this.today(),
-      baseName: params.baseName,
-      destinationName: params.destinationName,
-      dateLabel: this.explore().dateLabel,
-      dataAgeMinutes: this.explore().dataAgeMinutes,
-      selectedStops: params.selectedStops,
-      directDriveMinutes: params.directDriveMinutes,
-      totalDriveMinutes: params.totalDriveMinutes,
-      formatMinutes: this.minutesToDrive.bind(this),
-    }));
-    this.activeRoute.set(true);
-    this.actionNotice.set(this.i18n.t('route.draftReadyToday'));
-    this.navigateToTab('today');
+  }): Promise<void> {
+    try {
+      const response = await this.api.createPlannedRoute({
+        title: `${params.baseName} to ${params.destinationName}`,
+        date: this.activeTripDate(),
+        start: this.wizardBasePayload(this.wizard.base() ?? this.currentWizardBase()),
+        destination: this.wizard.endHotel() ? this.wizardBasePayload(this.wizard.endHotel()!) : undefined,
+        direction: this.wizard.tripType() === 'one-way' ? 'ONE-WAY' : 'LOOP',
+        spotIds: params.selectedStops.map((spot) => spot.id),
+        source: 'wizard',
+        makeActiveToday: true,
+        replaceExistingToday: true,
+      });
+      if (response.today) this.today.set(response.today);
+      this.activeRoute.set(true);
+      this.actionNotice.set(this.i18n.t('route.draftReadyToday'));
+      this.navigateToTab('today');
+    } catch {
+      this.markApiOffline('Could not start route for today.');
+    }
   }
 
-  saveWizardDraftDay(title: string, summary: string, status: SafetyStatus): void {
-    this.trip.update((tripResponse) => this.routePlanning.addDraftDay(tripResponse, title, summary, status));
-    this.actionNotice.set(this.i18n.t('route.draftSavedToTrip'));
-    this.navigateToTab('trip');
+  async saveWizardDraftDay(title: string): Promise<void> {
+    try {
+      await this.api.createPlannedRoute({
+        title,
+        start: this.wizardBasePayload(this.wizard.base() ?? this.currentWizardBase()),
+        destination: this.wizard.endHotel() ? this.wizardBasePayload(this.wizard.endHotel()!) : undefined,
+        direction: this.wizard.tripType() === 'one-way' ? 'ONE-WAY' : 'LOOP',
+        spotIds: this.wizard.selectedStopIds(),
+        source: 'draft_day',
+      });
+      await this.loadTrip();
+      await this.loadRouteSuggestions();
+      this.actionNotice.set(this.i18n.t('route.draftSavedToTrip'));
+      this.navigateToTab('trip');
+    } catch {
+      this.markApiOffline('Could not save draft route.');
+    }
   }
 
   setRouteEditorComingSoonNotice(): void {
@@ -641,29 +798,61 @@ export class AppStateService {
   }
 
   private async loadApi(): Promise<void> {
-    try {
-      const [health, explore, today, trip] = await Promise.all([
-        this.api.getHealth(),
-        this.api.getExplore(this.exploreQuery()),
-        this.api.getToday(),
-        this.api.getTrip(),
-      ]);
-      const [saved, routeSuggestions] = await Promise.all([
-        this.api.getSavedSpots(),
-        this.api.getRouteSuggestions(),
-      ]);
+    this.apiState.set('checking');
 
+    try {
+      const health = await this.api.getHealth();
       this.apiHealth.set(health);
+    } catch {
+      this.markApiOffline('Could not reach the API.');
+      return;
+    }
+
+    try {
+      await this.loadTrip();
+    } catch {
+      this.actionNotice.set('Could not load the trip.');
+    }
+
+    const date = this.activeTripDate();
+
+    try {
+      const explore = await this.api.getExplore(this.exploreQuery());
       this.explore.set(explore);
       this.categoryOptions.set(this.mergeCategories(explore));
-      this.today.set(today);
-      this.trip.set(trip);
-      this.savedSpotIds.set(saved.savedSpotIds);
-      this.routeSuggestions.set(routeSuggestions.routes);
-      this.apiState.set('online');
     } catch {
-      this.apiState.set('seed-fallback');
+      this.actionNotice.set('Could not load Explore.');
     }
+
+    try {
+      const today = await this.api.getToday(date);
+      this.today.set(today);
+    } catch {
+      this.today.set(emptyToday);
+    }
+
+    try {
+      await this.loadMe();
+    } catch {
+      this.actionNotice.set('Could not load profile.');
+    }
+
+    try {
+      const saved = await this.api.getSavedSpots();
+      this.savedSpotIds.set(saved.savedSpotIds);
+    } catch {
+      this.actionNotice.set('Could not load saved spots.');
+    }
+
+    try {
+      const routeSuggestions = await this.api.getRouteSuggestions(date);
+      this.applyRouteSuggestions(routeSuggestions);
+    } catch {
+      this.actionNotice.set('Could not load route suggestions.');
+    }
+
+    this.apiState.set('online');
+    this.offlineMode.set(false);
   }
 
   private async loadExplore(): Promise<void> {
@@ -682,7 +871,7 @@ export class AppStateService {
       this.apiState.set('online');
     } catch {
       if (requestId === this.exploreRequestId) {
-        this.apiState.set('seed-fallback');
+        this.markApiOffline('Could not refresh Explore.');
       }
     } finally {
       if (requestId === this.exploreRequestId) {
@@ -698,11 +887,12 @@ export class AppStateService {
       vehicle: this.vehicleFilter(),
       showFRoads: this.showFRoads(),
       maxDriveMinutes: this.maxDriveMinutes(),
+      date: this.activeTripDate(),
     };
   }
 
   private mergeCategories(explore: ExploreResponse): string[] {
-    return Array.from(new Set([...this.categoryOptions(), ...explore.spots.map((spot) => spot.category)]));
+    return Array.from(new Set([...this.categoryOptions(), ...explore.spots.map((spot) => spot.category).filter(Boolean)]));
   }
 
   private async saveSpot(spot: Spot): Promise<void> {
@@ -712,27 +902,110 @@ export class AppStateService {
       this.savedSpotIds.set(response.savedSpotIds);
       await this.loadRouteSuggestions();
     } catch {
-      this.savedSpotIds.update((ids) => ids.includes(spot.id) ? ids : [...ids, spot.id]);
-      this.actionNotice.set(this.i18n.t('spot.savedLocally', { spot: spot.name }));
-      this.routeSuggestions.set(this.routePlanning.localRouteSuggestions());
+      this.markApiOffline(`Could not save ${spot.name}.`);
     }
   }
 
   private async loadRouteSuggestions(): Promise<void> {
     try {
-      const response: RouteSuggestionsResponse = await this.api.getRouteSuggestions();
-      this.routeSuggestions.set(response.routes);
+      const response: RouteSuggestionsResponse = await this.api.getRouteSuggestions(this.activeTripDate());
+      this.applyRouteSuggestions(response);
       this.savedSpotIds.set(response.savedSpots.map((spot) => spot.id));
     } catch {
-      this.routeSuggestions.set(this.routePlanning.localRouteSuggestions());
+      this.markApiOffline('Could not load route suggestions.');
     }
+  }
+
+  private async loadMe(): Promise<void> {
+    const me = await this.api.getMe();
+    this.me.set(me);
+  }
+
+  private async loadTrip(): Promise<void> {
+    const trip = await this.api.getTrip();
+    this.trip.set(trip);
+  }
+
+  private applyRouteSuggestions(response: RouteSuggestionsResponse): void {
+    const routes = response.routes
+      .map((entry) => this.normalizeRouteSuggestion(entry))
+      .filter((route): route is RouteSummary => Boolean(route));
+
+    this.routeSuggestions.set(routes);
+  }
+
+  private normalizeRouteSuggestion(entry: RouteSuggestion | RouteSummary): RouteSummary | null {
+    if ('route' in entry) {
+      const route = entry.route;
+      const spotIds = route.spotIds ?? this.spotIdsFromSuggestionStops(route.stops) ?? [];
+      const stops = typeof route.stops === 'number' ? route.stops : spotIds.length;
+
+      return {
+        id: route.id ?? entry.suggestionId,
+        suggestionId: entry.suggestionId,
+        expiresAt: entry.expiresAt,
+        title: route.title,
+        summary: route.summary ?? entry.reason,
+        driveMinutes: route.driveMinutes ?? route.totalDriveMinutes ?? 0,
+        stops,
+        distanceKm: Math.round(route.distanceKm ?? 0),
+        highestStatus: this.normalizeHighestStatus(route.highestStatus) ?? this.highestStatusForSpotIds(spotIds),
+        spotIds,
+        daylight: route.daylight ?? '',
+        reason: route.reason ?? entry.reason,
+      };
+    }
+
+    return { ...entry, suggestionId: entry.suggestionId ?? entry.id };
+  }
+
+  private spotIdsFromSuggestionStops(stops: RouteSuggestion['route']['stops']): string[] | null {
+    if (!Array.isArray(stops)) {
+      return null;
+    }
+
+    return stops.map((stop) => stop.spotId).filter((spotId): spotId is string => Boolean(spotId));
+  }
+
+  private normalizeHighestStatus(status: RouteSuggestion['route']['highestStatus']): SafetyStatus | null {
+    if (!status) {
+      return null;
+    }
+
+    const normalized = status as SafetyStatus | { level: SafetyStatus };
+    return typeof normalized === 'string' ? normalized : normalized.level;
+  }
+
+  private highestStatusForSpotIds(spotIds: string[]): SafetyStatus {
+    const order: Record<SafetyStatus, number> = { green: 0, yellow: 1, unknown: 2, red: 3 };
+
+    return spotIds
+      .map((spotId) => this.findSpot(spotId)?.status.status ?? 'unknown')
+      .reduce<SafetyStatus>((highest, status) => order[status] > order[highest] ? status : highest, 'green');
+  }
+
+  private stopTitle(stopId?: string): string | null {
+    if (!stopId) {
+      return null;
+    }
+
+    const stop = this.today().stops.find((candidate) => candidate.id === stopId || candidate.spotId === stopId);
+    return stop?.title ?? null;
+  }
+
+  private activeTripDate(): string | undefined {
+    return this.trip().trip.days.find((day) => day.today)?.date;
+  }
+
+  private markApiOffline(message: string): void {
+    this.apiState.set('offline');
+    this.offlineMode.set(true);
+    this.actionNotice.set(message);
   }
 
   private currentWizardBase(): WizardBase {
     const hub = this.explore().hub;
-    const matchedBase = WIZARD_BASES.find((base) => base.name === hub.name) ?? null;
-
-    return matchedBase ?? {
+    return {
       id: hub.id,
       name: hub.name,
       region: 'Current trip',
@@ -741,7 +1014,16 @@ export class AppStateService {
     };
   }
 
+  private wizardBasePayload(place: { id: string; name: string; type?: string; location: { lat: number; lon: number } }): { id: string; name: string; type: string; location: { lat: number; lon: number } } {
+    return {
+      id: place.id,
+      name: place.name,
+      type: place.type ?? 'hotel',
+      location: place.location,
+    };
+  }
+
   private findSpot(spotId: string): Spot | undefined {
-    return this.explore().spots.find((spot) => spot.id === spotId) ?? seedSpots.find((spot) => spot.id === spotId);
+    return this.explore().spots.find((spot) => spot.id === spotId);
   }
 }

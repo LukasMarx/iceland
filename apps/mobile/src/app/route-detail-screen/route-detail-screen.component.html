@@ -8,7 +8,7 @@
 			<h1>{{ route.title }}</h1>
 			<span lib-chip [variant]="app.statusVariant(route.highestStatus)" size="sm"><svg lucideCheck [size]="12" /> {{ app.routeStatusSummary(route) }}</span>
 		</div>
-		<p class="rd-from mono">From {{ app.explore().hub.name }} · Thu 14 May</p>
+		<p class="rd-from mono">From {{ app.explore().hub.name }} · {{ app.explore().dateLabel }}</p>
 
 		<lib-stats-dark>
 			<div><span>DISTANCE</span><strong>{{ route.distanceKm }} km</strong></div>

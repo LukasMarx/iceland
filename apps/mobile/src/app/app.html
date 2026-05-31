@@ -4,7 +4,7 @@
 	} @else {
 		<section class="app-frame">
 			@if (offlineMode()) {
-				<div class="offline-banner"><strong>You're offline</strong><span>Showing last data from 2h 42 min ago</span><button (click)="offlineMode.set(false)">Retry</button></div>
+				<div class="offline-banner"><strong>{{ apiState() === 'offline' ? 'API unavailable' : "You're offline" }}</strong><span>{{ apiState() === 'offline' ? 'Live data could not be loaded.' : 'Offline mode is enabled.' }}</span><button (click)="retryApi()">Retry</button></div>
 			}
 
 			@if (actionNotice()) {
@@ -27,7 +27,7 @@
 		<section class="modal-backdrop">
 			<article class="spot-detail">
 				<button class="close" (click)="closeSpot()"><svg lucideX [size]="20" /></button>
-				<div class="photo-band" [ngClass]="statusClass(selectedSpot()!.spot.status.status)"><span lib-chip variant="neutral" size="sm">{{ selectedSpot()!.spot.status.label }} · {{ selectedSpot()!.spot.status.weatherStatus }}</span><strong>[ hero photo · {{ selectedSpot()!.spot.name }} ]</strong></div>
+				<div class="photo-band" [ngClass]="statusClass(selectedSpot()!.spot.status.status)" [style.background]="spotBackground(selectedSpot()!.spot)"><span lib-chip variant="neutral" size="sm">{{ selectedSpot()!.spot.status.label }} · {{ selectedSpot()!.spot.status.weatherStatus }}</span><strong>{{ selectedSpot()!.spot.name }}</strong></div>
 				<p class="mono">{{ selectedSpot()!.spot.region }} · {{ selectedSpot()!.spot.category }}</p>
 				<h1>{{ selectedSpot()!.spot.name }}</h1>
 				<div class="reason" [ngClass]="statusClass(selectedSpot()!.spot.status.status)"><strong>{{ selectedSpot()!.spot.status.label }}</strong>@for (reason of selectedSpot()!.spot.status.reasons; track reason) { <p>{{ reason }}</p> }</div>
@@ -42,10 +42,10 @@
 			<article class="route-sheet"><span class="grabber"></span><button class="close" (click)="closeRouteSheet()"><svg lucideX [size]="20" /></button>
 				@if (routeSheet()!.mode === 'insert') {
 					<p class="mono">Adding to today's route</p>
-					<h2>Insert {{ routeSheet()!.context.spot.name }} between Geysir and Gullfoss?</h2>
-					<div class="impact-grid"><div><span>Drive +</span><strong>{{ routeSheet()!.preview?.addedDriveMinutes ?? 18 }} min</strong></div><div><span>Status</span><strong>{{ routeSheet()!.preview?.statusImpact ?? (routeSheet()!.context.spot.status.status === 'yellow' ? 'stays amber' : routeSheet()!.context.spot.status.label) }}</strong></div><div><span>Daylight</span><strong>{{ routeSheet()!.preview?.daylightImpact ?? 'ample' }}</strong></div></div>
+					<h2>Insert {{ routeSheet()!.context.spot.name }} after {{ insertPreviewLabels().after }}?</h2>
+					<div class="impact-grid"><div><span>Drive +</span><strong>{{ routeSheet()!.preview?.addedDriveMinutes ?? 0 }} min</strong></div><div><span>Status</span><strong>{{ routeSheet()!.preview?.statusImpact ?? routeSheet()!.context.spot.status.label }}</strong></div><div><span>Daylight</span><strong>{{ routeSheet()!.preview?.daylightImpact ?? 'unknown' }}</strong></div></div>
 					<p class="mono">Preview · recommended position</p>
-					<div class="insert-preview"><span>A</span><strong>{{ explore().hub.name }}</strong><span>✓</span><strong>Geysir</strong><span [ngClass]="statusClass(routeSheet()!.context.spot.status.status)">!</span><strong>{{ routeSheet()!.context.spot.name }} <em>new</em></strong><span>✓</span><strong>Gullfoss</strong><span>B</span><strong>{{ explore().hub.name }}</strong></div>
+					<div class="insert-preview"><span>A</span><strong>{{ explore().hub.name }}</strong><span>✓</span><strong>{{ insertPreviewLabels().after }}</strong><span [ngClass]="statusClass(routeSheet()!.context.spot.status.status)">!</span><strong>{{ routeSheet()!.context.spot.name }} <em>new</em></strong>@if (insertPreviewLabels().before) { <span>✓</span><strong>{{ insertPreviewLabels().before }}</strong> }<span>B</span><strong>{{ explore().hub.name }}</strong></div>
 					<button class="primary" libButton="primary" (click)="insertRouteStop('recommended')">Insert here</button>
 					<div class="split-actions"><button class="secondary" libButton="secondary" (click)="insertRouteStop('end')">Add to end</button><button class="secondary" libButton="secondary" (click)="closeRouteSheet()">Cancel</button></div>
 				}
@@ -63,7 +63,7 @@
 					<h2>{{ routeSheet()!.context.spot.name }} is not recommended today.</h2>
 					<div class="reason status-red"><strong>Why closed</strong><p>{{ routeSheet()!.context.spot.status.reasons[0] }}</p></div>
 					<p class="mono">Safer alternatives today</p>
-					<div class="alternative-list"><button (click)="closeRouteSheet(); openSpot(explore().spots[0])"><span lib-chip variant="success" size="sm">✓ Open</span><strong>Geysir</strong><em>37m drive</em></button><button (click)="closeRouteSheet(); openSpot(explore().spots[3])"><span lib-chip variant="success" size="sm">✓ Open</span><strong>Bruarfoss</strong><em>52m drive</em></button></div>
+					<div class="alternative-list">@for (spot of saferAlternatives(); track spot.id) { <button (click)="closeRouteSheet(); openSpot(spot)"><span lib-chip [variant]="statusVariant(spot.status.status)" size="sm">{{ spot.status.label }}</span><strong>{{ spot.name }}</strong><em>{{ minutesToDrive(spot.driveMinutes) }} drive</em></button> } @if (saferAlternatives().length === 0) { <button type="button"><span lib-chip variant="neutral" size="sm">No match</span><strong>Keep browsing</strong><em>Try another filter</em></button> }</div>
 					<button class="primary" libButton="primary" (click)="closeRouteSheet()">Keep browsing</button>
 				}
 

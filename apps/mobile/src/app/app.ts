@@ -22,6 +22,7 @@ export class App {
   protected readonly returnSheet = this.appState.returnSheet;
   protected readonly actionNotice = this.appState.actionNotice;
   protected readonly offlineMode = this.appState.offlineMode;
+  protected readonly apiState = this.appState.apiState;
   protected readonly explore = this.appState.explore;
   protected readonly today = this.appState.today;
   protected readonly statusFilters = this.appState.statusFilters;
@@ -33,11 +34,16 @@ export class App {
   protected readonly availableCategories = this.appState.availableCategories;
   protected readonly exploreLoading = this.appState.exploreLoading;
   protected readonly nextStop = this.appState.nextStop;
+  protected readonly insertPreviewLabels = this.appState.insertPreviewLabels;
+  protected readonly saferAlternatives = this.appState.saferAlternatives;
 
+  protected readonly retryApi = this.appState.retryApi.bind(this.appState);
   protected readonly dismissActionNotice = this.appState.dismissActionNotice.bind(this.appState);
   protected readonly navigateToTab = this.appState.navigateToTab.bind(this.appState);
   protected readonly closeSpot = this.appState.closeSpot.bind(this.appState);
   protected readonly statusClass = this.appState.statusClass.bind(this.appState);
+  protected readonly spotBackground = this.appState.spotBackground.bind(this.appState);
+  protected readonly statusVariant = this.appState.statusVariant.bind(this.appState);
   protected readonly minutesToDrive = this.appState.minutesToDrive.bind(this.appState);
   protected readonly saveSelectedSpot = this.appState.saveSelectedSpot.bind(this.appState);
   protected readonly handleSpotPrimaryAction = this.appState.handleSpotPrimaryAction.bind(this.appState);

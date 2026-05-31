@@ -57,13 +57,13 @@ export class AddRouteStep5Component extends AppScreenBase {
 
   protected startToday(): void {
     if (this.service.flow() === 'edit') {
-      this.app.applyWizardRouteEdit();
+      void this.app.applyWizardRouteEdit();
       return;
     }
 
     const baseName = this.service.base()?.name ?? this.app.explore().hub.name;
     const destinationName = this.destinationName;
-    this.app.setWizardTodayRoute({
+    void this.app.setWizardTodayRoute({
       baseName,
       destinationName,
       selectedStops: this.selectedStops(),
@@ -73,8 +73,7 @@ export class AddRouteStep5Component extends AppScreenBase {
   }
 
   protected saveToTrip(): void {
-    const status = this.highestStatus();
-    this.app.saveWizardDraftDay(this.routeTitle, `${this.selectedStops().length} stops - ${this.minutesToDrive(this.totalDriveMinutes())} drive`, status);
+    void this.app.saveWizardDraftDay(this.routeTitle);
   }
 
   protected statusVariant(status: SafetyStatus): LibChipVariant {

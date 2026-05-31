@@ -18,14 +18,16 @@
 			<span class="wizard-sheet-peek-label">
 				@if (service.endHotel()) {
 					{{ service.endHotel()?.name }} · {{ service.endHotel()?.distanceKm }} km
+				} @else if (service.hotelsLoading()) {
+					Loading hotels from API
 				} @else {
-					{{ service.hotels.length }} hotels in this region
+					{{ service.hotels().length }} hotels in this region
 				}
 			</span>
 		</button>
 
 		<div class="wizard-sheet-list">
-			@for (hotel of service.hotels; track hotel.id) {
+			@for (hotel of service.hotels(); track hotel.id) {
 				<button
 					class="wizard-list-item hotel-item"
 					[class.selected]="service.endHotel()?.id === hotel.id"
@@ -46,6 +48,10 @@
 						<span class="wizard-check">✓</span>
 					}
 				</button>
+			} @empty {
+				@if (!service.hotelsLoading()) {
+					<div class="wizard-empty-state">No API hotels available near this start.</div>
+				}
 			}
 		</div>
 

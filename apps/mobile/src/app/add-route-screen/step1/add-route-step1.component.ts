@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { LibButtonDirective } from '@islandhub/ui';
 import type { WizardBase } from '../add-route-wizard.service';
-import { AddRouteWizardService, KEFLAVIK_BASE } from '../add-route-wizard.service';
+import { AddRouteWizardService } from '../add-route-wizard.service';
 
 @Component({
   imports: [LibButtonDirective],
@@ -19,7 +19,9 @@ export class AddRouteStep1Component {
   }
 
   protected selectCurrentLocation(): void {
-    this.service.selectBase({ ...KEFLAVIK_BASE, id: 'current', name: 'Current location' });
+    navigator.geolocation?.getCurrentPosition((position) => {
+      this.service.setCurrentLocation({ lat: position.coords.latitude, lon: position.coords.longitude });
+    });
   }
 
   protected continue(): void {

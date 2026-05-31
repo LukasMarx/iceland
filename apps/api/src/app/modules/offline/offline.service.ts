@@ -26,11 +26,12 @@ export class OfflineService {
       ...(body.includeSpotIds ?? []),
     ];
 
+    const mode = body.mode.replace(/-/g, '_');
     const job = await this.prisma.offlineCacheJob.create({
       data: {
         userId,
         tripId,
-        mode: body.mode as any,
+        mode: mode as any,
         state: 'queued',
         label: body.label ?? `Offline cache — ${body.mode}`,
         centerLat: region?.lat ?? null,

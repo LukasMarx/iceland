@@ -1,32 +1,49 @@
 <section class="screen profile-view">
-	<header class="profile-head">
-		<span>LK</span>
-		<div>
-			<h1>Lukas K.</h1>
-			<p>lukas@pixx.io · joined May 2026</p>
+	@if (app.me(); as me) {
+		<header class="profile-head">
+			<span>{{ me.user.initials }}</span>
+			<div>
+				<h1>{{ me.user.displayName }}</h1>
+				<p>{{ me.user.email }} · joined {{ joinedLabel(me.user.joinedAt) }}</p>
+			</div>
+		</header>
+		<article class="premium">
+			<p class="mono">IslandHub · {{ me.subscription.plan }}</p>
+			<h2>{{ me.subscription.headline }}</h2>
+			<p>{{ me.subscription.subcopy }}</p>
+			@if (me.subscription.trialAvailable) {
+				<button>Try 14 days free</button>
+			}
+		</article>
+		<div class="settings">
+			<h3>Account</h3>
+			<button (click)="toggleLanguage()">Language <span>{{ localeLabel(me.preferences.locale) }} ›</span></button>
+			<button (click)="toggleUnits()">Units <span>{{ me.preferences.units }} · {{ me.preferences.temperatureUnit }} ›</span></button>
+			<button (click)="toggleCurrency()">Currency <span>{{ me.preferences.currency }} ›</span></button>
 		</div>
-	</header>
-	<article class="premium">
-		<p class="mono">IslandHub · Premium</p>
-		<h2>Live re-checks every 15 min, night-before route alerts.</h2>
-		<p>Safety basics are and stay free.</p>
-		<button>Try 14 days free</button>
-	</article>
-	<div class="settings">
-		<h3>Account</h3>
-		<button>Language <span>English ›</span></button>
-		<button>Units <span>Metric · C ›</span></button>
-		<button>Currency <span>EUR ›</span></button>
-	</div>
-	<div class="settings">
-		<h3>Safety</h3>
-		<button>Push alerts for tomorrow's route <span class="toggle on"></span></button>
-		<button>Notify when status worsens en route <span class="toggle on"></span></button>
-		<button>Emergency contacts <span>2 set ›</span></button>
-	</div>
-	<div class="settings">
-		<h3>Offline</h3>
-		<button (click)="app.offlineMode.set(true)">Cached map area <span>Reykholt · 60 km ›</span></button>
-		<button>Cached today route <span>4 stops ›</span></button>
-	</div>
+		<div class="settings">
+			<h3>Safety</h3>
+			<button (click)="app.toggleSafetyPreference('pushAlertsTomorrowRoute')">
+				Push alerts for tomorrow's route <span class="toggle" [class.on]="me.safety.pushAlertsTomorrowRoute"></span>
+			</button>
+			<button (click)="app.toggleSafetyPreference('notifyStatusWorsensEnRoute')">
+				Notify when status worsens en route <span class="toggle" [class.on]="me.safety.notifyStatusWorsensEnRoute"></span>
+			</button>
+			<button>Emergency contacts <span>{{ me.safety.emergencyContactsCount }} set ›</span></button>
+		</div>
+		<div class="settings">
+			<h3>Offline</h3>
+			<button (click)="app.cacheCurrentTripMap()">
+				Cached map area <span>{{ me.offline.cachedMapAreaLabel ?? 'Start cache' }} ›</span>
+			</button>
+			<button>
+				Cached today route <span>{{ me.offline.cachedTodayRouteStops ?? 0 }} stops ›</span>
+			</button>
+		</div>
+	} @else {
+		<div class="settings">
+			<h3>Profile</h3>
+			<button>Loading API profile…</button>
+		</div>
+	}
 </section>

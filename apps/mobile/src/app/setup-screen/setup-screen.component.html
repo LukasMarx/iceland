@@ -18,41 +18,44 @@
 			<span class="pin yellow"></span>
 			<span class="pin red"></span>
 		</div>
-		<div class="segmented"><button class="active">English</button><button>Deutsch</button><button>Islenska</button></div>
+		<div class="segmented"><button [class.active]="app.me()?.preferences?.locale === 'en'">English</button><button [class.active]="app.me()?.preferences?.locale === 'de'">Deutsch</button><button [class.active]="app.me()?.preferences?.locale === 'is'">Islenska</button></div>
 	}
 
 	@if (app.setupStep() === 1) {
 		<div class="choice-list">
-			<article><span class="icon">*</span><div><strong>Still gathering ideas</strong><p>Templates, best season and rental suggestions.</p></div><span class="radio"></span></article>
-			<article class="selected"><span class="icon">H</span><div><strong>I have a place to stay</strong><p>Cabin, hotel or campsite as a fixed hub.</p></div><span class="radio checked">✓</span></article>
-			<article><span class="icon">R</span><div><strong>Planning a road trip</strong><p>Multiple stops with day-by-day reliability.</p></div><span class="radio"></span></article>
+			<article [class.selected]="app.trip().trip.status === 'draft'"><span class="icon">*</span><div><strong>Still gathering ideas</strong><p>Templates, best season and rental suggestions.</p></div><span class="radio" [class.checked]="app.trip().trip.status === 'draft'">@if (app.trip().trip.status === 'draft') { ✓ }</span></article>
+			<article [class.selected]="!!app.trip().trip.hub.id"><span class="icon">H</span><div><strong>I have a place to stay</strong><p>Cabin, hotel or campsite as a fixed hub.</p></div><span class="radio" [class.checked]="!!app.trip().trip.hub.id">@if (app.trip().trip.hub.id) { ✓ }</span></article>
+			<article [class.selected]="(app.trip().trip.totalRoutes ?? 0) > 0"><span class="icon">R</span><div><strong>Planning a road trip</strong><p>Multiple stops with day-by-day reliability.</p></div><span class="radio" [class.checked]="(app.trip().trip.totalRoutes ?? 0) > 0">@if ((app.trip().trip.totalRoutes ?? 0) > 0) { ✓ }</span></article>
 		</div>
 	}
 
 	@if (app.setupStep() === 2) {
 		<div class="calendar-card">
-			<div class="calendar-head"><strong>May 2026</strong><span>‹ ›</span></div>
+			<div class="calendar-head"><strong>{{ app.setupCalendar().monthLabel }}</strong><span>‹ ›</span></div>
 			<div class="calendar-grid">
-				@for (day of ['M','T','W','T','F','S','S','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30','31']; track $index) {
-					<span [class.range]="['14','15','16','17','18','19','20','21'].includes(day)" [class.edge]="day === '13' || day === '22'">{{ day }}</span>
+				@for (day of app.setupCalendar().weekDays; track $index) {
+					<span>{{ day }}</span>
+				}
+				@for (day of app.setupCalendar().cells; track day.id) {
+					<span [class.range]="day.inRange" [class.edge]="day.edge">{{ day.label }}</span>
 				}
 			</div>
-			<footer><span>9 nights</span><strong>13-22 May</strong><b>17h 22 avg</b></footer>
+			<footer><span>{{ app.explore().hub.nights }} nights</span><strong>{{ app.explore().hub.dateRange || app.trip().trip.dates }}</strong><b>API trip</b></footer>
 		</div>
 	}
 
 	@if (app.setupStep() === 3) {
 		<div class="choice-list vehicle-list">
-			<article><div><strong>2WD</strong><p>Sedan or compact SUV. F-roads hidden by default.</p></div><span class="radio"></span></article>
-			<article class="selected light"><div><strong>4WD</strong><p>Required for highland F-roads and river crossings.</p></div><span class="radio checked">✓</span></article>
-			<article><div><strong>Not booked yet</strong><p>IslandHub can suggest a class once it knows your route.</p></div><span class="radio"></span></article>
+			<article [class.selected]="app.trip().trip.vehicle === 'car_2wd'"><div><strong>2WD</strong><p>Sedan or compact SUV. F-roads hidden by default.</p></div><span class="radio" [class.checked]="app.trip().trip.vehicle === 'car_2wd'">@if (app.trip().trip.vehicle === 'car_2wd') { ✓ }</span></article>
+			<article class="light" [class.selected]="app.trip().trip.vehicle === 'car_4wd'"><div><strong>4WD</strong><p>Required for highland F-roads and river crossings.</p></div><span class="radio" [class.checked]="app.trip().trip.vehicle === 'car_4wd'">@if (app.trip().trip.vehicle === 'car_4wd') { ✓ }</span></article>
+			<article [class.selected]="app.trip().trip.vehicle === 'unknown'"><div><strong>Not booked yet</strong><p>IslandHub can suggest a class once it knows your route.</p></div><span class="radio" [class.checked]="app.trip().trip.vehicle === 'unknown'">@if (app.trip().trip.vehicle === 'unknown') { ✓ }</span></article>
 		</div>
 	}
 
 	@if (app.setupStep() === 4) {
-		<div class="search-card"><span>⌕</span><strong>Reykholt Cabin</strong><em>name · address · pin</em></div>
+		<div class="search-card"><span>⌕</span><strong>{{ app.explore().hub.name }}</strong><em>active trip hub</em></div>
 		<div class="map-card refine-map"><div class="island-shape"></div><span class="hub-dot"></span><strong>Drag to refine</strong></div>
-		<article class="hub-card"><span class="icon">H</span><div><strong>Reykholt Cabin</strong><p>13-22 May - 9 nights</p></div><button>Edit</button></article>
+		<article class="hub-card"><span class="icon">H</span><div><strong>{{ app.explore().hub.name }}</strong><p>{{ app.explore().hub.dateRange }} - {{ app.explore().hub.nights }} nights</p></div><button>Edit</button></article>
 	}
 
 	<div class="bottom-actions">

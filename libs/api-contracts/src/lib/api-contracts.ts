@@ -39,6 +39,96 @@ export interface Spot {
   status: SpotStatusSnapshot;
   tags: string[];
   isFRoad: boolean;
+  media?: MediaAsset[];
+}
+
+export interface MediaAsset {
+  id: string;
+  type: string;
+  url: string;
+  thumbnailUrl?: string;
+  alt: string;
+  credit?: string;
+}
+
+export type PlaceType = 'city' | 'hotel' | 'home' | 'airport' | 'custom' | 'hub';
+
+export interface PlaceSuggestion {
+  id: string;
+  name: string;
+  region: string;
+  type: PlaceType;
+  location: GeoPoint;
+  distanceKm?: number;
+  source?: string;
+}
+
+export interface PlacesSearchResponse {
+  places: PlaceSuggestion[];
+  pageInfo?: PageInfo;
+}
+
+export interface HotelSuggestion extends PlaceSuggestion {
+  type: 'hotel';
+  stars?: number;
+  media?: MediaAsset[];
+  bookingState?: 'not_booked' | 'booked' | 'unknown';
+  bookingUrl?: string;
+}
+
+export interface HotelsSearchResponse {
+  hotels: HotelSuggestion[];
+  pageInfo?: PageInfo;
+}
+
+export interface UserPreferences {
+  locale: string;
+  units: string;
+  temperatureUnit: string;
+  currency: string;
+}
+
+export interface MeResponse {
+  user: {
+    id: string;
+    displayName: string;
+    initials: string;
+    email: string;
+    joinedAt: string;
+  };
+  subscription: {
+    plan: 'free' | 'premium' | 'trial';
+    trialAvailable: boolean;
+    headline: string;
+    subcopy: string;
+  };
+  preferences: UserPreferences;
+  safety: {
+    pushAlertsTomorrowRoute: boolean;
+    notifyStatusWorsensEnRoute: boolean;
+    emergencyContactsCount: number;
+  };
+  offline: {
+    cachedMapAreaLabel?: string;
+    cachedTodayRouteStops?: number;
+    lastSyncedAt?: string;
+  };
+}
+
+export interface OfflineCacheRegionRequest {
+  tripId?: string;
+  mode: 'map-area' | 'today-route' | 'trip-core';
+  label?: string;
+  regions?: { lat: number; lon: number; radiusKm: number }[];
+  includeRouteIds?: string[];
+  includeSpotIds?: string[];
+}
+
+export interface OfflineCacheRegionResponse {
+  cacheJobId: string;
+  state: 'queued' | 'running' | 'completed' | 'failed';
+  label: string;
+  message: string;
 }
 
 export interface Hub {
@@ -96,6 +186,7 @@ export interface TripDaySleep {
 }
 
 export interface TripDay {
+  date?: string;
   weekday: string;
   day: string;
   title: string;
@@ -154,6 +245,7 @@ export interface ExploreQuery {
   vehicle?: VehicleProfile | 'any';
   showFRoads?: boolean;
   maxDriveMinutes?: number;
+  date?: string;
 }
 
 export interface SpotContextResponse {
@@ -191,10 +283,13 @@ export interface InsertPreviewResponse {
 export interface AddRouteStopRequest {
   spotId: string;
   position: 'recommended' | 'end';
+  date?: string;
 }
 
 export interface CreateTodayRouteRequest {
   spotId: string;
+  date?: string;
+  replaceExisting?: boolean;
 }
 
 export interface RouteMutationResponse {
@@ -227,11 +322,39 @@ export interface PlanSpotResponse {
 
 export interface RouteSuggestionsResponse {
   savedSpots: Spot[];
-  routes: AttractionRouteSummary[];
+  routes: RouteSuggestion[];
+  pageInfo?: PageInfo;
 }
 
 export interface StartSuggestedRouteRequest {
-  routeId: string;
+  suggestionId: string;
+  date?: string;
+  replaceExisting?: boolean;
+  expectedVersion?: number;
+}
+
+export interface RouteSuggestion {
+  suggestionId: string;
+  route: Partial<AttractionRouteSummary> & {
+    id?: string;
+    title: string;
+    summary?: string;
+    reason?: string;
+    spotIds?: string[];
+    stopIds?: string[];
+    stops?: number | { spotId?: string; status?: { level: SafetyStatus } | SafetyStatus }[];
+    totalDriveMinutes?: number;
+    totalTripMinutes?: number;
+    distanceKm?: number;
+    highestStatus?: SafetyStatus | { level: SafetyStatus };
+  };
+  reason: string;
+  expiresAt: string;
+}
+
+export interface PageInfo {
+  hasMore: boolean;
+  nextCursor?: string;
 }
 
 export interface TripResponse {

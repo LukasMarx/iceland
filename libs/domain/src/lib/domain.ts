@@ -43,6 +43,16 @@ export interface Spot {
   status: SpotStatusSnapshot;
   tags: string[];
   isFRoad: boolean;
+  media?: MediaAsset[];
+}
+
+export interface MediaAsset {
+  id: string;
+  type: string;
+  url: string;
+  thumbnailUrl?: string;
+  alt: string;
+  credit?: string;
 }
 
 export interface Hub {

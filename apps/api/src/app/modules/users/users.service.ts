@@ -59,8 +59,8 @@ export class UsersService {
         emergencyContactsCount: user.emergencyContacts.length,
       },
       offline: {
-        cachedMapAreaLabel: offlineCacheJob ? 'Reykholt · 60 km' : undefined,
-        cachedTodayRouteStops: offlineCacheJob ? 4 : undefined,
+        cachedMapAreaLabel: offlineCacheJob ? this.cacheLabel(offlineCacheJob) : undefined,
+        cachedTodayRouteStops: offlineCacheJob?.includes?.length,
         lastSyncedAt: offlineCacheJob?.completedAt?.toISOString(),
       },
     };
@@ -117,5 +117,9 @@ export class UsersService {
       },
       message: 'Preferences updated.',
     };
+  }
+
+  private cacheLabel(job: { label: string; radiusKm: number | null }) {
+    return job.radiusKm ? `${job.label} · ${job.radiusKm} km` : job.label;
   }
 }

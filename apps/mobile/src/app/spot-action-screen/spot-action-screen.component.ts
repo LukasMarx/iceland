@@ -23,9 +23,9 @@ export class SpotActionScreenComponent extends AppScreenBase {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((result) => {
         if (result.action === 'direct-route') {
-          this.app.createDirectRouteFromSpot();
+          void this.app.createDirectRouteFromSpot();
         } else if (result.action === 'add-to-route' && result.routeId) {
-          this.app.addSpotToExistingRoute(result.routeId);
+          void this.app.addSpotToExistingRoute(result.routeId);
         }
       });
 

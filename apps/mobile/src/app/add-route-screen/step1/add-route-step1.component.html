@@ -14,7 +14,11 @@
 	<p class="wizard-section-label">SUGGESTED BASES</p>
 
 	<div class="wizard-list">
-		@for (base of service.bases; track base.id) {
+		@if (service.basesLoading()) {
+			<div class="wizard-empty-state">Loading places from API…</div>
+		}
+
+		@for (base of service.bases(); track base.id) {
 			<button
 				class="wizard-list-item"
 				[class.selected]="service.base()?.id === base.id"
@@ -31,6 +35,10 @@
 					<span class="wizard-check">✓</span>
 				}
 			</button>
+		} @empty {
+			@if (!service.basesLoading()) {
+				<div class="wizard-empty-state">No API places available for this trip.</div>
+			}
 		}
 	</div>
 </div>

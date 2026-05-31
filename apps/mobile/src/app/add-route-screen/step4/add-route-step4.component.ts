@@ -4,7 +4,6 @@ import type { SafetyStatus, Spot } from '@islandhub/domain';
 import { LibButtonDirective, LibChipComponent, LibMapComponent } from '@islandhub/ui';
 import type { LibChipVariant, MapMarker, MapRoute } from '@islandhub/ui';
 import { AppScreenBase } from '../../screen-base';
-import { spotImageBackground } from '../../spot-images';
 import { AddRouteWizardService } from '../add-route-wizard.service';
 
 @Component({
@@ -159,7 +158,7 @@ export class AddRouteStep4Component extends AppScreenBase {
   }
 
   protected attractionImage(spot: Spot): string {
-    return spotImageBackground(spot.id);
+    return this.app.spotBackground(spot);
   }
 
   protected isSelected(spot: Spot): boolean {
