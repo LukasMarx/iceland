@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { LibButtonDirective } from '@islandhub/ui';
+import { LibButtonDirective, LibOptionGroupComponent, LibOptionGroupItemComponent, LucideArrowRight, LucideRepeat2 } from '@islandhub/ui';
 import { AddRouteWizardService } from '../add-route-wizard.service';
 
 @Component({
-  imports: [LibButtonDirective],
+  imports: [LibButtonDirective, LibOptionGroupComponent, LibOptionGroupItemComponent, LucideArrowRight, LucideRepeat2],
   selector: 'app-add-route-step2',
   templateUrl: './add-route-step2.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

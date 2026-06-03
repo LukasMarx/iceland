@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterOutlet } from '@angular/router';
+import { LibWizardHeaderComponent } from '@islandhub/ui';
 import { AppScreenBase } from '../screen-base';
 import { SpotActionWizardService } from './spot-action-wizard.service';
 
 @Component({
-  imports: [RouterOutlet],
+  imports: [LibWizardHeaderComponent, RouterOutlet],
   selector: 'app-spot-action-screen',
   templateUrl: './spot-action-screen.component.html',
   styleUrl: './spot-action-screen.component.scss',

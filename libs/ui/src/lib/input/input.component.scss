@@ -1,0 +1,83 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.lib-input {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 50px;
+  padding: 0 22px;
+  border: 1px solid var(--lib-input-border, var(--line, #d9d9d6));
+  border-radius: 26px;
+  background: var(--lib-input-background, rgba(255, 255, 255, 0.92));
+  box-shadow: var(--lib-input-shadow, 0 20px 32px rgba(44, 35, 18, 0.04));
+}
+
+.lib-input:focus-within {
+  border-color: var(--lib-input-focus-border, rgba(16, 17, 20, 0.18));
+}
+
+.lib-input--disabled {
+  opacity: 0.7;
+}
+
+.lib-input__prefix {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--lib-input-prefix-color, #6c7079);
+  font-size: 18px;
+}
+
+.lib-input__prefix:empty {
+  display: none;
+}
+
+.lib-input__prefix :is(svg) {
+  display: block;
+}
+
+.lib-input__control {
+  min-width: 0;
+  flex: 1 1 auto;
+  border: 0;
+  background: transparent;
+  color: var(--lib-input-color, #5e6470);
+  font: inherit;
+  font-size: 16px;
+  outline: none;
+}
+
+.lib-input__control::placeholder {
+  color: inherit;
+  opacity: 1;
+}
+
+.lib-input--password .lib-input__control {
+  color: var(--lib-input-password-color, #101114);
+  font-size: 18px;
+  letter-spacing: 0.18em;
+}
+
+.lib-input__toggle {
+  flex: 0 0 auto;
+  min-width: 64px;
+  padding: 8px 12px;
+  border: 1px solid var(--lib-input-toggle-border, var(--line, #d9d9d6));
+  border-radius: 999px;
+  background: var(--lib-input-toggle-background, rgba(255, 255, 255, 0.82));
+  color: var(--lib-input-toggle-color, var(--ink, #101114));
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@media (max-width: 380px) {
+  .lib-input {
+    min-height: 50px;
+  }
+}

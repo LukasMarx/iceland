@@ -239,60 +239,6 @@
 	line-height: 1.45;
 }
 
-.auth-field {
-	display: grid;
-	grid-template-columns: 26px 1fr;
-	align-items: center;
-	gap: 12px;
-	min-height: 50px;
-	padding: 0 22px;
-	border: 1px solid var(--line);
-	border-radius: 26px;
-	background: rgba(255, 255, 255, 0.92);
-	box-shadow: 0 20px 32px rgba(44, 35, 18, 0.04);
-}
-
-.password-field {
-	grid-template-columns: 26px 1fr auto;
-	min-height: 50px;
-	box-shadow: 0 20px 32px rgba(44, 35, 18, 0.04);
-    background: rgba(255, 255, 255, 0.92);
-}
-
-.field-icon {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	color: #6c7079;
-	font-size: 18px;
-}
-
-.field-icon svg {
-	display: block;
-}
-
-.auth-field input {
-	min-width: 0;
-	border: 0;
-	background: transparent;
-	color: #5e6470;
-	font: inherit;
-	font-size: 16px;
-	outline: none;
-}
-
-.password-field input {
-	color: #101114;
-	font-size: 18px;
-	letter-spacing: 0.18em;
-}
-
-.inline-action {
-	min-width: 64px;
-	padding: 8px 12px;
-	font-size: 12px;
-}
-
 .primary-cta,
 .social-button {
 	min-height: 86px;
@@ -404,8 +350,7 @@
 	}
 
 	.primary-cta,
-	.social-button,
-	.auth-field {
+	.social-button {
 		min-height: 50px;
 	}
 }

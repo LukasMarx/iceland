@@ -1,0 +1,87 @@
+:host.lib-option-group {
+	display: grid;
+	gap: 12px;
+	margin-top: var(--lib-option-group-margin-top, 8px);
+}
+
+:host.lib-option-group-item {
+	display: block;
+	padding: 18px 16px 14px;
+	border: 1px solid var(--color-line, #e6e3dd);
+	border-radius: 20px;
+	background: #fff;
+	color: inherit;
+	cursor: pointer;
+	text-align: left;
+	transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+:host.lib-option-group-item:focus-visible {
+	outline: 2px solid var(--color-ink, #101114);
+	outline-offset: 3px;
+}
+
+:host.lib-option-group-item.selected {
+	border-color: var(--color-ink, #101114);
+	background: var(--color-ink, #101114);
+	color: #fff;
+}
+
+.option-item-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 16px;
+	margin-bottom: 14px;
+}
+
+.option-item-copy {
+	min-width: 0;
+	flex: 1;
+}
+
+.option-item-info {
+	display: block;
+	margin-bottom: 6px;
+	color: var(--muted, #888);
+	font-family: Consolas, monospace;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+}
+
+:host.lib-option-group-item.selected .option-item-info {
+	color: rgba(255, 255, 255, 0.55);
+}
+
+h2 {
+	margin: 0 0 6px;
+	font-size: 22px;
+	font-weight: 900;
+	line-height: 1.1;
+}
+
+p {
+	margin: 0;
+	color: var(--muted, #888);
+	font-size: 15px;
+	line-height: 1.35;
+}
+
+:host.lib-option-group-item.selected p {
+	color: rgba(255, 255, 255, 0.65);
+}
+
+.option-item-icon {
+	display: grid;
+	place-items: center;
+	min-width: 28px;
+	color: var(--muted, #888);
+	font-size: 28px;
+	flex-shrink: 0;
+}
+
+:host.lib-option-group-item.selected .option-item-icon {
+	color: rgba(255, 255, 255, 0.7);
+}

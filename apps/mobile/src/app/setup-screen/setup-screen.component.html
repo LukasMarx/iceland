@@ -1,12 +1,18 @@
 <section class="onboarding screen">
 	<!-- <header class="topbar">
 		<div class="brand"><span></span>IslandHub</div>
-		<div class="mono">{{ app.setupScreens[app.setupStep()].kicker }}</div>
+		<div class="mono">{{ app.setupScreens()[app.setupStep()].kicker }}</div>
 	</header> -->
 
+	<lib-wizard-header
+		[step]="app.setupStep() + 1"
+		[totalSteps]="app.setupScreens().length"
+		(back)="back()"
+	/>
+
 	<div class="hero-copy">
-		<lib-screen-intro [title]="app.setupScreens[app.setupStep()].title">
-			<p screenIntroSubtitle>{{ app.setupScreens[app.setupStep()].body }}</p>
+		<lib-screen-intro [title]="app.setupScreens()[app.setupStep()].title">
+			<p screenIntroSubtitle>{{ app.setupScreens()[app.setupStep()].body }}</p>
 		</lib-screen-intro>
 	</div>
 
@@ -29,76 +35,91 @@
 	}
 
 	@if (app.setupStep() === 1) {
-	<div class="choice-list">
-		<article data-testid="setup-plan-draft" role="button" tabindex="0"
-			[class.selected]="app.setupPlanningMode() === 'draft'" (click)="selectPlanningMode('draft')"
-			(keydown.enter)="selectPlanningMode('draft')"
-			(keydown.space)="selectPlanningMode('draft'); $event.preventDefault()"><span class="icon">*</span>
-			<div><strong>Still gathering ideas</strong>
-				<p>Templates, best season and rental suggestions.</p>
-			</div><span class="radio" [class.checked]="app.setupPlanningMode() === 'draft'">@if (app.setupPlanningMode()
-				=== 'draft') { ✓ }</span>
-		</article>
-		<article data-testid="setup-plan-hub" role="button" tabindex="0"
-			[class.selected]="app.setupPlanningMode() === 'hub'" (click)="selectPlanningMode('hub')"
-			(keydown.enter)="selectPlanningMode('hub')"
-			(keydown.space)="selectPlanningMode('hub'); $event.preventDefault()"><span class="icon">H</span>
-			<div><strong>I have a place to stay</strong>
-				<p>Cabin, hotel or campsite as a fixed hub.</p>
-			</div><span class="radio" [class.checked]="app.setupPlanningMode() === 'hub'">@if (app.setupPlanningMode()
-				=== 'hub') { ✓ }</span>
-		</article>
-		<article data-testid="setup-plan-road-trip" role="button" tabindex="0"
-			[class.selected]="app.setupPlanningMode() === 'road-trip'" (click)="selectPlanningMode('road-trip')"
-			(keydown.enter)="selectPlanningMode('road-trip')"
-			(keydown.space)="selectPlanningMode('road-trip'); $event.preventDefault()"><span class="icon">R</span>
-			<div><strong>Planning a road trip</strong>
-				<p>Multiple stops with day-by-day reliability.</p>
-			</div><span class="radio" [class.checked]="app.setupPlanningMode() === 'road-trip'">@if
-				(app.setupPlanningMode() === 'road-trip') { ✓ }</span>
-		</article>
-	</div>
+	<lib-option-group class="setup-option-group">
+		<lib-option-group-item
+			data-testid="setup-plan-draft"
+			info="PLANNING MODE"
+			title="Still gathering ideas"
+			subtitle="Templates, best season and rental suggestions."
+			[selected]="app.setupPlanningMode() === 'draft'"
+			(click)="selectPlanningMode('draft')"
+		>
+			<svg optionGroupIcon lucideLightbulb [size]="28"></svg>
+		</lib-option-group-item>
+		<lib-option-group-item
+			data-testid="setup-plan-hub"
+			info="PLANNING MODE"
+			title="I have a place to stay"
+			subtitle="Cabin, hotel or campsite as a fixed hub."
+			[selected]="app.setupPlanningMode() === 'hub'"
+			(click)="selectPlanningMode('hub')"
+		>
+			<svg optionGroupIcon lucideHouse [size]="28"></svg>
+		</lib-option-group-item>
+		<lib-option-group-item
+			data-testid="setup-plan-road-trip"
+			info="PLANNING MODE"
+			title="Planning a road trip"
+			subtitle="Multiple stops with day-by-day reliability."
+			[selected]="app.setupPlanningMode() === 'road-trip'"
+			(click)="selectPlanningMode('road-trip')"
+		>
+			<svg optionGroupIcon lucideRoute [size]="28"></svg>
+		</lib-option-group-item>
+	</lib-option-group>
 	}
 
 	@if (app.setupStep() === 2) {
 	<div class="calendar-card">
-		<lib-calendar [highlightedDates]="app.setupCalendar().dates" [selectable]="true"
-			(rangeSelected)="app.setSetupDateRange($event.start, $event.end)"></lib-calendar>
-		<footer><span>{{ app.setupDateSummary().nights }} nights</span><strong>{{ app.setupDateSummary().label
-				}}</strong></footer>
+		<lib-switch [(value)]="mode" [size]="'md'" data-testid="setup-date-mode-switch">
+			<span libSwitchLeft>I know my dates</span>
+			<span libSwitchRight>I'm flexible</span>
+		</lib-switch>
+		@if(mode === 'left'){
+			<lib-calendar [highlightedDates]="app.setupCalendar().dates" [selectable]="true"
+				(rangeSelected)="setDateRange($event)"></lib-calendar>
+
+		}
+		<footer>
+			<span>{{ app.setupDateSummary().nights }} nights</span>
+			<strong>{{ app.setupDateSummary().label }}</strong>
+		</footer>
 	</div>
 	}
 
 	@if (app.setupStep() === 3) {
-	<div class="choice-list vehicle-list">
-		<article data-testid="setup-vehicle-2wd" role="button" tabindex="0"
-			[class.selected]="app.setupVehicle() === 'car_2wd'" (click)="selectVehicle('car_2wd')"
-			(keydown.enter)="selectVehicle('car_2wd')"
-			(keydown.space)="selectVehicle('car_2wd'); $event.preventDefault()">
-			<div><strong>2WD</strong>
-				<p>Sedan or compact SUV. F-roads hidden by default.</p>
-			</div><span class="radio" [class.checked]="app.setupVehicle() === 'car_2wd'">@if (app.setupVehicle() ===
-				'car_2wd') { ✓ }</span>
-		</article>
-		<article data-testid="setup-vehicle-4wd" class="light" role="button" tabindex="0"
-			[class.selected]="app.setupVehicle() === 'car_4wd'" (click)="selectVehicle('car_4wd')"
-			(keydown.enter)="selectVehicle('car_4wd')"
-			(keydown.space)="selectVehicle('car_4wd'); $event.preventDefault()">
-			<div><strong>4WD</strong>
-				<p>Required for highland F-roads and river crossings.</p>
-			</div><span class="radio" [class.checked]="app.setupVehicle() === 'car_4wd'">@if (app.setupVehicle() ===
-				'car_4wd') { ✓ }</span>
-		</article>
-		<article data-testid="setup-vehicle-unknown" role="button" tabindex="0"
-			[class.selected]="app.setupVehicle() === 'unknown'" (click)="selectVehicle('unknown')"
-			(keydown.enter)="selectVehicle('unknown')"
-			(keydown.space)="selectVehicle('unknown'); $event.preventDefault()">
-			<div><strong>Not booked yet</strong>
-				<p>IslandHub can suggest a class once it knows your route.</p>
-			</div><span class="radio" [class.checked]="app.setupVehicle() === 'unknown'">@if (app.setupVehicle() ===
-				'unknown') { ✓ }</span>
-		</article>
-	</div>
+	<lib-option-group class="setup-option-group">
+		<lib-option-group-item
+			data-testid="setup-vehicle-2wd"
+			info="VEHICLE"
+			title="2WD"
+			subtitle="Sedan or compact SUV. F-roads hidden by default."
+			[selected]="app.setupVehicle() === 'car_2wd'"
+			(click)="selectVehicle('car_2wd')"
+		>
+			<svg optionGroupIcon lucideCarFront [size]="28"></svg>
+		</lib-option-group-item>
+		<lib-option-group-item
+			data-testid="setup-vehicle-4wd"
+			info="VEHICLE"
+			title="4WD"
+			subtitle="Required for highland F-roads and river crossings."
+			[selected]="app.setupVehicle() === 'car_4wd'"
+			(click)="selectVehicle('car_4wd')"
+		>
+			<svg optionGroupIcon lucideMountain [size]="28"></svg>
+		</lib-option-group-item>
+		<lib-option-group-item
+			data-testid="setup-vehicle-unknown"
+			info="VEHICLE"
+			title="Not booked yet"
+			subtitle="IslandHub can suggest a class once it knows your route."
+			[selected]="app.setupVehicle() === 'unknown'"
+			(click)="selectVehicle('unknown')"
+		>
+			<svg optionGroupIcon lucideCompass [size]="28"></svg>
+		</lib-option-group-item>
+	</lib-option-group>
 	}
 
 	@if (app.setupStep() === 4) {
@@ -115,7 +136,7 @@
 
 	<div class="bottom-actions">
 		<button class="primary" libButton="primary" (click)="app.continueSetup()">{{ app.setupStep() ===
-			app.setupScreens.length - 1 ? 'Looks good' : 'Continue' }}</button>
+			app.setupScreens().length - 1 ? 'Looks good' : 'Continue' }}</button>
 		<button class="text-button" libButton="text" (click)="app.skipSetup()">Explore without setup</button>
 	</div>
 </section>

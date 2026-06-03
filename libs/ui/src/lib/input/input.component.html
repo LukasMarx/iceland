@@ -1,0 +1,34 @@
+<label class="lib-input" [class.lib-input--password]="isPasswordField()" [class.lib-input--disabled]="disabled()">
+  <span class="lib-input__prefix" aria-hidden="true">
+    <ng-content select="[libInputPrefix]"></ng-content>
+  </span>
+
+  <input
+    #inputElement
+    class="lib-input__control"
+    [id]="id()"
+    [type]="resolvedType()"
+    [disabled]="disabled()"
+    [autofocus]="autofocus()"
+    [attr.inputmode]="inputMode() || null"
+    [attr.autocomplete]="autocomplete() || null"
+    [attr.aria-label]="effectiveAriaLabel()"
+    [attr.placeholder]="placeholder() || null"
+    [attr.data-testid]="dataTestId() || null"
+    [value]="value()"
+    (input)="handleInput(inputElement.value)"
+  />
+
+  @if (hasPasswordToggle()) {
+    <button
+      class="lib-input__toggle"
+      type="button"
+      [disabled]="disabled()"
+      [attr.data-testid]="toggleTestId() || null"
+      [attr.aria-pressed]="passwordVisible()"
+      (click)="togglePasswordVisibility()"
+    >
+      {{ passwordVisible() ? hidePasswordLabel() : showPasswordLabel() }}
+    </button>
+  }
+</label>

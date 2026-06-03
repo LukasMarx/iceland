@@ -10,21 +10,21 @@
 			<p>Save hubs, routes and spots across devices and pick up where you left off.</p>
 		</div>
 
-		<label class="auth-field" for="register-email">
-			<span class="field-icon" aria-hidden="true"><svg lucideMail [size]="18" /></span>
-			<input
-				#emailInput
-				id="register-email"
-				type="email"
-				inputmode="email"
-				autocomplete="email"
-				placeholder="you@somewhere.is"
-				[value]="auth.email()"
-				(input)="auth.email.set(emailInput.value)"
-			/>
-		</label>
+		<lib-input
+			id="register-email"
+			dataTestId="register-email-input"
+			type="email"
+			inputMode="email"
+			autocomplete="email"
+			placeholder="you@somewhere.is"
+			ariaLabel="Email address"
+			[value]="auth.email()"
+			(valueChange)="auth.email.set($event)"
+		>
+			<svg libInputPrefix lucideMail [size]="18" />
+		</lib-input>
 
-		<button class="primary-cta" libButton="primary" type="button" [disabled]="auth.pending()" (click)="continueWithEmail(emailInput.value)">
+		<button class="primary-cta" libButton="primary" type="button" [disabled]="auth.pending()" (click)="continueWithEmail(auth.email())">
 			Continue with email <span>→</span>
 		</button>
 
@@ -51,20 +51,21 @@
 			<p>{{ auth.emailLabel() }}</p>
 		</div>
 
-		<label class="auth-field password-field" for="register-password">
-			<span class="field-icon" aria-hidden="true"><svg lucideKeyRound [size]="18" /></span>
-			<input
-				#passwordInput
-				id="register-password"
-				[autofocus]="true"
-				[type]="showPassword() ? 'text' : 'password'"
-				autocomplete="new-password"
-				placeholder="Create password"
-				[value]="password()"
-				(input)="password.set(passwordInput.value)"
-			/>
-			<button class="inline-action" type="button" (click)="showPassword.set(!showPassword())">{{ showPassword() ? 'HIDE' : 'SHOW' }}</button>
-		</label>
+		<lib-input
+			id="register-password"
+			dataTestId="register-password-input"
+			toggleTestId="register-password-toggle"
+			[autofocus]="true"
+			type="password"
+			autocomplete="new-password"
+			placeholder="Create password"
+			ariaLabel="Create password"
+			[showPasswordToggle]="true"
+			[value]="password()"
+			(valueChange)="password.set($event)"
+		>
+			<svg libInputPrefix lucideKeyRound [size]="18" />
+		</lib-input>
 
 		<button class="primary-cta" libButton="primary" type="button" [disabled]="auth.pending()" (click)="submitPassword()">{{ primaryLabel() }}</button>
 

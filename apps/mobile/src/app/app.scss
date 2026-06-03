@@ -872,88 +872,10 @@ h1 {
 	color: rgba(255, 255, 255, 0.65);
 }
 
+
 .wizard-check {
 	font-size: 16px;
 	font-weight: 900;
-}
-
-/* ── Wizard step 2: trip type cards ─────────────────────────────────── */
-
-.wizard-trip-cards {
-	display: grid;
-	gap: 12px;
-	margin-top: 8px;
-}
-
-.wizard-trip-card {
-	padding: 18px 16px 14px;
-	border-radius: 20px;
-	background: white;
-	border: 1px solid var(--color-line, #e6e3dd);
-	text-align: left;
-	transition: background 0.15s, border-color 0.15s;
-}
-
-.wizard-trip-card.selected {
-	background: var(--color-ink, #101114);
-	border-color: var(--color-ink, #101114);
-	color: white;
-}
-
-.wizard-trip-card-head {
-	display: flex;
-	justify-content: space-between;
-	align-items: flex-start;
-	gap: 16px;
-	margin-bottom: 14px;
-}
-
-.wizard-trip-kicker {
-	display: block;
-	margin-bottom: 6px;
-	font-family: Consolas, monospace;
-	font-size: 11px;
-	font-weight: 700;
-	letter-spacing: 0.07em;
-	text-transform: uppercase;
-	color: var(--muted, #888);
-}
-
-.wizard-trip-card.selected .wizard-trip-kicker {
-	color: rgba(255, 255, 255, 0.55);
-}
-
-.wizard-trip-card h2 {
-	font-size: 22px;
-	font-weight: 900;
-	line-height: 1.1;
-	margin-bottom: 6px;
-}
-
-.wizard-trip-card p {
-	font-size: 15px;
-	color: var(--muted, #888);
-	line-height: 1.35;
-}
-
-.wizard-trip-card.selected p {
-	color: rgba(255, 255, 255, 0.65);
-}
-
-.wizard-trip-icon {
-	font-size: 28px;
-	color: var(--muted, #888);
-	flex-shrink: 0;
-}
-
-.wizard-trip-card.selected .wizard-trip-icon {
-	color: rgba(255, 255, 255, 0.7);
-}
-
-.wizard-trip-tags {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 6px;
 }
 
 /* ── Wizard step 3: hotel list ───────────────────────────────────────── */

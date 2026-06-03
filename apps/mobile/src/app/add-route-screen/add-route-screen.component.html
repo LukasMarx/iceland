@@ -1,13 +1,5 @@
 <section class="wizard-overlay screen" [class.wizard-map-step]="service.step() === 3 || service.step() === 4">
-	<header class="wizard-header">
-		<button class="wizard-back" (click)="back()">‹</button>
-		<div class="wizard-steps">
-			@for (dot of service.stepDots(); track dot) {
-				<span class="wizard-step-dot" [class.active]="dot === service.displayStep()"></span>
-			}
-		</div>
-		<span class="wizard-step-label">Step {{ service.displayStep() }} of {{ service.displayTotalSteps() }}</span>
-	</header>
+	<lib-wizard-header [step]="service.displayStep()" [totalSteps]="service.displayTotalSteps()" (back)="back()" />
 
 	<router-outlet />
 </section>

@@ -81,6 +81,11 @@ import { LucideChevronLeft, LucideChevronRight } from '../icons';
 				font-family: var(--font-family-sans, inherit);
 			}
 
+            :host::ng-deep .fc-daygrid-day-events {
+                min-height: 0 !important;
+                margin-bottom:20px !important;
+            }
+
 			:host ::ng-deep .fc-theme-standard td,
 			:host ::ng-deep .fc-theme-standard th,
 			:host ::ng-deep .fc-scrollgrid,
@@ -174,6 +179,13 @@ export class LibCalendarComponent {
 		showNonCurrentDates: false,
 		firstDay: 1,
 		height: 'auto',
+		events: [],
+		eventDisplay: 'none',
+		displayEventTime: false,
+		editable: false,
+		eventStartEditable: false,
+		eventDurationEditable: false,
+		dayMaxEvents: false,
 		dayHeaderFormat: { weekday: 'narrow' },
 		dayCellClassNames: (arg) => this.dayCellClassNames(arg),
 		datesSet: (arg) => this.handleDatesSet(arg),

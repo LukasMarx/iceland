@@ -26,22 +26,21 @@
 			<p>Sign in to sync your hubs and saved spots across devices.</p>
 		</div>
 
-		<label class="auth-field" for="auth-email">
-			<span class="field-icon" aria-hidden="true"><svg lucideMail [size]="18" /></span>
-			<input
-				#emailInput
-				id="auth-email"
-				data-testid="auth-email-input"
-				type="email"
-				inputmode="email"
-				autocomplete="email"
-				placeholder="you@somewhere.is"
-				[value]="auth.email()"
-				(input)="auth.email.set(emailInput.value)"
-			/>
-		</label>
+		<lib-input
+			id="auth-email"
+			dataTestId="auth-email-input"
+			type="email"
+			inputMode="email"
+			autocomplete="email"
+			placeholder="you@somewhere.is"
+			ariaLabel="Email address"
+			[value]="auth.email()"
+			(valueChange)="auth.email.set($event)"
+		>
+			<svg libInputPrefix lucideMail [size]="18" />
+		</lib-input>
 
-		<button class="primary-cta" libButton="primary" type="button" data-testid="auth-continue-email" [disabled]="auth.pending()" (click)="continueWithEmail(emailInput.value)">
+		<button class="primary-cta" libButton="primary" type="button" data-testid="auth-continue-email" [disabled]="auth.pending()" (click)="continueWithEmail(auth.email())">
 			Continue with email <span>→</span>
 		</button>
 
@@ -68,21 +67,21 @@
 			<p>{{ auth.emailLabel() }}</p>
 		</div>
 
-		<label class="auth-field password-field" for="auth-password">
-			<span class="field-icon" aria-hidden="true"><svg lucideKeyRound [size]="18" /></span>
-			<input
-				#passwordInput
-				id="auth-password"
-				data-testid="auth-password-input"
-				[autofocus]="true"
-				[type]="showPassword() ? 'text' : 'password'"
-				autocomplete="current-password"
-				placeholder="Password"
-				[value]="password()"
-				(input)="password.set(passwordInput.value)"
-			/>
-			<button class="inline-action" type="button" (click)="showPassword.set(!showPassword())">{{ showPassword() ? 'HIDE' : 'SHOW' }}</button>
-		</label>
+		<lib-input
+			id="auth-password"
+			dataTestId="auth-password-input"
+			toggleTestId="auth-password-toggle"
+			[autofocus]="true"
+			type="password"
+			autocomplete="current-password"
+			placeholder="Password"
+			ariaLabel="Password"
+			[showPasswordToggle]="true"
+			[value]="password()"
+			(valueChange)="password.set($event)"
+		>
+			<svg libInputPrefix lucideKeyRound [size]="18" />
+		</lib-input>
 
 		<button class="primary-cta" libButton="primary" type="button" data-testid="auth-submit-password" [disabled]="auth.pending()" (click)="submitPassword()">{{ primaryLabel() }}</button>
 

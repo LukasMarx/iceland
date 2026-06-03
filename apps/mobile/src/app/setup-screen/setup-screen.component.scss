@@ -67,69 +67,8 @@
 .pin.yellow { right: 28%; top: 38%; background: var(--yellow); }
 .pin.red { right: 18%; bottom: 28%; background: var(--red); }
 
-.choice-list,
-.vehicle-list {
-	display: grid;
-	gap: 12px;
-	margin-top: 38px;
-}
-
-.choice-list article {
-	display: grid;
-	grid-template-columns: 56px 1fr 34px;
-	gap: 16px;
-	align-items: center;
-	min-height: 104px;
-	padding: 16px 18px;
-}
-
-.choice-list .selected {
-	border-color: #101114;
-	background: #101114;
-	color: white;
-}
-
-.choice-list .selected p {
-	color: rgba(255, 255, 255, 0.68);
-}
-
-.choice-list .selected.light {
-	background: var(--card);
-	color: var(--ink);
-}
-
-.choice-list .selected.light p {
-	color: var(--muted);
-}
-
-.icon {
-	display: grid;
-	place-items: center;
-	width: 52px;
-	height: 52px;
-	border-radius: 12px;
-	background: #e8e1d6;
-	font-weight: 900;
-}
-
-.selected .icon {
-	background: #24252b;
-}
-
-.radio {
-	width: 28px;
-	height: 28px;
-	border: 2px solid var(--line);
-	border-radius: 50%;
-}
-
-.radio.checked {
-	display: grid;
-	place-items: center;
-	border-color: transparent;
-	background: white;
-	color: var(--ink);
-	font-weight: 900;
+.setup-option-group {
+	--lib-option-group-margin-top: 38px;
 }
 
 .bottom-actions {
@@ -148,6 +87,10 @@
 .calendar-card {
 	margin-top: 34px;
 	padding: 0;
+}
+
+.calendar-card lib-calendar {
+	margin-top: 32px;
 }
 
 .calendar-card footer {

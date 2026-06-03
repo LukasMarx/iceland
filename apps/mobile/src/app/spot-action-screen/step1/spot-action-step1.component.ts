@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { LibButtonDirective } from '@islandhub/ui';
+import { LibButtonDirective, LibOptionGroupComponent, LibOptionGroupItemComponent, LucideArrowRight, LucidePlus } from '@islandhub/ui';
 import { SpotActionType, SpotActionWizardService } from '../spot-action-wizard.service';
 
 @Component({
-  imports: [LibButtonDirective],
+  imports: [LibButtonDirective, LibOptionGroupComponent, LibOptionGroupItemComponent, LucideArrowRight, LucidePlus],
   selector: 'app-spot-action-step1',
   templateUrl: './spot-action-step1.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -103,6 +103,31 @@ describe('App', () => {
     expect(localStorage.getItem('islandhub.mobile.setup')).toContain('"rangeEnd":"2026-05-18"');
   });
 
+  it('renders the onboarding wizard header and goes back one step when pressed', async () => {
+    const fixture = TestBed.createComponent(App);
+    const appState = TestBed.inject(AppStateService);
+    const router = TestBed.inject(Router);
+
+    await enterAuthenticatedMode(fixture);
+    await flushInitialApi(http);
+    appState.setupStep.set(2);
+    await router.navigateByUrl('/setup');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const headerLabel = compiled.querySelector('[data-testid="wizard-header-label"]');
+    const backButton = compiled.querySelector('[data-testid="wizard-header-back"]') as HTMLButtonElement;
+
+    expect(headerLabel?.textContent).toContain('Step 3 of 4');
+
+    backButton.click();
+    fixture.detectChanges();
+
+    expect(appState.setupStep()).toBe(1);
+    expect(localStorage.getItem('islandhub.mobile.setup')).toContain('"step":1');
+  });
+
   it('reloads Explore from the API when filters change', async () => {
     const fixture = TestBed.createComponent(App);
     const appState = TestBed.inject(AppStateService);
@@ -163,12 +188,30 @@ describe('App', () => {
 
     appState.skipSetup();
 
-    expect(localStorage.getItem('islandhub.mobile.setup')).toBe(JSON.stringify({ done: true, step: appState.setupScreens.length - 1 }));
+    expect(localStorage.getItem('islandhub.mobile.setup')).toBe(JSON.stringify({ done: true, step: appState.setupScreens().length - 1 }));
 
     const restoredState = TestBed.runInInjectionContext(() => new AppStateService());
 
     expect(restoredState.setupDone()).toBe(true);
-    expect(restoredState.setupStep()).toBe(restoredState.setupScreens.length - 1);
+    expect(restoredState.setupStep()).toBe(restoredState.setupScreens().length - 1);
+  });
+
+  it('only includes the hub step when setup planning mode is hub', async () => {
+    const fixture = TestBed.createComponent(App);
+    const appState = TestBed.inject(AppStateService);
+
+    await enterAuthenticatedMode(fixture);
+    await flushInitialApi(http);
+
+    expect(appState.setupScreens()).toHaveLength(4);
+
+    appState.selectSetupPlanningMode('hub');
+
+    expect(appState.setupScreens()).toHaveLength(5);
+
+    appState.selectSetupPlanningMode('draft');
+
+    expect(appState.setupScreens()).toHaveLength(4);
   });
 
   it('updates vehicle selection from onboarding and refreshes Explore', async () => {

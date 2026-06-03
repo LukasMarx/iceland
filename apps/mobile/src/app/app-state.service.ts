@@ -84,6 +84,34 @@ const emptyTrip: TripResponse = {
 const genericSpotBackground = 'linear-gradient(135deg, #dfe7e2 0%, #8da39a 48%, #52655f 100%)';
 const SETUP_STORAGE_KEY = 'islandhub.mobile.setup';
 
+interface SetupScreen {
+  kicker: string;
+  title: string;
+  body: string;
+}
+
+const baseSetupScreenContent: Omit<SetupScreen, 'kicker'>[] = [
+  { title: "See what's open today.", body: 'Iceland changes by the hour. IslandHub merges road, weather, vehicle and daylight status into one daily decision surface.' },
+  { title: 'Where are you in planning?', body: 'Pick the shortest setup path. You can switch later.' },
+  { title: 'When are you going?', body: 'Your trip dates come from the active API trip and drive daylight and route checks.' },
+  { title: 'What will you be driving?', body: '2WD hides F-roads by default. 4WD unlocks them, but river crossings still need judgement.' },
+];
+
+const hubSetupScreenContent: Omit<SetupScreen, 'kicker'> = {
+  title: 'Where are you staying?',
+  body: 'Your hub is the centre of every daily reach calculation. We use your active trip hub from the API.',
+};
+
+function buildSetupScreens(includeHubStep: boolean): SetupScreen[] {
+  const screens = includeHubStep ? [...baseSetupScreenContent, hubSetupScreenContent] : baseSetupScreenContent;
+  const total = screens.length;
+
+  return screens.map((screen, index) => ({
+    ...screen,
+    kicker: `${String(index + 1).padStart(2, '0')} - ${String(total).padStart(2, '0')}`,
+  }));
+}
+
 interface StoredSetupState {
   done: boolean;
   step: number;
@@ -129,13 +157,7 @@ export class AppStateService {
   readonly showFRoads = signal(true);
   readonly maxDriveMinutes = signal(180);
 
-  readonly setupScreens = [
-    { kicker: '01 - 05', title: "See what's open today.", body: 'Iceland changes by the hour. IslandHub merges road, weather, vehicle and daylight status into one daily decision surface.' },
-    { kicker: '02 - 05', title: 'Where are you in planning?', body: 'Pick the shortest setup path. You can switch later.' },
-    { kicker: '03 - 05', title: 'When are you going?', body: 'Your trip dates come from the active API trip and drive daylight and route checks.' },
-    { kicker: '04 - 05', title: 'What will you be driving?', body: '2WD hides F-roads by default. 4WD unlocks them, but river crossings still need judgement.' },
-    { kicker: '05 - 05', title: 'Where are you staying?', body: 'Your hub is the centre of every daily reach calculation. We use your active trip hub from the API.' },
-  ];
+  readonly setupScreens = computed(() => buildSetupScreens(this.setupPlanningSelection() === 'hub'));
 
   private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
@@ -315,13 +337,22 @@ export class AppStateService {
   }
 
   continueSetup(): void {
-    if (this.setupStep() >= this.setupScreens.length - 1) {
+    if (this.setupStep() >= this.setupLastStepIndex()) {
       this.completeSetup();
       this.navigateToTab('explore');
       return;
     }
 
     this.setupStep.update((step) => step + 1);
+    this.persistSetupState();
+  }
+
+  backSetup(): void {
+    if (this.setupStep() <= 0) {
+      return;
+    }
+
+    this.setupStep.update((step) => step - 1);
     this.persistSetupState();
   }
 
@@ -747,6 +778,11 @@ export class AppStateService {
 
   selectSetupPlanningMode(mode: SetupPlanningMode): void {
     this.setupPlanningSelection.set(mode);
+
+    if (this.setupStep() > this.setupLastStepIndex()) {
+      this.setupStep.set(this.setupLastStepIndex());
+    }
+
     this.persistSetupState();
   }
 
@@ -1168,7 +1204,7 @@ export class AppStateService {
 
   private completeSetup(): void {
     this.setupDone.set(true);
-    this.setupStep.set(this.setupScreens.length - 1);
+    this.setupStep.set(this.setupLastStepIndex());
     this.persistSetupState();
   }
 
@@ -1190,15 +1226,16 @@ export class AppStateService {
 
     try {
       const state = JSON.parse(rawState) as Partial<StoredSetupState>;
-      const normalizedStep = Math.max(0, Math.min(this.setupScreens.length - 1, Number.isFinite(state.step) ? Number(state.step) : 0));
-      const done = Boolean(state.done);
-
-      this.setupDone.set(done);
-      this.setupStep.set(done ? this.setupScreens.length - 1 : normalizedStep);
       this.setupPlanningSelection.set(this.isSetupPlanningMode(state.planningMode) ? state.planningMode : null);
       this.setupVehicleSelection.set(this.isSetupVehicle(state.vehicle) ? state.vehicle : null);
       this.setupSelectedStartDate.set(this.isIsoDate(state.rangeStart) ? state.rangeStart : null);
       this.setupSelectedEndDate.set(this.isIsoDate(state.rangeEnd) ? state.rangeEnd : null);
+
+      const normalizedStep = Math.max(0, Math.min(this.setupLastStepIndex(), Number.isFinite(state.step) ? Number(state.step) : 0));
+      const done = Boolean(state.done);
+
+      this.setupDone.set(done);
+      this.setupStep.set(done ? this.setupLastStepIndex() : normalizedStep);
     } catch {
       this.storage?.removeItem(SETUP_STORAGE_KEY);
     }
@@ -1211,7 +1248,7 @@ export class AppStateService {
 
     const state: StoredSetupState = {
       done: this.setupDone(),
-      step: this.setupDone() ? this.setupScreens.length - 1 : this.setupStep(),
+      step: this.setupDone() ? this.setupLastStepIndex() : this.setupStep(),
       planningMode: this.setupPlanningSelection() ?? undefined,
       vehicle: this.setupVehicleSelection() ?? undefined,
       rangeStart: this.setupSelectedStartDate() ?? undefined,
@@ -1233,6 +1270,10 @@ export class AppStateService {
     }
 
     return trip.status === 'draft' ? 'draft' : 'hub';
+  }
+
+  private setupLastStepIndex(): number {
+    return this.setupScreens().length - 1;
   }
 
   private isSetupPlanningMode(value: unknown): value is SetupPlanningMode {

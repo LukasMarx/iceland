@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { LibButtonDirective, LucideKeyRound, LucideMail } from '@islandhub/ui';
 import { Router } from '@angular/router';
+import { LibInputComponent } from '../../../../../libs/ui/src/lib/input/input.component';
 import { AppScreenBase } from '../screen-base';
 import { AuthService } from '../auth.service';
 
 @Component({
-  imports: [LibButtonDirective, LucideMail, LucideKeyRound],
+  imports: [LibButtonDirective, LibInputComponent, LucideMail, LucideKeyRound],
   selector: 'app-auth-screen',
   templateUrl: './auth-screen.component.html',
   styleUrl: './auth-screen.component.scss',
@@ -15,7 +16,6 @@ export class AuthScreenComponent extends AppScreenBase {
   protected readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   protected readonly password = signal('');
-  protected readonly showPassword = signal(false);
   protected readonly locale = signal<'EN' | 'DE' | 'IS'>('EN');
   protected readonly primaryLabel = computed(() => 'Sign in');
 

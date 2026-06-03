@@ -1,0 +1,38 @@
+<div
+  class="lib-switch"
+  role="group"
+  [attr.aria-label]="ariaLabel"
+  [attr.data-selected]="value()"
+  [class.lib-switch--disabled]="disabled"
+  data-testid="lib-switch"
+>
+  <span class="lib-switch__thumb" aria-hidden="true"></span>
+
+  <button
+    type="button"
+    class="lib-switch__option"
+    [class.lib-switch__option--active]="isSelected(leftValue)"
+    [attr.aria-pressed]="isSelected(leftValue)"
+    [disabled]="disabled"
+    (click)="setValue(leftValue)"
+    data-testid="lib-switch-left"
+  >
+    <span class="lib-switch__label">
+      <ng-content select="[libSwitchLeft]"></ng-content>
+    </span>
+  </button>
+
+  <button
+    type="button"
+    class="lib-switch__option"
+    [class.lib-switch__option--active]="isSelected(rightValue)"
+    [attr.aria-pressed]="isSelected(rightValue)"
+    [disabled]="disabled"
+    (click)="setValue(rightValue)"
+    data-testid="lib-switch-right"
+  >
+    <span class="lib-switch__label">
+      <ng-content select="[libSwitchRight]"></ng-content>
+    </span>
+  </button>
+</div>
