@@ -1,12 +1,12 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterOutlet } from '@angular/router';
-import { LibWizardHeaderComponent } from '@islandhub/ui';
+import { LibScreenComponent, LibWizardHeaderComponent } from '@islandhub/ui';
 import { AppScreenBase } from '../screen-base';
 import { AddRouteWizardService } from './add-route-wizard.service';
 
 @Component({
-  imports: [LibWizardHeaderComponent, RouterOutlet],
+  imports: [LibWizardHeaderComponent, RouterOutlet, LibScreenComponent],
   selector: 'app-add-route-screen',
   templateUrl: './add-route-screen.component.html',
   styleUrl: './add-route-screen.component.scss',

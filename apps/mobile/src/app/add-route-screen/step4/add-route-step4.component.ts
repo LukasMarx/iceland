@@ -1,13 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import type { SafetyStatus, Spot } from '@islandhub/domain';
-import { LibButtonDirective, LibChipComponent, LibMapComponent } from '@islandhub/ui';
+import { LibButtonDirective, LibChipComponent, LibMapComponent, LibWizardBodyComponent, LibBottomSheetComponent } from '@islandhub/ui';
 import type { LibChipVariant, MapMarker, MapRoute } from '@islandhub/ui';
 import { AppScreenBase } from '../../screen-base';
 import { AddRouteWizardService } from '../add-route-wizard.service';
 
 @Component({
-  imports: [LibButtonDirective, LibChipComponent, LibMapComponent],
+  imports: [LibButtonDirective, LibChipComponent, LibMapComponent, LibWizardBodyComponent, LibBottomSheetComponent],
   selector: 'app-add-route-step4',
   templateUrl: './add-route-step4.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -16,6 +16,14 @@ export class AddRouteStep4Component extends AppScreenBase {
   protected readonly service = inject(AddRouteWizardService);
   private readonly router = inject(Router);
   protected readonly manualMode = signal(this.service.flow() === 'edit');
+
+  constructor() {
+    super();
+    this.service.step.set(4);
+    if (!this.service.base()) {
+      this.service.init(this.app.currentWizardBase());
+    }
+  }
 
   protected readonly candidateStops = computed(() => {
     const order: Record<SafetyStatus, number> = { green: 0, yellow: 1, unknown: 2, red: 3 };

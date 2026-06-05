@@ -1,12 +1,14 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { AuthService } from '../auth.service';
+import { AuthService } from '../services/auth.service';
 import { AppScreenBase } from '../screen-base';
+import { LibScreenComponent } from '@islandhub/ui';
 
 @Component({
   selector: 'app-profile-screen',
   templateUrl: './profile-screen.component.html',
   styleUrl: './profile-screen.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [LibScreenComponent],
 })
 export class ProfileScreenComponent extends AppScreenBase {
   protected readonly auth = inject(AuthService);

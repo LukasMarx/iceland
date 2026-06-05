@@ -1,10 +1,10 @@
 import { NgClass } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
-import { LibButtonDirective, LibChipComponent, LibIllustratedEmptyStateComponent, LibScreenIntroComponent, LibStatsDarkComponent, LucideArrowRight, LucideCheck, LucideChevronsDown } from '@islandhub/ui';
+import { LibButtonDirective, LibChipComponent, LibIllustratedEmptyStateComponent, LibScreenComponent, LibScreenIntroComponent, LibStatsDarkComponent, LucideArrowRight, LucideCheck, LucideChevronsDown } from '@islandhub/ui';
 import { AppScreenBase } from '../screen-base';
 
 @Component({
-  imports: [NgClass, LibButtonDirective, LibChipComponent, LibIllustratedEmptyStateComponent, LibScreenIntroComponent, LibStatsDarkComponent, LucideArrowRight, LucideCheck, LucideChevronsDown],
+  imports: [NgClass, LibButtonDirective, LibChipComponent, LibScreenComponent, LibIllustratedEmptyStateComponent, LibScreenIntroComponent, LibStatsDarkComponent, LucideArrowRight, LucideCheck, LucideChevronsDown],
   selector: 'app-today-screen',
   templateUrl: './today-screen.component.html',
   styleUrl: './today-screen.component.scss',

@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import type { HotelSuggestion, PlaceSuggestion } from '@islandhub/api-contracts';
 import { Subject } from 'rxjs';
-import { IslandhubApiService } from '../islandhub-api.service';
+import { IslandhubApiService } from '../services/islandhub-api.service';
 
 export interface WizardBase {
   id: string;

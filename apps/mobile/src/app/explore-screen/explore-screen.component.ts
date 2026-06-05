@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
-import { LibAttractionCardComponent, LibChipComponent, LibEmptyStateComponent, LibMapComponent, LibScreenIntroComponent } from '@islandhub/ui';
+import { LibAttractionCardComponent, LibChipComponent, LibEmptyStateComponent, LibMapComponent, LibScreenComponent, LibScreenIntroComponent } from '@islandhub/ui';
 import type { MapMarker } from '@islandhub/ui';
 import { AppScreenBase } from '../screen-base';
 
@@ -12,7 +12,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 @Component({
-  imports: [LibAttractionCardComponent, LibChipComponent, LibEmptyStateComponent, LibMapComponent, LibScreenIntroComponent],
+  imports: [LibAttractionCardComponent, LibChipComponent, LibScreenComponent, LibEmptyStateComponent, LibMapComponent, LibScreenIntroComponent],
   selector: 'app-explore-screen',
   templateUrl: './explore-screen.component.html',
   styleUrl: './explore-screen.component.scss',

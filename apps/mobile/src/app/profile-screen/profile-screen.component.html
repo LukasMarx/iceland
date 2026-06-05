@@ -1,4 +1,4 @@
-<section class="screen profile-view">
+<lib-screen>
 	@if (auth.isAuthenticated() && app.me(); as me) {
 		<header class="profile-head">
 			<span>{{ me.user.initials }}</span>
@@ -57,4 +57,4 @@
 			<button (click)="auth.signOut()">Sign in to load your profile…</button>
 		</div>
 	}
-</section>
+</lib-screen>

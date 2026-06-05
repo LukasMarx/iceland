@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import type { AttractionRouteSummary } from '@islandhub/api-contracts';
-import { LibButtonDirective } from '@islandhub/ui';
+import { LibButtonDirective, LibWizardBodyComponent, LibWizardFooterComponent } from '@islandhub/ui';
 import { AppScreenBase } from '../../screen-base';
 import { SpotActionWizardService } from '../spot-action-wizard.service';
 
@@ -11,7 +11,7 @@ interface RouteEntry {
 }
 
 @Component({
-  imports: [LibButtonDirective],
+  imports: [LibButtonDirective, LibWizardBodyComponent, LibWizardFooterComponent],
   selector: 'app-spot-action-step2',
   templateUrl: './spot-action-step2.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

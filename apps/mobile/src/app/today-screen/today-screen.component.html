@@ -1,4 +1,4 @@
-<section class="screen today-view">
+<lib-screen>
 	<header class="today-head">
 		<lib-screen-intro [kicker]="app.today().dateLabel" [title]="screenTitle()"></lib-screen-intro>
 		@if (hasStops()) {
@@ -64,4 +64,4 @@
 		[actionLabel]="emptyStateActionLabel()"
 		(action)="handleEmptyStateAction()"></lib-illustrated-empty-state>
 	}
-</section>
+</lib-screen>

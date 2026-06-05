@@ -1,4 +1,4 @@
-<div class="wizard-map-view route-stop-picker">
+<lib-wizard-body>
   <div class="wizard-map">
     <lib-map
       [markers]="wizardMarkers()"
@@ -7,12 +7,12 @@
     ></lib-map>
   </div>
 
-  <div class="wizard-bottom-sheet stops-sheet" [class.expanded]="manualMode()">
-    <button class="wizard-sheet-handle-row" (click)="manualMode.set(!manualMode())">
-      <span class="wizard-sheet-handle"></span>
-      <span class="wizard-sheet-peek-label">{{ selectedStops().length || recommendedStopIds().length }} Stopps bis {{ destinationName }}</span>
-    </button>
-
+  <lib-bottom-sheet
+    [expanded]="manualMode()"
+    [peekLabel]="(selectedStops().length || recommendedStopIds().length) + ' Stopps bis ' + destinationName"
+    cssClass="stops-sheet"
+    (toggle)="manualMode.set(!manualMode())"
+  >
     <div class="stops-summary">
       <div>
         <span>Direkt</span>
@@ -75,5 +75,5 @@
         <button libButton="primary" (click)="continue()">Review route draft</button>
       </div>
     }
-  </div>
-</div>
+  </lib-bottom-sheet>
+</lib-wizard-body>

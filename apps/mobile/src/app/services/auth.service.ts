@@ -3,7 +3,7 @@ import { computed, Injectable, signal, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import type { AuthResponse, AuthUser } from '@islandhub/api-contracts';
 import { IslandhubApiService } from './islandhub-api.service';
-import { SocialAuthClientService } from './social-auth-client.service';
+import { SocialAuthClientService } from '../social-auth-client.service';
 
 type AuthMode = 'none' | 'guest' | 'authenticated';
 type AuthStep = 'email' | 'password';

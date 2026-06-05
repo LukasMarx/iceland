@@ -12,15 +12,14 @@
 		<router-outlet></router-outlet>
 	} @else {
 		<section class="app-frame">
-			@if (offlineMode()) {
-				<div class="offline-banner"><strong>{{ apiState() === 'offline' ? 'API unavailable' : "You're offline" }}</strong><span>{{ apiState() === 'offline' ? 'Live data could not be loaded.' : 'Offline mode is enabled.' }}</span><button (click)="retryApi()">Retry</button></div>
-			}
 
 			@if (actionNotice()) {
 				<button class="action-notice" (click)="dismissActionNotice()"><strong>{{ actionNotice() }}</strong><span>Dismiss</span></button>
 			}
-
-			<router-outlet></router-outlet>
+		
+			<div class="app-body">
+				<router-outlet></router-outlet>
+			</div>
 
 			<nav class="bottom-nav">
 				<button [class.active]="activeTab() === 'explore'" (click)="navigateToTab('explore')"><svg lucideCompass [size]="22" /><span>Explore</span></button>

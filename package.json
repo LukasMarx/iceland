@@ -4,8 +4,8 @@
   "description": "IslandHub mobile-first travel safety planning monorepo.",
   "main": "index.js",
   "scripts": {
-    "dev:mobile": "nx serve mobile --host=0.0.0.0",
-    "dev:api": "nx serve api",
+    "dev:mobile": "nx serve mobile --host=0.0.0.0 --no-tui",
+    "dev:api": "nx serve api --no-tui",
     "dev:admin": "nx serve admin --port=4201",
     "build": "nx run-many -t build --projects=mobile,admin,api",
     "prisma:generate": "prisma generate",

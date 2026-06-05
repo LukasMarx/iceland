@@ -2,8 +2,8 @@ import { NgClass } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { LibButtonDirective, LibChipComponent, LucideCalendarDays, LucideCheck, LucideCircleUser, LucideCompass, LucideNavigation, LucideRoute, LucideTriangleAlert, LucideX } from '@islandhub/ui';
-import { AuthService } from './auth.service';
-import { AppStateService } from './app-state.service';
+import { AuthService } from './services/auth.service';
+import { AppStateService } from './services/app-state.service';
 
 @Component({
   imports: [NgClass, RouterOutlet, LibButtonDirective, LibChipComponent, LucideCalendarDays, LucideCheck, LucideCircleUser, LucideCompass, LucideNavigation, LucideRoute, LucideTriangleAlert, LucideX],

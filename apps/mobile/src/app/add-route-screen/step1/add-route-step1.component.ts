@@ -1,18 +1,28 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { LibButtonDirective } from '@islandhub/ui';
+import { LibButtonDirective, LibOptionGroupComponent, LibOptionGroupItemComponent, LibWizardBodyComponent, LibWizardFooterComponent, LucideBookmark, LucideHouse } from '@islandhub/ui';
+import { AppScreenBase } from '../../screen-base';
 import type { WizardBase } from '../add-route-wizard.service';
 import { AddRouteWizardService } from '../add-route-wizard.service';
 
 @Component({
-  imports: [LibButtonDirective],
+  imports: [LibButtonDirective, LibOptionGroupComponent, LibOptionGroupItemComponent, LibWizardBodyComponent, LibWizardFooterComponent, LucideBookmark, LucideHouse],
   selector: 'app-add-route-step1',
   templateUrl: './add-route-step1.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  styleUrls: ['./add-route-step1.component.scss'],
 })
-export class AddRouteStep1Component {
+export class AddRouteStep1Component extends AppScreenBase {
   protected readonly service = inject(AddRouteWizardService);
   private readonly router = inject(Router);
+
+  constructor() {
+    super();
+    this.service.step.set(1);
+    if (!this.service.base()) {
+      this.service.init(this.app.currentWizardBase());
+    }
+  }
 
   protected selectBase(base: WizardBase): void {
     this.service.selectBase(base);

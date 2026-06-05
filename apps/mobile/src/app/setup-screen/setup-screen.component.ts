@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { Subject, debounceTime, distinctUntilChanged, of, switchMap } from 'rxjs';
 import { LibButtonDirective } from '../../../../../libs/ui/src/lib/button/button.directive';
 import { LibCalendarComponent } from '../../../../../libs/ui/src/lib/calendar/calendar.component';
 import {
@@ -14,6 +15,8 @@ import { LibScreenIntroComponent } from '../../../../../libs/ui/src/lib/screen-i
 import { LibSwitchComponent } from '../../../../../libs/ui/src/lib/switch/switch.component';
 import { LibWizardHeaderComponent } from '../../../../../libs/ui/src/lib/wizard-header/wizard-header.component';
 import { AppScreenBase } from '../screen-base';
+import { AddressService } from '../services/address.service';
+import { LibAutocompleteComponent } from '@islandhub/ui';
 
 @Component({
   imports: [
@@ -30,6 +33,7 @@ import { AppScreenBase } from '../screen-base';
     LucideLightbulb,
     LucideMountain,
     LucideRoute,
+    LibAutocompleteComponent,
   ],
   selector: 'app-setup-screen',
   templateUrl: './setup-screen.component.html',
@@ -37,6 +41,46 @@ import { AppScreenBase } from '../screen-base';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SetupScreenComponent extends AppScreenBase {
+  private addressService = inject(AddressService);
+  private destroyRef = inject(DestroyRef);
+
+  protected addressResults = signal<string[]>([]);
+  protected addressLoading = signal(false);
+  protected selectedAddress = signal<string | null>(null);
+
+  private searchQuery = new Subject<string>();
+
+  constructor() {
+    super();
+
+    const sub = this.searchQuery.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      switchMap((query) => {
+        if (!query.trim()) {
+          return of([]);
+        }
+        return this.addressService.searchAddress(query);
+      }),
+    ).subscribe((results) => {
+      console.log('Address search results:', results);
+      this.addressResults.set(results);
+      this.addressLoading.set(false);
+    });
+
+    this.destroyRef.onDestroy(() => sub.unsubscribe());
+  }
+
+  protected onAddressQueryChange(query: string): void {
+    if (query.trim()) {
+      this.addressLoading.set(true);
+    } else {
+      this.addressResults.set([]);
+      this.addressLoading.set(false);
+    }
+    this.searchQuery.next(query);
+  }
+
   protected setLocale(locale: 'en' | 'de' | 'is'): void {
     void this.app.setProfilePreference({ locale });
   }

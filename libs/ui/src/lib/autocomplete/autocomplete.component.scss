@@ -1,0 +1,79 @@
+:host {
+  display: block;
+  position: relative;
+  width: 100%;
+}
+
+.lib-autocomplete {
+  position: relative;
+  width: 100%;
+}
+
+.lib-autocomplete__dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 100;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--lib-autocomplete-border, var(--line, #d9d9d6));
+  border-radius: var(--lib-autocomplete-radius, 12px);
+  background: var(--lib-autocomplete-background, var(--color-white, #ffffff));
+  box-shadow: var(
+    --lib-autocomplete-shadow,
+    0 8px 32px rgba(0, 0, 0, 0.12)
+  );
+}
+
+.lib-autocomplete__status {
+  padding: 16px 22px;
+  color: var(--lib-autocomplete-status-color, var(--color-muted, #6c7079));
+  font-size: 14px;
+  text-align: center;
+}
+
+.lib-autocomplete__list {
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+}
+
+.lib-autocomplete__option {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  border-radius: var(--lib-autocomplete-option-radius, 8px);
+  background: transparent;
+  color: var(--lib-autocomplete-option-color, var(--color-ink, #101114));
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.lib-autocomplete__option:hover,
+.lib-autocomplete__option--active {
+  background: var(
+    --lib-autocomplete-option-hover,
+    var(--color-canvas, #f5f5f3)
+  );
+}
+
+.lib-autocomplete__option:focus-visible {
+  outline: 2px solid var(--lib-autocomplete-focus-ring, #0066ff);
+  outline-offset: -2px;
+}
+
+.icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-paper, #ffffff);
+  padding: 12px;
+  border-radius: 12px;
+  margin-right: 12px;
+}

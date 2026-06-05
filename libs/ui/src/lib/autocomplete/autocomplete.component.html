@@ -1,0 +1,44 @@
+<div
+  class="lib-autocomplete"
+  [class.lib-autocomplete--open]="isOpen()"
+  [class.lib-autocomplete--disabled]="disabled()"
+>
+  <lib-input
+    [value]="query()"
+    (valueChange)="handleInput($event)"
+    [placeholder]="placeholder()"
+    [disabled]="disabled()"
+    [autocomplete]="'off'"
+    [dataTestId]="dataTestId()"
+  >
+    <ng-content select="[libAutocompletePrefix]" libInputPrefix />
+  </lib-input>
+
+  @if (isOpen()) {
+    <div class="lib-autocomplete__dropdown">
+      @if (loading()) {
+        <div class="lib-autocomplete__status">Loading…</div>
+      } @else if (items().length === 0) {
+        <div class="lib-autocomplete__status">{{ noResultsText() }}</div>
+      } @else {
+        <div class="lib-autocomplete__list" role="listbox">
+          @for (item of items(); track $index; let i = $index) {
+            <button
+              type="button"
+              class="lib-autocomplete__option"
+              [class.lib-autocomplete__option--active]="activeIndex() === i"
+              role="option"
+              [attr.aria-selected]="activeIndex() === i"
+              (click)="selectItem(item)"
+            >
+            <div class="icon-wrapper">
+              <svg lucideMapPin [size]="22"></svg>
+            </div>
+              {{ displayFn()(item) }}
+            </button>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

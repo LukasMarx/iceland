@@ -1,17 +1,26 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { LibButtonDirective, LibOptionGroupComponent, LibOptionGroupItemComponent, LucideArrowRight, LucideRepeat2 } from '@islandhub/ui';
+import { LibButtonDirective, LibOptionGroupComponent, LibOptionGroupItemComponent, LibWizardBodyComponent, LibWizardFooterComponent, LucideArrowRight, LucideRepeat2 } from '@islandhub/ui';
+import { AppScreenBase } from '../../screen-base';
 import { AddRouteWizardService } from '../add-route-wizard.service';
 
 @Component({
-  imports: [LibButtonDirective, LibOptionGroupComponent, LibOptionGroupItemComponent, LucideArrowRight, LucideRepeat2],
+  imports: [LibButtonDirective, LibOptionGroupComponent, LibOptionGroupItemComponent, LibWizardBodyComponent, LibWizardFooterComponent, LucideArrowRight, LucideRepeat2],
   selector: 'app-add-route-step2',
   templateUrl: './add-route-step2.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AddRouteStep2Component {
+export class AddRouteStep2Component extends AppScreenBase {
   protected readonly service = inject(AddRouteWizardService);
   private readonly router = inject(Router);
+
+  constructor() {
+    super();
+    this.service.step.set(2);
+    if (!this.service.base()) {
+      this.service.init(this.app.currentWizardBase());
+    }
+  }
 
   protected selectTripType(tripType: 'return' | 'one-way'): void {
     this.service.selectTripType(tripType);

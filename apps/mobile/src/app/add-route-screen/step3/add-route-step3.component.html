@@ -1,6 +1,6 @@
-<div class="wizard-map-view">
+<lib-wizard-body>
 	<!-- Map -->
-	<div class="wizard-map">
+	<div class="map">
 		<lib-map
 			[markers]="wizardMarkers()"
 			[autoFit]="true"
@@ -9,23 +9,11 @@
 	</div>
 
 	<!-- Bottom sheet -->
-	<div class="wizard-bottom-sheet" [class.expanded]="service.sheetExpanded()">
-		<button
-			class="wizard-sheet-handle-row"
-			(click)="service.sheetExpanded.set(!service.sheetExpanded())"
-		>
-			<span class="wizard-sheet-handle"></span>
-			<span class="wizard-sheet-peek-label">
-				@if (service.endHotel()) {
-					{{ service.endHotel()?.name }} · {{ service.endHotel()?.distanceKm }} km
-				} @else if (service.hotelsLoading()) {
-					Loading hotels from API
-				} @else {
-					{{ service.hotels().length }} hotels in this region
-				}
-			</span>
-		</button>
-
+	<lib-bottom-sheet
+		[expanded]="service.sheetExpanded()"
+		[peekLabel]="peekLabel()"
+		(toggle)="service.sheetExpanded.set(!service.sheetExpanded())"
+	>
 		<div class="wizard-sheet-list">
 			@for (hotel of service.hotels(); track hotel.id) {
 				<button
@@ -60,5 +48,5 @@
 				<button libButton="primary" (click)="continue()">Plan stops along the route →</button>
 			</div>
 		}
-	</div>
-</div>
+	</lib-bottom-sheet>
+</lib-wizard-body>

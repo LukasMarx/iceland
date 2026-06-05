@@ -31,14 +31,16 @@ import { LucideChevronLeft } from '../icons';
 		`
 			:host {
 				display: block;
+				height: 48px;
 			}
 
 			.lib-wizard-header {
 				display: flex;
 				align-items: center;
 				gap: 14px;
-				padding-bottom: 16px;
 				color: var(--color-ink, #101114);
+				position: absolute;
+				z-index: 10;
 			}
 
 			.lib-wizard-header-back {

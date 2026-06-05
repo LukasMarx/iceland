@@ -1,13 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import type { SafetyStatus, Spot } from '@islandhub/domain';
-import { LibButtonDirective, LibChipComponent, LibStatsDarkComponent } from '@islandhub/ui';
+import { LibButtonDirective, LibChipComponent, LibStatsDarkChildComponent, LibStatsDarkComponent, LibWizardBodyComponent, LibWizardFooterComponent } from '@islandhub/ui';
 import type { LibChipVariant } from '@islandhub/ui';
 import { AppScreenBase } from '../../screen-base';
 import { AddRouteWizardService } from '../add-route-wizard.service';
 
 @Component({
-  imports: [LibButtonDirective, LibChipComponent, LibStatsDarkComponent],
+  imports: [LibButtonDirective, LibChipComponent, LibStatsDarkChildComponent, LibStatsDarkComponent, LibWizardBodyComponent, LibWizardFooterComponent],
   selector: 'app-add-route-step5',
   templateUrl: './add-route-step5.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -15,6 +15,14 @@ import { AddRouteWizardService } from '../add-route-wizard.service';
 export class AddRouteStep5Component extends AppScreenBase {
   protected readonly service = inject(AddRouteWizardService);
   private readonly router = inject(Router);
+
+  constructor() {
+    super();
+    this.service.step.set(5);
+    if (!this.service.base()) {
+      this.service.init(this.app.currentWizardBase());
+    }
+  }
 
   protected readonly selectedStops = computed(() => this.service.selectedStopIds()
     .map((spotId) => this.app.explore().spots.find((spot: Spot) => spot.id === spotId))

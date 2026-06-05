@@ -8,8 +8,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 	styles: [
 		`
 			:host {
-				display: grid;
-				grid-template-columns: repeat(4, 1fr);
+				display: flex;
 				align-items: stretch;
 				gap: 0;
 				margin-top: 0;
@@ -20,6 +19,8 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 				background: #101114;
 				color: white;
 			}
+
+		
 		`,
 	],
 })

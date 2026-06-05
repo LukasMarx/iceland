@@ -59,7 +59,7 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
 				font-family: var(--screen-intro-title-font-family, inherit);
 				font-size: var(--screen-intro-title-font-size, 34px);
 				font-style: var(--screen-intro-title-font-style, normal);
-				font-weight: var(--screen-intro-title-font-weight, 900);
+				font-weight: var(--screen-intro-title-font-weight, 700);
 				line-height: var(--screen-intro-title-line-height, 1.04);
 			}
 

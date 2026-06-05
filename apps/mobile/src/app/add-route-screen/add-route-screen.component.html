@@ -1,5 +1,7 @@
-<section class="wizard-overlay screen" [class.wizard-map-step]="service.step() === 3 || service.step() === 4">
+<lib-screen>
 	<lib-wizard-header [step]="service.displayStep()" [totalSteps]="service.displayTotalSteps()" (back)="back()" />
 
-	<router-outlet />
-</section>
+	<div class="wizard-router-content">
+		<router-outlet />
+	</div>
+</lib-screen>

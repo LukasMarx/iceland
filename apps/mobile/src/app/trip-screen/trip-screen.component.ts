@@ -1,9 +1,10 @@
 import { NgClass, UpperCasePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
 import { AppScreenBase } from '../screen-base';
+import { LibScreenComponent } from '@islandhub/ui';
 
 @Component({
-  imports: [NgClass, UpperCasePipe],
+  imports: [NgClass, UpperCasePipe, LibScreenComponent],
   selector: 'app-trip-screen',
   templateUrl: './trip-screen.component.html',
   styleUrl: './trip-screen.component.scss',

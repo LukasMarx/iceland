@@ -1,4 +1,4 @@
-<div class="wizard-body">
+<lib-wizard-body>
 	<h1>What do you want to do?</h1>
 	<p class="wizard-subtitle">Choose how you want to plan your visit to <strong>{{ service.targetSpot()?.name }}</strong>.</p>
 
@@ -23,10 +23,10 @@
 			<svg optionGroupIcon lucidePlus [size]="28"></svg>
 		</lib-option-group-item>
 	</lib-option-group>
-</div>
+</lib-wizard-body>
 
-<div class="wizard-footer">
+<lib-wizard-footer>
 	<button libButton="primary" [disabled]="!service.action()" (click)="continue()">
 		{{ continueLabel }}
 	</button>
-</div>
+</lib-wizard-footer>

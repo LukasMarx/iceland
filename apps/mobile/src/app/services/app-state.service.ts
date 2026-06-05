@@ -24,12 +24,12 @@ import { projectIcelandPoint } from '@islandhub/map';
 import type { LibChipVariant } from '@islandhub/ui';
 import { I18nService } from '@islandhub/i18n';
 import { filter } from 'rxjs';
-import { AddRouteWizardService } from './add-route-screen/add-route-wizard.service';
-import type { WizardBase } from './add-route-screen/add-route-wizard.service';
+import { AddRouteWizardService } from '../add-route-screen/add-route-wizard.service';
+import type { WizardBase } from '../add-route-screen/add-route-wizard.service';
 import { AuthService } from './auth.service';
 import { IslandhubApiService } from './islandhub-api.service';
 import { RoutePlanningService } from './route-planning.service';
-import { SpotActionWizardService } from './spot-action-screen/spot-action-wizard.service';
+import { SpotActionWizardService } from '../spot-action-screen/spot-action-wizard.service';
 
 type VehicleFilter = 'car_2wd' | 'car_4wd' | 'any';
 type SetupPlanningMode = 'draft' | 'hub' | 'road-trip';
@@ -1178,7 +1178,7 @@ export class AppStateService {
     this.actionNotice.set(message);
   }
 
-  private currentWizardBase(): WizardBase {
+  currentWizardBase(): WizardBase {
     const hub = this.explore().hub;
     return {
       id: hub.id,

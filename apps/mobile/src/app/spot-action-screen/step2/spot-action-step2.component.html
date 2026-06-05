@@ -1,4 +1,4 @@
-<div class="wizard-body">
+<lib-wizard-body>
 	<h1>Which route?</h1>
 	<p class="wizard-subtitle">
 		Adding <strong>{{ service.targetSpot()?.name }}</strong> — routes sorted by how little longer they get.
@@ -27,10 +27,10 @@
 			<p class="wizard-empty">No routes yet. Create one first.</p>
 		}
 	</div>
-</div>
+</lib-wizard-body>
 
-<div class="wizard-footer">
+<lib-wizard-footer>
 	<button libButton="primary" [disabled]="!selectedRouteId()" (click)="confirm()">
 		{{ confirmLabel }}
 	</button>
-</div>
+</lib-wizard-footer>

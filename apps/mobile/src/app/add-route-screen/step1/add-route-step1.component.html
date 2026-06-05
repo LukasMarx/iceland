@@ -1,8 +1,8 @@
-<div class="wizard-body">
+<lib-wizard-body>
 	<h1>Where do you start?</h1>
-	<p class="wizard-subtitle">Your starting point anchors the distance ring and first road segment.</p>
+	<p class="subtitle">Your starting point anchors the distance ring and first road segment.</p>
 
-	<button class="wizard-location-btn" (click)="selectCurrentLocation()">
+	<button libButton="secondary" class="location-btn" (click)="selectCurrentLocation()">
 		<span class="wizard-location-icon">✦</span> Use current location
 	</button>
 
@@ -13,36 +13,33 @@
 
 	<p class="wizard-section-label">SUGGESTED BASES</p>
 
-	<div class="wizard-list">
+	<lib-option-group>
 		@if (service.basesLoading()) {
 			<div class="wizard-empty-state">Loading places from API…</div>
 		}
 
 		@for (base of service.bases(); track base.id) {
-			<button
-				class="wizard-list-item"
-				[class.selected]="service.base()?.id === base.id"
+			<lib-option-group-item
+				[info]="base.type === 'hotel' ? 'HOTEL' : 'BASE'"
+				[title]="base.name"
+				[subtitle]="base.region"
+				[selected]="service.base()?.id === base.id"
 				(click)="selectBase(base)"
 			>
-				<span class="wizard-item-icon" [class.hotel]="base.type === 'hotel'">
-					{{ base.type === 'hotel' ? '⊞' : '⌂' }}
-				</span>
-				<div class="wizard-item-text">
-					<strong>{{ base.name }}</strong>
-					<span>{{ base.region }}</span>
-				</div>
-				@if (service.base()?.id === base.id) {
-					<span class="wizard-check">✓</span>
+				@if (base.type === 'hotel') {
+					<svg optionGroupIcon lucideBookmark [size]="28"></svg>
+				} @else {
+					<svg optionGroupIcon lucideHouse [size]="28"></svg>
 				}
-			</button>
+			</lib-option-group-item>
 		} @empty {
 			@if (!service.basesLoading()) {
 				<div class="wizard-empty-state">No API places available for this trip.</div>
 			}
 		}
-	</div>
-</div>
+	</lib-option-group>
+</lib-wizard-body>
 
-<div class="wizard-footer">
+<lib-wizard-footer>
 	<button libButton="primary" [disabled]="!service.base()" (click)="continue()">Continue →</button>
-</div>
+</lib-wizard-footer>

@@ -1,8 +1,8 @@
 import { inject } from '@angular/core';
 import type { CanActivateFn } from '@angular/router';
 import { Router } from '@angular/router';
-import { AppStateService } from './app-state.service';
-import { AuthService } from './auth.service';
+import { AppStateService } from './services/app-state.service';
+import { AuthService } from './services/auth.service';
 
 export const setupCompleteGuard: CanActivateFn = () => {
   const appState = inject(AppStateService);

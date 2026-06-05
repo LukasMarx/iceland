@@ -1,12 +1,12 @@
-<div class="wizard-body route-draft-body">
+<lib-wizard-body class="route-draft-body">
   <p class="wizard-section-label">ROUTE DRAFT</p>
   <h1>{{ routeTitle }}</h1>
   <p class="wizard-subtitle">Review this leg before turning it into your active route for today.</p>
 
   <lib-stats-dark class="draft-stats">
-    <div><span>Gesamt</span><strong>{{ minutesToDrive(totalTripMinutes()) }}</strong></div>
-    <div><span>Fahrt</span><strong>{{ minutesToDrive(totalDriveMinutes()) }}</strong></div>
-    <div><span>Stopps</span><strong>{{ selectedStops().length }}</strong></div>
+    <lib-stats-dark-child title="Gesamt" [value]="minutesToDrive(totalTripMinutes())"></lib-stats-dark-child>
+    <lib-stats-dark-child title="Fahrt" [value]="minutesToDrive(totalDriveMinutes())"></lib-stats-dark-child>
+    <lib-stats-dark-child title="Stopps" [value]="selectedStops().length"></lib-stats-dark-child>
   </lib-stats-dark>
 
   <div class="draft-status-row">
@@ -44,9 +44,9 @@
       </div>
     </li>
   </ol>
-</div>
+</lib-wizard-body>
 
-<div class="wizard-footer draft-footer">
+<lib-wizard-footer class="draft-footer">
   <button libButton="primary" (click)="startToday()">{{ service.flow() === 'edit' ? 'Apply changes' : 'Start today' }}</button>
   @if (service.flow() === 'edit') {
     <button libButton="secondary" (click)="editStops()">Stopps weiter bearbeiten</button>
@@ -56,4 +56,4 @@
       <button libButton="secondary" [libButtonBlock]="false" (click)="editStops()">Bearbeiten</button>
     </div>
   }
-</div>
+</lib-wizard-footer>

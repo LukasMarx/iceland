@@ -123,7 +123,7 @@
 	}
 
 	@if (app.setupStep() === 4) {
-	<div class="search-card"><span>⌕</span><strong>{{ app.explore().hub.name }}</strong><em>active trip hub</em></div>
+	<!-- <div class="search-card"><span>⌕</span><strong>{{ app.explore().hub.name }}</strong><em>active trip hub</em></div>
 	<div class="map-card refine-map">
 		<div class="island-shape"></div><span class="hub-dot"></span><strong>Drag to refine</strong>
 	</div>
@@ -131,8 +131,17 @@
 		<div><strong>{{ app.explore().hub.name }}</strong>
 			<p>{{ app.explore().hub.dateRange }} - {{ app.explore().hub.nights }} nights</p>
 		</div><button type="button" disabled>From trip</button>
-	</article>
+	</article> -->
+	<lib-autocomplete
+		[items]="addressResults()"
+		[loading]="addressLoading()"
+		[(value)]="selectedAddress"
+		placeholder="Location address"
+		dataTestId="setup-address-autocomplete"
+		(queryChange)="onAddressQueryChange($event)"
+	/>
 	}
+
 
 	<div class="bottom-actions">
 		<button class="primary" libButton="primary" (click)="app.continueSetup()">{{ app.setupStep() ===

@@ -3,7 +3,7 @@ import { Router } from '@angular/router';
 import { LibButtonDirective, LucideKeyRound, LucideMail } from '@islandhub/ui';
 import { LibInputComponent } from '../../../../../libs/ui/src/lib/input/input.component';
 import { AppScreenBase } from '../screen-base';
-import { AuthService } from '../auth.service';
+import { AuthService } from '../services/auth.service';
 
 @Component({
   imports: [LibButtonDirective, LibInputComponent, LucideMail, LucideKeyRound],

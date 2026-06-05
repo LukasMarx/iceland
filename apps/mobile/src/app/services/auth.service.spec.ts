@@ -3,11 +3,11 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { vi } from 'vitest';
-import { API_BASE_URL } from './api-base-url.token';
-import { authInterceptor } from './auth.interceptor';
+import { API_BASE_URL } from '../api-base-url.token';
+import { authInterceptor } from '../auth.interceptor';
 import { AuthService } from './auth.service';
-import { appRoutes } from './app.routes';
-import { SocialAuthClientService } from './social-auth-client.service';
+import { appRoutes } from '../app.routes';
+import { SocialAuthClientService } from '../social-auth-client.service';
 
 describe('AuthService', () => {
   let http: HttpTestingController;

@@ -1,0 +1,11 @@
+.map {
+    width: 100lvw;
+    height: 100lvh;
+    margin-top: -48px;
+    margin-left: -24px;
+}
+.map::ng-deep {
+    .maplibregl-ctrl {
+        display: none;
+    }
+}

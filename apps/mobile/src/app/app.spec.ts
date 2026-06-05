@@ -5,7 +5,7 @@ import { Router, provideRouter } from '@angular/router';
 import type { Spot } from '@islandhub/domain';
 import { API_BASE_URL } from './api-base-url.token';
 import { App } from './app';
-import { AppStateService } from './app-state.service';
+import { AppStateService } from './services/app-state.service';
 import { AuthService } from './auth.service';
 import { appRoutes } from './app.routes';
 

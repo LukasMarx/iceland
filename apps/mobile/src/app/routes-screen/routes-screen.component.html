@@ -1,4 +1,4 @@
-<section class="screen routes-view route-picker">
+<lib-screen>
 	<lib-screen-intro [kicker]="app.explore().dateLabel + ' · checked ' + app.explore().dataAgeMinutes + ' min ago'"
 		title="Trips">
 		@if (hasRoutes()) {
@@ -54,4 +54,4 @@
 			[size]="18" />Add route</button>
 	}
 
-</section>
+</lib-screen>

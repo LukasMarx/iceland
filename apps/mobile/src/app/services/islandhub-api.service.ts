@@ -38,7 +38,7 @@ import type {
   TripResponse,
 } from '@islandhub/api-contracts';
 import { firstValueFrom } from 'rxjs';
-import { API_BASE_URL } from './api-base-url.token';
+import { API_BASE_URL } from '../api-base-url.token';
 
 @Injectable({ providedIn: 'root' })
 export class IslandhubApiService {
