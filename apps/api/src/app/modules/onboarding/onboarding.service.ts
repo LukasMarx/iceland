@@ -1,7 +1,6 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { DemoContextService, DEMO_HUB_ID } from '../../common/demo-context.service';
-import { SEED_SPOTS } from '../../common/seed-spots';
 
 @Injectable()
 export class OnboardingService {

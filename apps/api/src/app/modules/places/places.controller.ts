@@ -1,4 +1,6 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, Req } from '@nestjs/common';
+import { Request } from 'express';
+import { baseUrlFromRequest } from '../../common/image-url';
 import { PlacesService } from './places.service';
 
 @Controller()
@@ -18,6 +20,7 @@ export class PlacesController {
 
   @Get('hotels/search')
   searchHotels(
+    @Req() req: Request,
     @Query('q') q?: string,
     @Query('lat') lat?: string,
     @Query('lon') lon?: string,
@@ -27,6 +30,6 @@ export class PlacesController {
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
   ) {
-    return this.placesService.searchHotels({ q, lat, lon, radiusKm, stars, locale, limit, cursor });
+    return this.placesService.searchHotels({ q, lat, lon, radiusKm, stars, locale, limit, cursor }, baseUrlFromRequest(req));
   }
 }

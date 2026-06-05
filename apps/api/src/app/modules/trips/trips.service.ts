@@ -1,7 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { DemoContextService } from '../../common/demo-context.service';
-import { SEED_SPOT_MAP } from '../../common/seed-spots';
 
 @Injectable()
 export class TripsService {
@@ -100,13 +99,21 @@ export class TripsService {
       const spot = await this.prisma.spot.findUnique({ where: { id: body.spotId }, include: { translations: true } });
       if (!spot) throw new NotFoundException({ code: 'spot_not_found', message: `Spot ${body.spotId} not found.` });
 
-      const seed = SEED_SPOT_MAP.get(body.spotId);
       const name = spot.translations.find((t) => t.locale === 'en')?.name ?? body.spotId;
       const draftTitle = body.title ?? `Draft · ${name}`;
 
       const targetDate = body.date
         ? new Date(body.date)
         : findFirstEmptyDay(trip.days);
+
+      const routeDefaults = {
+        totalDriveMinutes: 30,
+        totalTripMinutes: 60,
+        distanceKm: 30,
+        highestStatus: 'unknown' as const,
+        driveMinutesFromPrevious: 30,
+        statusLevel: 'unknown' as const,
+      };
 
       if (targetDate) {
         const day = await this.prisma.tripDay.upsert({
@@ -128,10 +135,10 @@ export class TripsService {
             startType: 'custom',
             startLat: 64.663,
             startLon: -21.292,
-            totalDriveMinutes: seed?.driveMinutesFromHub ?? 30,
-            totalTripMinutes: (seed?.driveMinutesFromHub ?? 30) + (seed?.visitMinutes ?? 30),
-            distanceKm: seed?.distanceKmFromHub ?? 30,
-            highestStatus: (seed?.status ?? 'unknown') as any,
+            totalDriveMinutes: routeDefaults.totalDriveMinutes,
+            totalTripMinutes: routeDefaults.totalTripMinutes,
+            distanceKm: routeDefaults.distanceKm,
+            highestStatus: routeDefaults.highestStatus,
             version: 1,
             stops: {
               create: {
@@ -142,8 +149,8 @@ export class TripsService {
                 lon: spot.lon,
                 state: 'pending',
                 visitMinutes: spot.visitMinutes,
-                driveMinutesFromPrevious: seed?.driveMinutesFromHub ?? 30,
-                statusLevel: (seed?.status ?? 'unknown') as any,
+                driveMinutesFromPrevious: routeDefaults.driveMinutesFromPrevious,
+                statusLevel: routeDefaults.statusLevel,
               },
             },
           },
@@ -160,10 +167,10 @@ export class TripsService {
             startType: 'custom',
             startLat: 64.663,
             startLon: -21.292,
-            totalDriveMinutes: seed?.driveMinutesFromHub ?? 30,
-            totalTripMinutes: (seed?.driveMinutesFromHub ?? 30) + (seed?.visitMinutes ?? 30),
-            distanceKm: seed?.distanceKmFromHub ?? 30,
-            highestStatus: (seed?.status ?? 'unknown') as any,
+            totalDriveMinutes: routeDefaults.totalDriveMinutes,
+            totalTripMinutes: routeDefaults.totalTripMinutes,
+            distanceKm: routeDefaults.distanceKm,
+            highestStatus: routeDefaults.highestStatus,
             version: 1,
           },
         });

@@ -1,7 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { DemoContextService } from '../../common/demo-context.service';
-import { SEED_SPOT_MAP } from '../../common/seed-spots';
 import { mapSpot } from '../../common/spot-mapper';
 
 const SPOT_INCLUDE = {
@@ -22,7 +21,7 @@ export class SavedSpotsService {
     private readonly demoContext: DemoContextService,
   ) {}
 
-  async getSavedSpots(query: { tripId?: string; limit?: string; cursor?: string }) {
+  async getSavedSpots(query: { tripId?: string; limit?: string; cursor?: string }, baseUrl?: string) {
     const tripId = query.tripId ?? this.demoContext.getTripId();
     const limit = Math.min(Number(query.limit ?? 20), 50);
 
@@ -40,10 +39,7 @@ export class SavedSpotsService {
     const page = savedRecords.slice(0, limit);
     const savedSpotIds = savedRecords.map((r) => r.spotId);
 
-    const spots = page.map((r) => {
-      const seed = SEED_SPOT_MAP.get(r.spotId);
-      return mapSpot(r.spot as any, true, seed?.driveMinutesFromHub);
-    });
+    const spots = page.map((r) => mapSpot(r.spot as any, true, undefined, baseUrl));
 
     return {
       savedSpotIds,
@@ -52,7 +48,7 @@ export class SavedSpotsService {
     };
   }
 
-  async saveSpot(body: { spotId: string; tripId?: string }) {
+  async saveSpot(body: { spotId: string; tripId?: string }, baseUrl?: string) {
     const tripId = body.tripId ?? this.demoContext.getTripId();
 
     const spot = await this.prisma.spot.findUnique({ where: { id: body.spotId }, include: SPOT_INCLUDE });
@@ -69,8 +65,7 @@ export class SavedSpotsService {
 
     const allSaved = await this.prisma.savedSpot.findMany({ where: { tripId }, select: { spotId: true } });
     const savedSpotIds = allSaved.map((s) => s.spotId);
-    const seed = SEED_SPOT_MAP.get(body.spotId);
-    const mappedSpot = mapSpot(spot as any, true, seed?.driveMinutesFromHub);
+    const mappedSpot = mapSpot(spot as any, true, undefined, baseUrl);
 
     const name = spot.translations.find((t) => t.locale === 'en')?.name ?? body.spotId;
     return {
@@ -86,13 +81,13 @@ export class SavedSpotsService {
     const trip = await this.prisma.trip.findFirst({ where: { id: tripId } });
     if (!trip) throw new NotFoundException({ code: 'trip_not_found', message: 'Trip not found.' });
 
-    const spot = await this.prisma.spot.findUnique({ where: { id: spotId } });
+    const spot = await this.prisma.spot.findUnique({ where: { id: spotId }, include: { translations: true } });
     if (!spot) throw new NotFoundException({ code: 'spot_not_found', message: `Spot ${spotId} not found.` });
 
     await this.prisma.savedSpot.deleteMany({ where: { tripId, spotId } });
 
     const allSaved = await this.prisma.savedSpot.findMany({ where: { tripId }, select: { spotId: true } });
-    const name = SEED_SPOT_MAP.get(spotId)?.name ?? spotId;
+    const name = spot.translations.find((t) => t.locale === 'en')?.name ?? spotId;
     return {
       savedSpotIds: allSaved.map((s) => s.spotId),
       message: `${name} removed from saved spots.`,

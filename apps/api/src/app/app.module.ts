@@ -13,6 +13,7 @@ import { SavedSpotsModule } from './modules/saved-spots/saved-spots.module';
 import { TripsModule } from './modules/trips/trips.module';
 import { PlacesModule } from './modules/places/places.module';
 import { OfflineModule } from './modules/offline/offline.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { OfflineModule } from './modules/offline/offline.module';
     TripsModule,
     PlacesModule,
     OfflineModule,
+    AdminModule,
   ],
   controllers: [AppController, AuthController],
   providers: [AppService, ApiDemoStateRepository, PrismaService],

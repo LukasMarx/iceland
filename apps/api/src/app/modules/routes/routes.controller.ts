@@ -8,7 +8,10 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
+import { baseUrlFromRequest } from '../../common/image-url';
 import { RoutesService } from './routes.service';
 
 @Controller()
@@ -58,9 +61,10 @@ export class RoutesController {
   @Post('routes/today/insert-preview')
   @HttpCode(200)
   insertPreview(
+    @Req() req: Request,
     @Body() body: { spotId: string; tripId?: string; date?: string; positionMode?: string },
   ) {
-    return this.routesService.insertPreview(body);
+    return this.routesService.insertPreview(body, baseUrlFromRequest(req));
   }
 
   @Patch('routes/today/stops/:stopId/done')
@@ -82,12 +86,13 @@ export class RoutesController {
 
   @Get('routes/suggestions')
   getRouteSuggestions(
+    @Req() req: Request,
     @Query('tripId') tripId?: string,
     @Query('date') date?: string,
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
   ) {
-    return this.routesService.getRouteSuggestions({ tripId, date, limit, cursor });
+    return this.routesService.getRouteSuggestions({ tripId, date, limit, cursor }, baseUrlFromRequest(req));
   }
 
   @Post('routes/suggestions/start')
@@ -173,6 +178,7 @@ export class RoutesController {
   @Post('routes/preview')
   @HttpCode(200)
   routePreview(
+    @Req() req: Request,
     @Body()
     body: {
       tripId?: string;
@@ -187,6 +193,6 @@ export class RoutesController {
       maxCandidates?: number;
     },
   ) {
-    return this.routesService.routePreview(body);
+    return this.routesService.routePreview(body, baseUrlFromRequest(req));
   }
 }

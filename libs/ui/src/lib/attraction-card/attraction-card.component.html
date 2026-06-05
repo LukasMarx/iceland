@@ -1,4 +1,8 @@
-<button class="attraction-photo" (click)="openSpot.emit()"><span>[ {{ spot.category }} · {{ spot.name }} ]</span></button>
+<button class="attraction-photo" (click)="openSpot.emit()"><span>[ {{ spot.category }} · {{ spot.name }} ]</span>
+	@if (spot.media?.length) {
+		<img [src]="spot.media?.[0]?.url" alt="{{ spot.name }}" />
+	}
+</button>
 <div class="attraction-body">
 	<h2>{{ spot.name }} <span lib-chip [variant]="variant" size="sm">{{ spot.status.label }}</span></h2>
 	<p>{{ spot.category }} · {{ spot.distanceKm }} km</p>

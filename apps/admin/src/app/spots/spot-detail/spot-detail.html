@@ -1,0 +1,149 @@
+@if (loading()) {
+  <p class="spot-loading">Loading…</p>
+} @else if (error()) {
+  <div class="spot-error">{{ error() }}</div>
+} @else {
+  <div class="spot-detail">
+    <div class="spot-detail-header">
+      <a routerLink="/spots" class="spot-detail-back">&larr; Back to Spots</a>
+      <h1>{{ spot()?.translations?.[0]?.name ?? 'Spot' }}</h1>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="spot-detail-form">
+      <fieldset class="spot-detail-section">
+        <legend>Basic Info</legend>
+
+        <div class="spot-detail-field">
+          <label for="nameEn">Name (English) *</label>
+          <lib-input id="nameEn" placeholder="Spot name in English" [value]="form.controls.nameEn.value ?? ''" (valueChange)="form.controls.nameEn.setValue($event)" />
+          @if (form.controls.nameEn.invalid && form.controls.nameEn.touched) {
+            <span class="spot-detail-field-error">Name is required.</span>
+          }
+        </div>
+
+        <div class="spot-detail-field">
+          <label for="nameDe">Name (German)</label>
+          <lib-input id="nameDe" placeholder="Spot name in German" [value]="form.controls.nameDe.value ?? ''" (valueChange)="form.controls.nameDe.setValue($event)" />
+        </div>
+
+        <div class="spot-detail-field">
+          <label for="nameIs">Name (Icelandic)</label>
+          <lib-input id="nameIs" placeholder="Spot name in Icelandic" [value]="form.controls.nameIs.value ?? ''" (valueChange)="form.controls.nameIs.setValue($event)" />
+        </div>
+
+        <div class="spot-detail-field">
+          <label for="slug">Slug *</label>
+          <lib-input id="slug" placeholder="url-friendly-slug" [value]="form.controls.slug.value ?? ''" (valueChange)="form.controls.slug.setValue($event)" />
+          @if (form.controls.slug.invalid && form.controls.slug.touched) {
+            <span class="spot-detail-field-error">Slug is required.</span>
+          }
+        </div>
+
+        <div class="spot-detail-field">
+          <label for="region">Region</label>
+          <lib-input id="region" placeholder="e.g. South Iceland" [value]="form.controls.region.value ?? ''" (valueChange)="form.controls.region.setValue($event)" />
+        </div>
+      </fieldset>
+
+      <fieldset class="spot-detail-section">
+        <legend>Location</legend>
+
+        <div class="spot-detail-row">
+          <div class="spot-detail-field">
+            <label for="lat">Latitude *</label>
+            <lib-input id="lat" type="text" inputMode="decimal" placeholder="64.1466" [value]="form.controls.lat.value?.toString() ?? ''" (valueChange)="form.controls.lat.setValue(parseNum($event))" />
+            @if (form.controls.lat.invalid && form.controls.lat.touched) {
+              <span class="spot-detail-field-error">Valid latitude is required (-90 to 90).</span>
+            }
+          </div>
+
+          <div class="spot-detail-field">
+            <label for="lon">Longitude *</label>
+            <lib-input id="lon" type="text" inputMode="decimal" placeholder="-21.9426" [value]="form.controls.lon.value?.toString() ?? ''" (valueChange)="form.controls.lon.setValue(parseNum($event))" />
+            @if (form.controls.lon.invalid && form.controls.lon.touched) {
+              <span class="spot-detail-field-error">Valid longitude is required (-180 to 180).</span>
+            }
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="spot-detail-section">
+        <legend>Details</legend>
+
+        <div class="spot-detail-field">
+          <label for="visitMinutes">Visit minutes</label>
+          <lib-input id="visitMinutes" type="text" inputMode="numeric" placeholder="30" [value]="form.controls.visitMinutes.value?.toString() ?? '30'" (valueChange)="form.controls.visitMinutes.setValue(parseNum($event) ?? 30)" />
+        </div>
+
+        <div class="spot-detail-field">
+          <label for="minVehicle">Minimum vehicle</label>
+          <select id="minVehicle" formControlName="minVehicle" class="spot-detail-select">
+            <option value="unknown">Unknown</option>
+            <option value="car_2wd">2WD Car</option>
+            <option value="car_4wd">4WD Car</option>
+          </select>
+        </div>
+
+        <div class="spot-detail-checkbox">
+          <label>
+            <input type="checkbox" formControlName="isFRoad" />
+            F-Road (requires 4WD)
+          </label>
+        </div>
+
+        <div class="spot-detail-checkbox">
+          <label>
+            <input type="checkbox" formControlName="isPublished" />
+            Published
+          </label>
+        </div>
+      </fieldset>
+
+      <div class="spot-detail-actions">
+        <button type="submit" libButton="primary" [libButtonBlock]="false" [disabled]="saving()">
+          {{ saving() ? 'Saving…' : 'Save Changes' }}
+        </button>
+        <button type="button" libButton="secondary" [libButtonBlock]="false" (click)="deleteSpot()">Delete Spot</button>
+      </div>
+    </form>
+
+    <section class="spot-detail-section spot-detail-media">
+      <legend>Images</legend>
+
+      @if (uploadError()) {
+        <div class="spot-detail-error">{{ uploadError() }}</div>
+      }
+
+      <div class="spot-detail-upload">
+        <label class="spot-detail-upload-btn" [class.disabled]="uploading()">
+          {{ uploading() ? 'Uploading…' : 'Choose Images' }}
+          <input type="file" accept="image/*" multiple (change)="onFileSelected($event)" [disabled]="uploading()" />
+        </label>
+      </div>
+
+      @if (images().length === 0) {
+        <p class="spot-detail-empty">No images yet. Upload some above.</p>
+      } @else {
+        <div class="spot-detail-images">
+          @for (image of images(); track image.id; let i = $index) {
+            <div
+              class="spot-detail-image-card"
+              draggable="true"
+              (dragstart)="onDragStart(i)"
+              (dragover)="onDragOver($event)"
+              (drop)="onDrop(i)"
+              (dragend)="onDragEnd()"
+              [class.dragging]="draggedIndex() === i"
+            >
+              <img [src]="imageUrl(image)" [alt]="image.alt" />
+              <div class="spot-detail-image-overlay">
+                <button type="button" (click)="deleteImage(image.id)" title="Delete image">&times;</button>
+              </div>
+              <div class="spot-detail-image-order">{{ i + 1 }}</div>
+            </div>
+          }
+        </div>
+      }
+    </section>
+  </div>
+}

@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
+import { AuthService } from './auth/auth.service';
 
 @Component({
   imports: [RouterModule],
@@ -8,9 +9,9 @@ import { RouterModule } from '@angular/router';
   styleUrl: './app.scss',
 })
 export class App {
-  protected readonly queues = [
-    { label: 'Seed spots', value: 6, hint: 'Ready for mobile demo' },
-    { label: 'Translations', value: 3, hint: 'English, Deutsch, Islenska' },
-    { label: 'Community reports', value: 0, hint: 'Moderation queue empty' },
-  ];
+  protected readonly auth = inject(AuthService);
+
+  logout(): void {
+    this.auth.logout();
+  }
 }

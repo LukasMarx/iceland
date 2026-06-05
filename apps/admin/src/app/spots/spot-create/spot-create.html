@@ -1,0 +1,107 @@
+<div class="spot-create">
+  <div class="spot-create-header">
+    <h1>New Spot</h1>
+  </div>
+
+  @if (error) {
+    <div class="spot-create-error">{{ error }}</div>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="onSubmit()" class="spot-create-form">
+    <fieldset class="spot-create-section">
+      <legend>Basic Info</legend>
+
+      <div class="spot-create-field">
+        <label for="nameEn">Name (English) *</label>
+        <lib-input id="nameEn" placeholder="Spot name in English" [value]="form.controls.nameEn.value ?? ''" (valueChange)="form.controls.nameEn.setValue($event)" />
+        @if (form.controls.nameEn.invalid && form.controls.nameEn.touched) {
+          <span class="spot-create-field-error">Name is required.</span>
+        }
+      </div>
+
+      <div class="spot-create-field">
+        <label for="nameDe">Name (German)</label>
+        <lib-input id="nameDe" placeholder="Spot name in German" [value]="form.controls.nameDe.value ?? ''" (valueChange)="form.controls.nameDe.setValue($event)" />
+      </div>
+
+      <div class="spot-create-field">
+        <label for="nameIs">Name (Icelandic)</label>
+        <lib-input id="nameIs" placeholder="Spot name in Icelandic" [value]="form.controls.nameIs.value ?? ''" (valueChange)="form.controls.nameIs.setValue($event)" />
+      </div>
+
+      <div class="spot-create-field">
+        <label for="slug">Slug *</label>
+        <lib-input id="slug" placeholder="url-friendly-slug" [value]="form.controls.slug.value ?? ''" (valueChange)="form.controls.slug.setValue($event)" />
+        @if (form.controls.slug.invalid && form.controls.slug.touched) {
+          <span class="spot-create-field-error">Slug is required.</span>
+        }
+      </div>
+
+      <div class="spot-create-field">
+        <label for="region">Region</label>
+        <lib-input id="region" placeholder="e.g. South Iceland" [value]="form.controls.region.value ?? ''" (valueChange)="form.controls.region.setValue($event)" />
+      </div>
+    </fieldset>
+
+    <fieldset class="spot-create-section">
+      <legend>Location</legend>
+
+      <div class="spot-create-row">
+        <div class="spot-create-field">
+          <label for="lat">Latitude *</label>
+          <lib-input id="lat" type="text" inputMode="decimal" placeholder="64.1466" [value]="form.controls.lat.value?.toString() ?? ''" (valueChange)="form.controls.lat.setValue(parseNum($event))" />
+          @if (form.controls.lat.invalid && form.controls.lat.touched) {
+            <span class="spot-create-field-error">Valid latitude is required (-90 to 90).</span>
+          }
+        </div>
+
+        <div class="spot-create-field">
+          <label for="lon">Longitude *</label>
+          <lib-input id="lon" type="text" inputMode="decimal" placeholder="-21.9426" [value]="form.controls.lon.value?.toString() ?? ''" (valueChange)="form.controls.lon.setValue(parseNum($event))" />
+          @if (form.controls.lon.invalid && form.controls.lon.touched) {
+            <span class="spot-create-field-error">Valid longitude is required (-180 to 180).</span>
+          }
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset class="spot-create-section">
+      <legend>Details</legend>
+
+      <div class="spot-create-field">
+        <label for="visitMinutes">Visit minutes</label>
+        <lib-input id="visitMinutes" type="text" inputMode="numeric" placeholder="30" [value]="form.controls.visitMinutes.value?.toString() ?? '30'" (valueChange)="form.controls.visitMinutes.setValue(parseNum($event) ?? 30)" />
+      </div>
+
+      <div class="spot-create-field">
+        <label for="minVehicle">Minimum vehicle</label>
+        <select id="minVehicle" formControlName="minVehicle" class="spot-create-select">
+          <option value="unknown">Unknown</option>
+          <option value="car_2wd">2WD Car</option>
+          <option value="car_4wd">4WD Car</option>
+        </select>
+      </div>
+
+      <div class="spot-create-checkbox">
+        <label>
+          <input type="checkbox" formControlName="isFRoad" />
+          F-Road (requires 4WD)
+        </label>
+      </div>
+
+      <div class="spot-create-checkbox">
+        <label>
+          <input type="checkbox" formControlName="isPublished" />
+          Published
+        </label>
+      </div>
+    </fieldset>
+
+    <div class="spot-create-actions">
+      <button type="submit" libButton="primary" [libButtonBlock]="false" [disabled]="submitting">
+        {{ submitting ? 'Creating…' : 'Create Spot' }}
+      </button>
+      <button type="button" libButton="secondary" [libButtonBlock]="false" (click)="cancel()">Cancel</button>
+    </div>
+  </form>
+</div>

@@ -19,6 +19,7 @@ interface UserRecord {
   email: string | null;
   displayName: string;
   initials: string;
+  role: string;
 }
 
 @Injectable()
@@ -100,6 +101,7 @@ export class AuthService {
             email: true,
             displayName: true,
             initials: true,
+            role: true,
           },
         },
       },
@@ -152,6 +154,7 @@ export class AuthService {
             email: true,
             displayName: true,
             initials: true,
+            role: true,
           },
         },
       },
@@ -183,7 +186,7 @@ export class AuthService {
     let user = email
       ? await this.prisma.user.findUnique({
           where: { email },
-          select: { id: true, email: true, displayName: true, initials: true },
+          select: { id: true, email: true, displayName: true, initials: true, role: true },
         })
       : null;
 
@@ -200,6 +203,7 @@ export class AuthService {
           email: true,
           displayName: true,
           initials: true,
+          role: true,
         },
       });
     }
@@ -222,6 +226,7 @@ export class AuthService {
       email: user.email,
       provider,
       displayName: user.displayName,
+      role: user.role,
     };
 
     return {

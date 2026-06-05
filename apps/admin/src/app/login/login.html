@@ -1,0 +1,49 @@
+<div class="login-wrapper">
+  <div class="login-card">
+    <h1>IslandHub Admin</h1>
+    <p class="login-subtitle">Sign in to manage your spots</p>
+
+    @if (error) {
+      <div class="login-error">{{ error }}</div>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="login-form">
+      <div class="login-field">
+        <label for="login-email">Email</label>
+        <lib-input
+          id="login-email"
+          type="email"
+          placeholder="you@example.com"
+          autocomplete="email"
+          [value]="form.controls.email.value ?? ''"
+          (valueChange)="form.controls.email.setValue($event)"
+          [disabled]="submitting"
+        />
+        @if (form.controls.email.invalid && form.controls.email.touched) {
+          <span class="login-field-error">Please enter a valid email.</span>
+        }
+      </div>
+
+      <div class="login-field">
+        <label for="login-password">Password</label>
+        <lib-input
+          id="login-password"
+          type="password"
+          placeholder="Your password"
+          autocomplete="current-password"
+          [showPasswordToggle]="true"
+          [value]="form.controls.password.value ?? ''"
+          (valueChange)="form.controls.password.setValue($event)"
+          [disabled]="submitting"
+        />
+        @if (form.controls.password.invalid && form.controls.password.touched) {
+          <span class="login-field-error">Password must be at least 6 characters.</span>
+        }
+      </div>
+
+      <button type="submit" libButton="primary" [disabled]="submitting">
+        {{ submitting ? 'Signing in…' : 'Sign in' }}
+      </button>
+    </form>
+  </div>
+</div>

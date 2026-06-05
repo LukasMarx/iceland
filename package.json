@@ -50,6 +50,7 @@
     "@swc/core": "~1.15.5",
     "@swc/helpers": "~0.5.18",
     "@types/jest": "~30.0.0",
+    "@types/multer": "^2.1.0",
     "@types/node": "20.19.9",
     "@typescript-eslint/utils": "^8.40.0",
     "@vitest/coverage-v8": "~4.1.0",

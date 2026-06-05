@@ -18,6 +18,7 @@ describe('AuthTokensService', () => {
       email: 'user@example.com',
       provider: 'password',
       displayName: 'User Example',
+      role: 'user',
     });
 
     await expect(service.verifyAccessToken(token)).resolves.toEqual({
@@ -25,6 +26,7 @@ describe('AuthTokensService', () => {
       email: 'user@example.com',
       provider: 'password',
       displayName: 'User Example',
+      role: 'user',
     });
   });
 });

@@ -1,7 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { DemoContextService } from '../../common/demo-context.service';
-import { SEED_SPOTS, SEED_SPOT_MAP, SEED_CHECKED_AT } from '../../common/seed-spots';
 import { mapSpot, buildSpotStatusForContext } from '../../common/spot-mapper';
 
 const SPOT_INCLUDE = {
@@ -22,25 +21,23 @@ export class ExploreService {
     private readonly demoContext: DemoContextService,
   ) {}
 
-  async getExplore(query: {
-    status?: string;
-    category?: string;
-    vehicle?: string;
-    showFRoads?: string;
-    maxDriveMinutes?: string;
-    tripId?: string;
-    date?: string;
-    limit?: string;
-    cursor?: string;
-  }) {
-    const tripId = query.tripId ?? this.demoContext.getTripId();
-    const trip = await this.demoContext.resolveTrip(tripId);
-    if (!trip?.activeHub) {
-      throw new NotFoundException({ code: 'trip_not_found', message: 'No active trip or hub found.' });
-    }
+  async getExplore(
+    query: {
+      status?: string;
+      category?: string;
+      vehicle?: string;
+      showFRoads?: string;
+      maxDriveMinutes?: string;
+      tripId?: string;
+      date?: string;
+      limit?: string;
+      cursor?: string;
+    },
+    baseUrl?: string,
+  ) {
 
-    const hub = trip.activeHub;
-    const vehicle = (query.vehicle ?? trip.vehicle) as string;
+
+    const vehicle = (query.vehicle) as string;
     const showFRoads = query.showFRoads === 'true' || vehicle === 'car_4wd';
     const maxDrive = query.maxDriveMinutes ? Number(query.maxDriveMinutes) : undefined;
     const statusFilter = query.status ? query.status.split(',').filter(Boolean) : undefined;
@@ -48,7 +45,6 @@ export class ExploreService {
     const limit = Math.min(Number(query.limit ?? 20), 50);
 
     const savedSpots = await this.prisma.savedSpot.findMany({
-      where: { tripId },
       select: { spotId: true },
     });
     const savedSpotIds = new Set(savedSpots.map((s) => s.spotId));
@@ -70,10 +66,7 @@ export class ExploreService {
     });
 
     const mapped = spots
-      .map((s) => {
-        const seed = SEED_SPOT_MAP.get(s.id);
-        return mapSpot(s as any, savedSpotIds.has(s.id), seed?.driveMinutesFromHub);
-      })
+      .map((s) => mapSpot(s as any, savedSpotIds.has(s.id), undefined, baseUrl))
       .filter((s) => {
         if (statusFilter?.length && !statusFilter.includes(s.status.level)) return false;
         if (maxDrive && s.driveMinutesFromHub && s.driveMinutesFromHub > maxDrive) return false;
@@ -90,20 +83,18 @@ export class ExploreService {
     const month = todayDate.toLocaleDateString('en-GB', { month: 'short' });
     const dateLabel = `Today, ${weekday} ${dayNum} ${month}`;
 
-    return {
-      hub: { id: hub.id, placeId: hub.placeId, name: hub.name, type: hub.type, location: { lat: hub.lat, lon: hub.lon } },
-      dateLabel,
+    return {     
+       dateLabel,
       vehicle,
       dataAgeMinutes: 8,
       spots: page,
       smartRoutes: buildSmartRoutes(page, savedSpotIds),
       categories: await this.getCategories(),
       pageInfo: { hasMore, nextCursor: hasMore ? page.at(-1)?.id : undefined },
-      map: { center: { lat: hub.lat, lon: hub.lon }, zoomHint: 9 },
     };
   }
 
-  async getSpotContext(spotId: string, query: { tripId?: string; date?: string }) {
+  async getSpotContext(spotId: string, query: { tripId?: string; date?: string }, baseUrl?: string) {
     const spot = await this.prisma.spot.findUnique({
       where: { id: spotId },
       include: SPOT_INCLUDE,
@@ -117,8 +108,7 @@ export class ExploreService {
     const savedSpots = await this.prisma.savedSpot.findMany({ where: { tripId }, select: { spotId: true } });
     const isSaved = savedSpots.some((s) => s.spotId === spotId);
 
-    const seed = SEED_SPOT_MAP.get(spotId);
-    const mappedSpot = mapSpot(spot as any, isSaved, seed?.driveMinutesFromHub);
+    const mappedSpot = mapSpot(spot as any, isSaved, undefined, baseUrl);
     const { reasons } = buildSpotStatusForContext(spot as any);
 
     const level = mappedSpot.status.level;
@@ -131,7 +121,7 @@ export class ExploreService {
     const secondaryAction = { code: 'plan_later', label: 'Plan for later', disabled: false };
 
     let alternatives: ReturnType<typeof mapSpot>[] = [];
-    if (level === 'red' && seed) {
+    if (level === 'red') {
       const altSpots = await this.prisma.spot.findMany({
         where: {
           id: { not: spotId },
@@ -142,14 +132,8 @@ export class ExploreService {
         take: 3,
       });
       alternatives = altSpots
-        .filter((s) => {
-          const altSeed = SEED_SPOT_MAP.get(s.id);
-          return altSeed?.status === 'green';
-        })
-        .map((s) => {
-          const altSeed = SEED_SPOT_MAP.get(s.id);
-          return mapSpot(s as any, savedSpots.some((sv) => sv.spotId === s.id), altSeed?.driveMinutesFromHub);
-        })
+        .map((s) => mapSpot(s as any, savedSpots.some((sv) => sv.spotId === s.id), undefined, baseUrl))
+        .filter((s) => s.status.level !== 'red')
         .slice(0, 3);
     }
 
@@ -157,12 +141,12 @@ export class ExploreService {
       spot: mappedSpot,
       primaryAction,
       secondaryAction,
-      sourceSummary: `Wind · Veður.is, Road · Vegagerðin. Updated ${SEED_CHECKED_AT.slice(11, 16)}.`,
+      sourceSummary: 'Live status data.',
       alternatives: alternatives.length ? alternatives : undefined,
     };
   }
 
-  async refreshSpotStatus(spotId: string, body: { tripId?: string; date?: string; force?: boolean }) {
+  async refreshSpotStatus(spotId: string, body: { tripId?: string; date?: string; force?: boolean }, baseUrl?: string) {
     const spot = await this.prisma.spot.findUnique({ where: { id: spotId } });
     if (!spot) {
       throw new NotFoundException({ code: 'spot_not_found', message: `Spot ${spotId} not found.` });
@@ -184,7 +168,6 @@ export class ExploreService {
       now.getTime() - existing.calculatedAt.getTime() < cacheWindowMinutes * 60 * 1000;
 
     if (fresh && existing) {
-      const seed = SEED_SPOT_MAP.get(spotId);
       const mapped = mapSpot({ ...spot, translations: [], categories: [], media: [], statusSnapshots: [{ ...existing, sourceStamps: existing.sourceStamps }] } as any);
       return {
         spot: mapped,
@@ -199,18 +182,16 @@ export class ExploreService {
       };
     }
 
-    const seed = SEED_SPOT_MAP.get(spotId);
-    const level = seed?.status ?? 'unknown';
     const snapshot = await this.prisma.spotStatusSnapshot.create({
       data: {
         spotId,
         tripId,
         vehicle: 'car_2wd',
         targetDate: new Date(body.date ?? now.toISOString().split('T')[0]),
-        level,
-        label: seed?.statusLabel ?? 'No data',
-        reason: seed?.statusReason ?? 'Status not available.',
-        reasons: seed?.statusReasons ?? [],
+        level: 'unknown',
+        label: 'No data',
+        reason: 'Status not available.',
+        reasons: [],
         calculatedAt: now,
         validUntil: new Date(now.getTime() + 60 * 60 * 1000),
         version: 1,
@@ -219,7 +200,7 @@ export class ExploreService {
     });
 
     const spotFull = await this.prisma.spot.findUnique({ where: { id: spotId }, include: SPOT_INCLUDE });
-    const mapped = mapSpot(spotFull as any, undefined, seed?.driveMinutesFromHub);
+    const mapped = mapSpot(spotFull as any, undefined, undefined, baseUrl);
 
     return {
       spot: mapped,
@@ -263,7 +244,7 @@ function buildSmartRoutes(spots: ReturnType<typeof mapSpot>[], savedSpotIds: Set
       spotIds: greenSpots.map((s) => s.id),
       driveMinutes: Math.round(driveTotal * 0.6),
       distanceKm: Math.round(driveTotal * 0.7),
-      highestStatus: { level: 'green', label: 'All open', reason: 'All stops have green status.', updatedAt: SEED_CHECKED_AT, sourceTimestamps: [] },
+      highestStatus: { level: 'green', label: 'All open', reason: 'All stops have green status.', updatedAt: new Date().toISOString(), sourceTimestamps: [] },
     },
   ];
 }

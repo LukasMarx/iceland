@@ -389,3 +389,56 @@ export interface PageInfo {
 export interface TripResponse {
   trip: TripSummary;
 }
+
+export interface AdminSpotListItem {
+  id: string;
+  slug: string;
+  name: string;
+  region: string | null;
+  isPublished: boolean;
+  createdAt: string;
+}
+
+export interface AdminSpotListResponse {
+  spots: AdminSpotListItem[];
+  total: number;
+  page: number;
+}
+
+export interface AdminSpotCreateRequest {
+  slug: string;
+  region?: string;
+  lat: number;
+  lon: number;
+  defaultLocale?: 'en' | 'de' | 'is';
+  visitMinutes?: number;
+  minVehicle?: 'car_2wd' | 'car_4wd' | 'unknown';
+  isFRoad?: boolean;
+  isPublished?: boolean;
+  translations: Array<{
+    locale: 'en' | 'de' | 'is';
+    name: string;
+    shortDescription?: string;
+    longDescription?: string;
+    safetyNotes?: string;
+  }>;
+}
+
+export interface AdminSpotUpdateRequest {
+  slug?: string;
+  region?: string;
+  lat?: number;
+  lon?: number;
+  defaultLocale?: 'en' | 'de' | 'is';
+  visitMinutes?: number;
+  minVehicle?: 'car_2wd' | 'car_4wd' | 'unknown';
+  isFRoad?: boolean;
+  isPublished?: boolean;
+  translations?: Array<{
+    locale: 'en' | 'de' | 'is';
+    name: string;
+    shortDescription?: string;
+    longDescription?: string;
+    safetyNotes?: string;
+  }>;
+}

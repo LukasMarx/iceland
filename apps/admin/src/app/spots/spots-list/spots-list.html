@@ -1,0 +1,67 @@
+<div class="spots-list">
+  <div class="spots-header">
+    <h1>Spots</h1>
+    <a routerLink="/spots/new" libButton="primary" libButtonSize="sm" [libButtonBlock]="false">New Spot</a>
+  </div>
+
+  <div class="spots-toolbar">
+    <lib-input
+      placeholder="Search spots…"
+      [value]="search()"
+      (valueChange)="search.set($event); onSearch()"
+    />
+  </div>
+
+  @if (error()) {
+    <div class="spots-error">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <p class="spots-empty">Loading…</p>
+  } @else if (spots().length === 0) {
+    <p class="spots-empty">No spots found.</p>
+  } @else {
+    <div class="spots-table-wrapper">
+      <table class="spots-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Name</th>
+            <th>Region</th>
+            <th>Images</th>
+            <th>Published</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (spot of spots(); track spot.id) {
+            <tr class="spots-table-row" [routerLink]="['/spots', spot.id]">
+              <td class="spots-table-thumb">
+                @if (spot.images?.[0]) {
+                  <img [src]="imageUrl(spot.images[0])" alt="" />
+                }
+              </td>
+              <td>{{ spot.name ?? '—' }}</td>
+              <td>{{ spot.region ?? '—' }}</td>
+              <td>{{ spot.images?.length ?? 0 }}</td>
+              <td>{{ spot.isPublished ? 'Yes' : 'No' }}</td>
+              <td>{{ formatDate(spot.createdAt) }}</td>
+              <td>
+                <button libButton="text" libButtonSize="sm" [libButtonBlock]="false" (click)="deleteSpot(spot.id, $event)">Delete</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (totalPages() > 1) {
+      <div class="spots-pagination">
+        <button libButton="secondary" libButtonSize="sm" [libButtonBlock]="false" [disabled]="page() <= 1" (click)="prevPage()">Previous</button>
+        <span>Page {{ page() }} of {{ totalPages() }}</span>
+        <button libButton="secondary" libButtonSize="sm" [libButtonBlock]="false" [disabled]="page() >= totalPages()" (click)="nextPage()">Next</button>
+      </div>
+    }
+  }
+</div>

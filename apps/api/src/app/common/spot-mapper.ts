@@ -1,5 +1,5 @@
 import type { Spot as PrismaSpot, SpotTranslation, SpotCategory, MediaAsset, SpotStatusSnapshot, StatusSourceTimestamp } from '@prisma/client';
-import { SEED_SPOT_MAP, SEED_CHECKED_AT, SEED_VALID_UNTIL } from './seed-spots';
+import { toImageUrl } from './image-url';
 
 export type SpotWithRelations = PrismaSpot & {
   translations: SpotTranslation[];
@@ -30,7 +30,7 @@ export interface MappedSafetyStatus {
   sourceTimestamps: { source: string; label: string; checkedAt: string; validUntil?: string }[];
 }
 
-export function mapSpot(spot: SpotWithRelations, isSaved?: boolean, driveMinutesFromHub?: number): MappedSpot {
+export function mapSpot(spot: SpotWithRelations, isSaved?: boolean, driveMinutes?: number, baseUrl?: string): MappedSpot {
   const translation = spot.translations.find((t) => t.locale === 'en') ?? spot.translations[0];
   const name = translation?.name ?? spot.id;
 
@@ -40,7 +40,7 @@ export function mapSpot(spot: SpotWithRelations, isSaved?: boolean, driveMinutes
 
   const status = latestSnapshot
     ? mapSnapshotToStatus(latestSnapshot)
-    : fallbackStatus(spot.id);
+    : fallbackStatus();
 
   const categoryIds = spot.categories.map((sc) => sc.categoryId);
 
@@ -50,7 +50,7 @@ export function mapSpot(spot: SpotWithRelations, isSaved?: boolean, driveMinutes
     categoryIds,
     location: { lat: spot.lat, lon: spot.lon },
     region: spot.region ?? undefined,
-    driveMinutesFromHub: driveMinutesFromHub ?? SEED_SPOT_MAP.get(spot.id)?.driveMinutesFromHub,
+    driveMinutesFromHub: driveMinutes,
     visitMinutes: spot.visitMinutes,
     isFRoad: spot.isFRoad,
     status,
@@ -58,8 +58,8 @@ export function mapSpot(spot: SpotWithRelations, isSaved?: boolean, driveMinutes
     media: spot.media.map((m) => ({
       id: m.id,
       type: m.type.toLowerCase(),
-      url: m.url,
-      thumbnailUrl: m.thumbnailUrl ?? undefined,
+      url: baseUrl ? toImageUrl(baseUrl, m.url) : m.url,
+      thumbnailUrl: baseUrl ? toImageUrl(baseUrl, m.thumbnailUrl) : (m.thumbnailUrl ?? undefined),
       alt: m.alt,
       credit: m.credit ?? undefined,
     })),
@@ -83,25 +83,12 @@ function mapSnapshotToStatus(
   };
 }
 
-function fallbackStatus(spotId: string): MappedSafetyStatus {
-  const seed = SEED_SPOT_MAP.get(spotId);
-  if (seed) {
-    return {
-      level: seed.status,
-      label: seed.statusLabel,
-      reason: seed.statusReason,
-      updatedAt: SEED_CHECKED_AT,
-      sourceTimestamps: [
-        { source: 'weather', label: 'Veður.is', checkedAt: SEED_CHECKED_AT, validUntil: SEED_VALID_UNTIL },
-        { source: 'road', label: 'Vegagerðin', checkedAt: SEED_CHECKED_AT, validUntil: SEED_VALID_UNTIL },
-      ],
-    };
-  }
+function fallbackStatus(): MappedSafetyStatus {
   return {
     level: 'unknown',
     label: 'No data',
     reason: 'Status not available.',
-    updatedAt: SEED_CHECKED_AT,
+    updatedAt: new Date().toISOString(),
     sourceTimestamps: [],
   };
 }
@@ -111,10 +98,9 @@ export function buildSpotStatusForContext(spot: SpotWithRelations) {
     .sort((a, b) => b.calculatedAt.getTime() - a.calculatedAt.getTime())
     .at(0);
 
-  const seed = SEED_SPOT_MAP.get(spot.id);
   const reasons = latestSnapshot
     ? (Array.isArray(latestSnapshot.reasons) ? (latestSnapshot.reasons as string[]) : [latestSnapshot.reason])
-    : (seed?.statusReasons ?? []);
+    : [];
 
-  return { reasons, seed };
+  return { reasons };
 }

@@ -8,6 +8,11 @@
 		<p class="trip-dates-line">{{ trip().dates }} · {{ trip().totalDays }} DAYS</p>
 		<h1 class="trip-title">{{ trip().title }}</h1>
 		<p class="trip-description">Drop the routes you built onto each day. Choose how long you stay at every hotel along the way.</p>
+		@if (!hasDates()) {
+			<button class="date-picker-btn" type="button" (click)="toggleSheet()">
+				Select Trip Dates
+			</button>
+		}
 	</header>
 
 	<!-- ── Summary stats ─────────────────────────────────────────── -->
@@ -105,3 +110,15 @@
 	</div>
 
 </lib-screen>
+
+	@if (bottomSheetExpanded()) {
+	<lib-bottom-sheet
+		[expanded]="true"
+		[peekLabel]="'Select dates'"
+		(toggle)="toggleSheet()"
+	>
+		<div class="sheet-content">
+			<lib-calendar [highlightedDates]="[]" [selectable]="true" (rangeSelected)="onRangeSelected($event)"></lib-calendar>
+		</div>
+	</lib-bottom-sheet>
+}

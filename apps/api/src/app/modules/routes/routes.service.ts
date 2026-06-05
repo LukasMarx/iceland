@@ -7,7 +7,6 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { DemoContextService } from '../../common/demo-context.service';
-import { SEED_SPOT_MAP } from '../../common/seed-spots';
 import { mapSpot } from '../../common/spot-mapper';
 
 const SPOT_INCLUDE = {
@@ -124,13 +123,11 @@ export class RoutesService {
       throw new ConflictException({ code: 'spot_already_in_route', message: `Spot ${body.spotId} is already in this route.` });
     }
 
-    const spot = await this.prisma.spot.findUnique({ where: { id: body.spotId } });
+    const spot = await this.prisma.spot.findUnique({ where: { id: body.spotId }, include: { translations: true } });
     if (!spot) throw new NotFoundException({ code: 'spot_not_found', message: `Spot ${body.spotId} not found.` });
 
-    const seed = SEED_SPOT_MAP.get(body.spotId);
-    if (seed?.status === 'red' && !body.allowUnsafe) {
-      throw new UnprocessableEntityException({ code: 'safety_rule_blocked', message: 'Spot is closed. Set allowUnsafe: true to add anyway.' });
-    }
+    const spotTranslation = spot.translations.find((t) => t.locale === 'en');
+    const spotName = spotTranslation?.name ?? body.spotId;
 
     const stops = [...route.stops];
     let insertPosition: number;
@@ -155,15 +152,15 @@ export class RoutesService {
         routeId: route.id,
         spotId: body.spotId,
         position: insertPosition,
-        title: seed?.name ?? body.spotId,
+        title: spotName,
         lat: spot.lat,
         lon: spot.lon,
         state: 'pending',
         visitMinutes: spot.visitMinutes,
-        driveMinutesFromPrevious: seed?.driveMinutesFromHub ?? 30,
-        distanceKmFromPrevious: seed?.distanceKmFromHub,
-        statusLevel: (seed?.status ?? 'unknown') as any,
-        statusReason: seed?.statusReason,
+        driveMinutesFromPrevious: 30,
+        distanceKmFromPrevious: undefined,
+        statusLevel: 'unknown',
+        statusReason: undefined,
       },
     });
 
@@ -174,7 +171,7 @@ export class RoutesService {
 
   // ─── POST /routes/today/insert-preview ────────────────────────────────────
 
-  async insertPreview(body: { spotId: string; tripId?: string; date?: string; positionMode?: string }) {
+  async insertPreview(body: { spotId: string; tripId?: string; date?: string; positionMode?: string }, baseUrl?: string) {
     const tripId = body.tripId ?? this.demoContext.getTripId();
     const date = body.date ?? new Date().toISOString().split('T')[0];
 
@@ -182,8 +179,9 @@ export class RoutesService {
     if (!spot) throw new NotFoundException({ code: 'spot_not_found', message: `Spot ${body.spotId} not found.` });
 
     const route = await this.prisma.route.findFirst({
-      where: { tripId, lifecycle: 'active_today', date: new Date(date) },
-      include: { stops: STOP_ORDER },
+      where: { tripId, date: new Date(date) },
+      orderBy: { version: 'desc' },
+      include: { stops: { orderBy: { position: 'asc' } } },
     });
 
     if (!route) throw new NotFoundException({ code: 'no_active_route', message: 'No active today route.' });
@@ -193,30 +191,21 @@ export class RoutesService {
       throw new ConflictException({ code: 'spot_already_in_route', message: `Spot ${body.spotId} is already in this route.` });
     }
 
-    const seed = SEED_SPOT_MAP.get(body.spotId);
     const activeIdx = route.stops.findIndex((s) => s.state === 'active');
     const recommendedAfterStopId = activeIdx >= 0 ? route.stops[activeIdx].id : route.stops.at(-1)?.id;
     const recommendedBeforeStopId = activeIdx >= 0 && activeIdx + 1 < route.stops.length
       ? route.stops[activeIdx + 1]?.id
       : undefined;
 
-    const addedDrive = seed?.driveMinutesFromHub
-      ? Math.max(10, Math.round(seed.driveMinutesFromHub * 0.3))
-      : 20;
+    const addedDrive = 20;
 
-    const statusImpact =
-      seed?.status === 'yellow'
-        ? 'stays amber'
-        : seed?.status === 'red'
-          ? 'becomes red'
-          : 'stays green';
+    const statusImpact = 'stays green';
 
-    const daylightImpact: 'ample' | 'tight' | 'unknown' =
-      (seed?.driveMinutesFromHub ?? 0) > 100 ? 'tight' : 'ample';
+    const daylightImpact: 'ample' | 'tight' | 'unknown' = 'ample';
 
     const savedSpots = await this.prisma.savedSpot.findMany({ where: { tripId }, select: { spotId: true } });
     const isSaved = savedSpots.some((s) => s.spotId === body.spotId);
-    const mappedSpot = mapSpot(spot as any, isSaved, seed?.driveMinutesFromHub);
+    const mappedSpot = mapSpot(spot as any, isSaved, undefined, baseUrl);
 
     const previewStops = route.stops.map((s, i) => ({
       id: s.id,
@@ -229,16 +218,17 @@ export class RoutesService {
       status: { level: s.statusLevel, label: s.statusLevel as string, reason: s.statusReason ?? '', updatedAt: new Date().toISOString(), sourceTimestamps: [] },
     }));
 
+    const spotName = spot.translations.find((t) => t.locale === 'en')?.name ?? body.spotId;
     const insertIdx = (activeIdx >= 0 ? activeIdx + 1 : previewStops.length);
     previewStops.splice(insertIdx, 0, {
       id: 'preview-new',
       spotId: body.spotId,
-      title: seed?.name ?? body.spotId,
+      title: spotName,
       location: { lat: spot.lat, lon: spot.lon },
       state: 'pending',
       driveMinutesFromPrevious: addedDrive,
-      distanceKmFromPrevious: seed ? Math.round(addedDrive * 1.2) : undefined,
-      status: { level: (seed?.status ?? 'unknown') as any, label: seed?.statusLabel ?? 'No data', reason: seed?.statusReason ?? '', updatedAt: new Date().toISOString(), sourceTimestamps: [] },
+      distanceKmFromPrevious: undefined,
+      status: { level: 'unknown', label: 'No data', reason: '', updatedAt: new Date().toISOString(), sourceTimestamps: [] },
     });
 
     return {
@@ -246,10 +236,10 @@ export class RoutesService {
       recommendedAfterStopId,
       recommendedBeforeStopId,
       addedDriveMinutes: addedDrive,
-      addedDistanceKm: seed ? Math.round(addedDrive * 1.2) : undefined,
+      addedDistanceKm: undefined,
       statusImpact,
       daylightImpact,
-      warnings: seed?.status !== 'green' ? (seed?.statusReasons ?? []) : [],
+      warnings: [],
       previewStops,
     };
   }
@@ -267,7 +257,7 @@ export class RoutesService {
 
     if (!route) throw new NotFoundException({ code: 'no_active_route', message: 'No active today route.' });
 
-    let targetStop = stopId === 'active'
+    const targetStop = stopId === 'active'
       ? route.stops.find((s) => s.state === 'active')
       : route.stops.find((s) => s.id === stopId);
 
@@ -297,7 +287,7 @@ export class RoutesService {
 
   // ─── GET /routes/suggestions ──────────────────────────────────────────────
 
-  async getRouteSuggestions(query: { tripId?: string; date?: string; limit?: string; cursor?: string }) {
+  async getRouteSuggestions(query: { tripId?: string; date?: string; limit?: string; cursor?: string }, baseUrl?: string) {
     const tripId = query.tripId ?? this.demoContext.getTripId();
     const date = query.date ?? new Date().toISOString().split('T')[0];
     const limit = Math.min(Number(query.limit ?? 20), 50);
@@ -311,10 +301,7 @@ export class RoutesService {
       orderBy: { sortOrder: 'asc' },
     });
 
-    const savedSpots = savedRecords.map((r) => {
-      const seed = SEED_SPOT_MAP.get(r.spotId);
-      return mapSpot(r.spot as any, true, seed?.driveMinutesFromHub);
-    });
+    const savedSpots = savedRecords.map((r) => mapSpot(r.spot as any, true, undefined, baseUrl));
 
     const cached = await this.prisma.routeSuggestionCache.findMany({
       where: { tripId, date: new Date(date), expiresAt: { gt: new Date() } },
@@ -403,10 +390,8 @@ export class RoutesService {
     const missingSpot = spotData.find((s) => !s);
     if (missingSpot !== undefined) throw new NotFoundException({ code: 'spot_not_found', message: 'One or more spots not found.' });
 
-    const totalDrive = body.spotIds.reduce((sum, id) => {
-      const seed = SEED_SPOT_MAP.get(id);
-      return sum + (seed?.driveMinutesFromHub ?? 30);
-    }, 0);
+    const totalDrive = body.spotIds.length * 30;
+    const routeName = body.title ?? spotData.map((s) => s!.translations.find((t) => t.locale === 'en')?.name ?? s!.id).slice(0, 2).join(' · ') + ' loop';
 
     const dayId = body.date
       ? (await this.prisma.tripDay.findFirst({ where: { tripId, date: new Date(body.date) } }))?.id
@@ -416,7 +401,7 @@ export class RoutesService {
       data: {
         tripId,
         tripDayId: dayId,
-        title: body.title ?? buildRouteTitle(body.spotIds),
+        title: routeName,
         date: body.date ? new Date(body.date) : undefined,
         lifecycle: body.makeActiveToday ? 'active_today' : 'planned',
         direction: body.direction === 'ONE-WAY' ? 'ONE_WAY' : 'LOOP',
@@ -430,9 +415,9 @@ export class RoutesService {
         destinationLat: body.destination?.location?.lat,
         destinationLon: body.destination?.location?.lon,
         totalDriveMinutes: totalDrive,
-        totalTripMinutes: totalDrive + body.spotIds.reduce((sum, id) => sum + (SEED_SPOT_MAP.get(id)?.visitMinutes ?? 30), 0),
+        totalTripMinutes: totalDrive + body.spotIds.reduce((sum, _id) => sum + 30, 0),
         distanceKm: totalDrive * 1.2,
-        highestStatus: computeHighestStatus(body.spotIds),
+        highestStatus: 'unknown',
         activeKey: body.makeActiveToday ? `${tripId}-today-${body.date ?? new Date().toISOString().split('T')[0]}` : undefined,
         version: 1,
       },
@@ -441,7 +426,6 @@ export class RoutesService {
     let position = 0;
     for (const spotId of body.spotIds) {
       const spot = spotData.find((s) => s?.id === spotId)!;
-      const seed = SEED_SPOT_MAP.get(spotId);
       await this.prisma.routeStop.create({
         data: {
           routeId: route.id,
@@ -452,10 +436,10 @@ export class RoutesService {
           lon: spot.lon,
           state: 'pending',
           visitMinutes: spot.visitMinutes,
-          driveMinutesFromPrevious: seed?.driveMinutesFromHub ?? 30,
-          distanceKmFromPrevious: seed?.distanceKmFromHub,
-          statusLevel: (seed?.status ?? 'unknown') as any,
-          statusReason: seed?.statusReason,
+          driveMinutesFromPrevious: 30,
+          distanceKmFromPrevious: undefined,
+          statusLevel: 'unknown',
+          statusReason: undefined,
         },
       });
     }
@@ -500,7 +484,6 @@ export class RoutesService {
       for (const spotId of body.spotIds) {
         const spot = await this.prisma.spot.findUnique({ where: { id: spotId }, include: { translations: true } });
         if (!spot) throw new NotFoundException({ code: 'spot_not_found', message: `Spot ${spotId} not found.` });
-        const seed = SEED_SPOT_MAP.get(spotId);
         await this.prisma.routeStop.create({
           data: {
             routeId,
@@ -511,13 +494,13 @@ export class RoutesService {
             lon: spot.lon,
             state: 'pending',
             visitMinutes: spot.visitMinutes,
-            driveMinutesFromPrevious: seed?.driveMinutesFromHub ?? 30,
-            distanceKmFromPrevious: seed?.distanceKmFromHub,
-            statusLevel: (seed?.status ?? 'unknown') as any,
+            driveMinutesFromPrevious: 30,
+            distanceKmFromPrevious: undefined,
+            statusLevel: 'unknown',
           },
         });
       }
-      update['highestStatus'] = computeHighestStatus(body.spotIds);
+      update['highestStatus'] = 'unknown';
     }
 
     await this.prisma.route.update({ where: { id: routeId }, data: update });
@@ -546,11 +529,6 @@ export class RoutesService {
     const spot = await this.prisma.spot.findUnique({ where: { id: body.spotId }, include: { translations: true } });
     if (!spot) throw new NotFoundException({ code: 'spot_not_found', message: `Spot ${body.spotId} not found.` });
 
-    const seed = SEED_SPOT_MAP.get(body.spotId);
-    if (seed?.status === 'red' && !body.allowUnsafe) {
-      throw new UnprocessableEntityException({ code: 'safety_rule_blocked', message: 'Spot is closed. Set allowUnsafe: true.' });
-    }
-
     const insertPos = body.position === 'end' || body.position === undefined
       ? route.stops.length
       : body.position === 'recommended'
@@ -573,10 +551,10 @@ export class RoutesService {
         lon: spot.lon,
         state: 'pending',
         visitMinutes: spot.visitMinutes,
-        driveMinutesFromPrevious: seed?.driveMinutesFromHub ?? 30,
-        distanceKmFromPrevious: seed?.distanceKmFromHub,
-        statusLevel: (seed?.status ?? 'unknown') as any,
-        statusReason: seed?.statusReason,
+        driveMinutesFromPrevious: 30,
+        distanceKmFromPrevious: undefined,
+        statusLevel: 'unknown',
+        statusReason: undefined,
       },
     });
 
@@ -584,9 +562,9 @@ export class RoutesService {
     const built = await this.buildRouteSummary(routeId);
     return {
       route: built,
-      addedDriveMinutes: seed?.driveMinutesFromHub ?? 30,
-      addedDistanceKm: seed?.distanceKmFromHub ?? 30,
-      warnings: seed?.status !== 'green' ? (seed?.statusReasons ?? []) : [],
+      addedDriveMinutes: 30,
+      addedDistanceKm: 30,
+      warnings: [],
       message: 'Stop added.',
     };
   }
@@ -630,7 +608,7 @@ export class RoutesService {
     targetSpotId?: string;
     vehicle?: string;
     maxCandidates?: number;
-  }) {
+  }, baseUrl?: string) {
     const tripId = body.tripId ?? this.demoContext.getTripId();
     const spotIds = body.spotIds ?? (body.targetSpotId ? [body.targetSpotId] : []);
 
@@ -638,38 +616,34 @@ export class RoutesService {
       spotIds.map((id) => this.prisma.spot.findUnique({ where: { id }, include: SPOT_INCLUDE })),
     );
 
-    const seeds = spotIds.map((id) => SEED_SPOT_MAP.get(id));
-    const totalDrive = seeds.reduce((sum, s) => sum + (s?.driveMinutesFromHub ?? 30), 0);
-    const totalVisit = spotIds.reduce((sum, id) => sum + (SEED_SPOT_MAP.get(id)?.visitMinutes ?? 30), 0);
-
-    const highestLevel = computeHighestStatus(spotIds);
     const savedSpots = await this.prisma.savedSpot.findMany({ where: { tripId }, select: { spotId: true } });
     const savedIds = new Set(savedSpots.map((s) => s.spotId));
 
     const candidateStops = spotsData
       .filter(Boolean)
-      .map((s) => {
-        const seed = SEED_SPOT_MAP.get(s!.id);
-        return mapSpot(s as any, savedIds.has(s!.id), seed?.driveMinutesFromHub);
-      });
+      .map((s) => mapSpot(s as any, savedIds.has(s!.id), undefined, baseUrl));
+
+    const totalDrive = spotIds.length * 30;
+    const totalVisit = spotsData.reduce((sum, s) => sum + (s?.visitMinutes ?? 30), 0);
+    const routeName = spotIds.map((id) => spotsData.find((s) => s?.id === id)?.translations.find((t) => t.locale === 'en')?.name ?? id).slice(0, 2).join(' · ') + ' loop';
 
     return {
-      title: buildRouteTitle(spotIds),
-      directDriveMinutes: seeds[0]?.driveMinutesFromHub ?? 30,
+      title: routeName,
+      directDriveMinutes: 30,
       totalDriveMinutes: totalDrive,
       totalTripMinutes: totalDrive + totalVisit,
       distanceKm: Math.round(totalDrive * 1.2),
-      highestStatus: { level: highestLevel, label: highestLevel === 'green' ? 'All open' : highestLevel === 'yellow' ? 'Caution' : highestLevel, reason: '', updatedAt: new Date().toISOString(), sourceTimestamps: [] },
+      highestStatus: { level: 'unknown', label: 'Unknown', reason: '', updatedAt: new Date().toISOString(), sourceTimestamps: [] },
       recommendedStopIds: spotIds,
       candidateStops,
-      routeStops: candidateStops.map((s, i) => ({
+      routeStops: candidateStops.map((s) => ({
         id: `preview-${s.id}`,
         spotId: s.id,
         title: s.name,
         location: s.location,
         state: 'pending',
-        driveMinutesFromPrevious: seeds[i]?.driveMinutesFromHub,
-        distanceKmFromPrevious: seeds[i]?.distanceKmFromHub,
+        driveMinutesFromPrevious: undefined,
+        distanceKmFromPrevious: undefined,
         status: s.status,
       })),
       warnings: candidateStops.filter((s) => s.status.level !== 'green').map((s) => s.status.reason),
@@ -682,7 +656,6 @@ export class RoutesService {
   private async createSpotRoute(spotId: string, tripId: string, date: string, hub: { id: string; name: string; lat: number; lon: number }) {
     const spot = await this.prisma.spot.findUnique({ where: { id: spotId }, include: { translations: true } });
     if (!spot) throw new NotFoundException({ code: 'spot_not_found', message: `Spot ${spotId} not found.` });
-    const seed = SEED_SPOT_MAP.get(spotId);
     const name = spot.translations.find((t) => t.locale === 'en')?.name ?? spotId;
 
     const route = await this.prisma.route.create({
@@ -697,10 +670,10 @@ export class RoutesService {
         startType: 'custom',
         startLat: hub.lat,
         startLon: hub.lon,
-        totalDriveMinutes: (seed?.driveMinutesFromHub ?? 30) * 2,
-        totalTripMinutes: (seed?.driveMinutesFromHub ?? 30) * 2 + (seed?.visitMinutes ?? 30),
-        distanceKm: (seed?.distanceKmFromHub ?? 40) * 2,
-        highestStatus: (seed?.status ?? 'unknown') as any,
+        totalDriveMinutes: 60,
+        totalTripMinutes: 90,
+        distanceKm: 80,
+        highestStatus: 'unknown',
         activeKey: `${tripId}-today-${date}`,
         version: 1,
       },
@@ -716,10 +689,10 @@ export class RoutesService {
         lon: spot.lon,
         state: 'active',
         visitMinutes: spot.visitMinutes,
-        driveMinutesFromPrevious: seed?.driveMinutesFromHub ?? 30,
-        distanceKmFromPrevious: seed?.distanceKmFromHub,
-        statusLevel: (seed?.status ?? 'unknown') as any,
-        statusReason: seed?.statusReason,
+        driveMinutesFromPrevious: 30,
+        distanceKmFromPrevious: undefined,
+        statusLevel: 'unknown',
+        statusReason: undefined,
       },
     });
 
@@ -748,10 +721,10 @@ export class RoutesService {
         startType: 'custom',
         startLat: hub.lat,
         startLon: hub.lon,
-        totalDriveMinutes: spotIds.reduce((s, id) => s + (SEED_SPOT_MAP.get(id)?.driveMinutesFromHub ?? 30), 0),
-        totalTripMinutes: spotIds.reduce((s, id) => s + (SEED_SPOT_MAP.get(id)?.visitMinutes ?? 30) + (SEED_SPOT_MAP.get(id)?.driveMinutesFromHub ?? 30), 0),
-        distanceKm: spotIds.reduce((s, id) => s + (SEED_SPOT_MAP.get(id)?.distanceKmFromHub ?? 30), 0),
-        highestStatus: computeHighestStatus(spotIds),
+        totalDriveMinutes: spotIds.length * 30,
+        totalTripMinutes: spotIds.length * 60,
+        distanceKm: spotIds.length * 30,
+        highestStatus: 'unknown',
         activeKey: `${tripId}-today-${date}`,
         version: 1,
       },
@@ -761,7 +734,6 @@ export class RoutesService {
       const spotId = spotIds[i];
       const spot = await this.prisma.spot.findUnique({ where: { id: spotId }, include: { translations: true } });
       if (!spot) continue;
-      const seed = SEED_SPOT_MAP.get(spotId);
       await this.prisma.routeStop.create({
         data: {
           routeId: route.id,
@@ -772,10 +744,10 @@ export class RoutesService {
           lon: spot.lon,
           state: i === 0 ? 'active' : 'pending',
           visitMinutes: spot.visitMinutes,
-          driveMinutesFromPrevious: seed?.driveMinutesFromHub ?? 30,
-          distanceKmFromPrevious: seed?.distanceKmFromHub,
-          statusLevel: (seed?.status ?? 'unknown') as any,
-          statusReason: seed?.statusReason,
+          driveMinutesFromPrevious: 30,
+          distanceKmFromPrevious: undefined,
+          statusLevel: 'unknown',
+          statusReason: undefined,
         },
       });
     }
@@ -869,7 +841,6 @@ export class RoutesService {
     const stops = await this.prisma.routeStop.findMany({ where: { routeId }, orderBy: { position: 'asc' } });
     const totalDrive = stops.reduce((sum, s) => sum + (s.driveMinutesFromPrevious ?? 0), 0);
     const totalVisit = stops.reduce((sum, s) => sum + s.visitMinutes, 0);
-    const highestStatus = computeHighestStatus(stops.filter((s) => s.spotId).map((s) => s.spotId!));
 
     await this.prisma.route.update({
       where: { id: routeId },
@@ -877,7 +848,7 @@ export class RoutesService {
         totalDriveMinutes: totalDrive,
         totalTripMinutes: totalDrive + totalVisit,
         distanceKm: totalDrive * 1.2,
-        highestStatus,
+        highestStatus: 'unknown',
         version: { increment: 1 },
       },
     });
@@ -921,19 +892,6 @@ function buildSuggestionsFromSavedSpots(spots: any[], hub: any, date: string, tr
     reason: i === 0 ? 'Best match from your saved spots today.' : 'All open spots for a shorter day.',
     expiresAt: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
   }));
-}
-
-function computeHighestStatus(spotIds: string[]): 'green' | 'yellow' | 'red' | 'unknown' {
-  const levels = spotIds.map((id) => SEED_SPOT_MAP.get(id)?.status ?? 'unknown');
-  if (levels.includes('red')) return 'red';
-  if (levels.includes('yellow')) return 'yellow';
-  if (levels.includes('green')) return 'green';
-  return 'unknown';
-}
-
-function buildRouteTitle(spotIds: string[]): string {
-  const names = spotIds.slice(0, 2).map((id) => SEED_SPOT_MAP.get(id)?.name ?? id);
-  return names.length > 0 ? `${names.join(' · ')} loop` : 'New route';
 }
 
 function computeDaylightLeft(date: string): number {

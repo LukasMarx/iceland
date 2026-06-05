@@ -1,0 +1,93 @@
+:host {
+  display: block;
+}
+
+.spot-create {
+  max-width: 640px;
+  display: grid;
+  gap: 24px;
+}
+
+.spot-create-header h1 {
+  font-size: 32px;
+  margin: 0;
+}
+
+.spot-create-error {
+  padding: 12px;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #dc2626;
+  font-size: 14px;
+}
+
+.spot-create-form {
+  display: grid;
+  gap: 32px;
+}
+
+.spot-create-section {
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  padding: 24px;
+  margin: 0;
+}
+
+.spot-create-section legend {
+  font-weight: 800;
+  font-size: 16px;
+  padding: 0 8px;
+}
+
+.spot-create-field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.spot-create-field:last-child {
+  margin-bottom: 0;
+}
+
+.spot-create-field label {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.spot-create-field-error {
+  font-size: 12px;
+  color: #dc2626;
+}
+
+.spot-create-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.spot-create-select {
+  padding: 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: var(--color-white);
+  font-family: var(--font-family-sans);
+  font-size: 16px;
+}
+
+.spot-create-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.spot-create-checkbox input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+}
+
+.spot-create-actions {
+  display: flex;
+  gap: 12px;
+}

@@ -1,4 +1,6 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query, Req } from '@nestjs/common';
+import { Request } from 'express';
+import { baseUrlFromRequest } from '../../common/image-url';
 import { SavedSpotsService } from './saved-spots.service';
 
 @Controller('saved-spots')
@@ -7,17 +9,21 @@ export class SavedSpotsController {
 
   @Get()
   getSavedSpots(
+    @Req() req: Request,
     @Query('tripId') tripId?: string,
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
   ) {
-    return this.savedSpotsService.getSavedSpots({ tripId, limit, cursor });
+    return this.savedSpotsService.getSavedSpots({ tripId, limit, cursor }, baseUrlFromRequest(req));
   }
 
   @Post()
   @HttpCode(200)
-  saveSpot(@Body() body: { spotId: string; tripId?: string }) {
-    return this.savedSpotsService.saveSpot(body);
+  saveSpot(
+    @Req() req: Request,
+    @Body() body: { spotId: string; tripId?: string },
+  ) {
+    return this.savedSpotsService.saveSpot(body, baseUrlFromRequest(req));
   }
 
   @Delete(':spotId')

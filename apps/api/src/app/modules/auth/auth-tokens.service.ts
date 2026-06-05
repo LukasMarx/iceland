@@ -13,6 +13,7 @@ interface AccessTokenPayload {
   email: string | null;
   provider: string;
   displayName: string | null;
+  role: string;
   iat: number;
   exp: number;
 }
@@ -29,6 +30,7 @@ export class AuthTokensService {
       email: user.email,
       provider: user.provider,
       displayName: user.displayName,
+      role: user.role,
       iat: issuedAt,
       exp: issuedAt + ACCESS_TOKEN_TTL_SECONDS,
     } satisfies AccessTokenPayload);
@@ -64,6 +66,7 @@ export class AuthTokensService {
       email: decodedPayload.email,
       provider: decodedPayload.provider,
       displayName: decodedPayload.displayName,
+      role: decodedPayload.role,
     };
   }
 

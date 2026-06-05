@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { DemoContextService } from '../../common/demo-context.service';
+import { toImageUrl } from '../../common/image-url';
 
 @Injectable()
 export class PlacesService {
@@ -54,7 +55,7 @@ export class PlacesService {
     };
   }
 
-  async searchHotels(query: { q?: string; lat?: string; lon?: string; radiusKm?: string; stars?: string; locale?: string; limit?: string; cursor?: string }) {
+  async searchHotels(query: { q?: string; lat?: string; lon?: string; radiusKm?: string; stars?: string; locale?: string; limit?: string; cursor?: string }, baseUrl?: string) {
     const limit = Math.min(Number(query.limit ?? 10), 30);
     const q = query.q?.trim().toLowerCase();
 
@@ -93,7 +94,7 @@ export class PlacesService {
         stars: h.hotelProfile?.stars ?? null,
         bookingState: h.hotelProfile?.bookingState ?? 'unknown',
         bookingUrl: h.hotelProfile?.bookingUrl ?? null,
-        heroImage: h.media[0]?.url ?? null,
+        heroImage: h.media[0]?.url ? toImageUrl(baseUrl ?? '', h.media[0].url) : null,
       })),
       pageInfo: { hasMore, nextCursor: hasMore ? page.at(-1)?.id : undefined },
     };

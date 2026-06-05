@@ -181,6 +181,11 @@ enum SubscriptionPlan {
   trial
 }
 
+enum UserRole {
+  user
+  admin
+}
+
 enum NotificationChannel {
   push
   email
@@ -216,6 +221,7 @@ model User {
   email        String?          @unique
   displayName  String
   initials     String
+  role         UserRole         @default(user)
   joinedAt     DateTime         @default(now())
   subscription SubscriptionPlan @default(free)
   deletedAt    DateTime?
