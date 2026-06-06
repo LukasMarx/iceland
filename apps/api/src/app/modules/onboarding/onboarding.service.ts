@@ -1,13 +1,19 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
-import { DemoContextService, DEMO_HUB_ID } from '../../common/demo-context.service';
+import { RequestContextService } from '../auth/request-context.service';
 
 @Injectable()
 export class OnboardingService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly demoContext: DemoContextService,
+    private readonly requestContext: RequestContextService,
   ) {}
+
+  private getUserId(): string {
+    const id = this.requestContext.getUserId();
+    if (!id) throw new UnauthorizedException('Authentication required');
+    return id;
+  }
 
   async completeOnboarding(body: {
     locale: string;
@@ -23,7 +29,7 @@ export class OnboardingService {
       throw new BadRequestException('hub is required for fixed_hub planning phase');
     }
 
-    const userId = this.demoContext.getUserId();
+    const userId = this.getUserId();
     const startsOn = new Date(body.dateRange.startsOn);
     const endsOn = new Date(body.dateRange.endsOn);
 
@@ -139,7 +145,7 @@ function buildTripSummary(trip: any, hub: any) {
 function buildExploreSnapshot(trip: any, hub: any) {
   const hubData = hub
     ? { id: hub.id, name: hub.name, type: hub.type, location: { lat: hub.lat, lon: hub.lon } }
-    : { id: DEMO_HUB_ID, name: 'Hub', type: 'custom', location: { lat: 64.663, lon: -21.292 } };
+    : null;
 
   return {
     hub: hubData,

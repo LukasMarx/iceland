@@ -12,8 +12,10 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { baseUrlFromRequest } from '../../common/image-url';
+import { RequireAuth } from '../auth/require-auth.decorator';
 import { RoutesService } from './routes.service';
 
+@RequireAuth()
 @Controller()
 export class RoutesController {
   constructor(private readonly routesService: RoutesService) {}

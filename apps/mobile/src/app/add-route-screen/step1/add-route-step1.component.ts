@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { LibButtonDirective, LibOptionGroupComponent, LibOptionGroupItemComponent, LibWizardBodyComponent, LibWizardFooterComponent, LucideBookmark, LucideHouse } from '@islandhub/ui';
 import { AppScreenBase } from '../../screen-base';
 import type { WizardBase } from '../add-route-wizard.service';
@@ -15,12 +15,18 @@ import { AddRouteWizardService } from '../add-route-wizard.service';
 export class AddRouteStep1Component extends AppScreenBase {
   protected readonly service = inject(AddRouteWizardService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   constructor() {
     super();
     this.service.step.set(1);
     if (!this.service.base()) {
       this.service.init(this.app.currentWizardBase());
+    }
+
+    const spotId = this.route.snapshot.queryParamMap.get('spotId');
+    if (spotId) {
+      this.service.selectedStopIds.set([spotId]);
     }
   }
 

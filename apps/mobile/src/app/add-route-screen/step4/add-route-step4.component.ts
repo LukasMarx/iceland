@@ -37,9 +37,13 @@ export class AddRouteStep4Component extends AppScreenBase {
       .slice(0, 6);
   });
 
-  protected readonly recommendedStops = computed(() => this.candidateStops()
-    .filter((spot: Spot) => spot.status.status !== 'red')
-    .slice(0, 3));
+  protected readonly recommendedStops = computed(() => {
+    const selectedIds = this.service.selectedStopIds();
+
+    return this.candidateStops()
+      .filter((spot: Spot) => spot.status.status !== 'red' && !selectedIds.includes(spot.id))
+      .slice(0, 3);
+  });
 
   protected readonly recommendedStopIds = computed(() => this.recommendedStops().map((spot: Spot) => spot.id));
 

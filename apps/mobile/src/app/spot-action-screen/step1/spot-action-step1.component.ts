@@ -20,7 +20,10 @@ export class SpotActionStep1Component {
   protected continue(): void {
     const action = this.service.action();
     if (action === 'direct-route') {
-      this.service.complete();
+      const spot = this.service.targetSpot();
+      if (spot) {
+        void this.router.navigateByUrl(`/routes/add/step1?spotId=${spot.id}`);
+      }
     } else if (action === 'add-to-route') {
       this.service.step.set(2);
       void this.router.navigateByUrl('/spot-action/step2');

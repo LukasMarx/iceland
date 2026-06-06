@@ -1,18 +1,30 @@
-import { BadRequestException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnauthorizedException, UnprocessableEntityException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
-import { DemoContextService } from '../../common/demo-context.service';
+import { RequestContextService } from '../auth/request-context.service';
 
 @Injectable()
 export class TripsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly demoContext: DemoContextService,
+    private readonly requestContext: RequestContextService,
   ) {}
 
+  private getUserId(): string {
+    const id = this.requestContext.getUserId();
+    if (!id) throw new UnauthorizedException('Authentication required');
+    return id;
+  }
+
+  private getTripId(): string {
+    const id = this.requestContext.getTripId();
+    if (!id) throw new NotFoundException({ code: 'trip_not_found', message: 'No active trip found.' });
+    return id;
+  }
+
   async getTrip(query: { tripId?: string }) {
-    const tripId = query.tripId ?? this.demoContext.getTripId();
+    const tripId = query.tripId ?? this.getTripId();
     const trip = await this.prisma.trip.findFirst({
-      where: { id: tripId, ownerId: this.demoContext.getUserId(), archivedAt: null },
+      where: { id: tripId, ownerId: this.getUserId(), archivedAt: null },
       include: {
         activeHub: true,
         days: {
@@ -80,7 +92,7 @@ export class TripsService {
       throw new BadRequestException({ code: 'missing_target', message: 'Provide spotId or routeId.' });
     }
 
-    const tripId = body.tripId ?? this.demoContext.getTripId();
+    const tripId = body.tripId ?? this.getTripId();
     const trip = await this.prisma.trip.findFirst({
       where: { id: tripId, archivedAt: null },
       include: { days: { orderBy: { date: 'asc' } } },

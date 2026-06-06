@@ -1,13 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
-import { DemoContextService } from '../../common/demo-context.service';
 import { toImageUrl } from '../../common/image-url';
 
 @Injectable()
 export class PlacesService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly demoContext: DemoContextService,
   ) {}
 
   async searchPlaces(query: { q?: string; type?: string; locale?: string; limit?: string; cursor?: string }) {

@@ -1,13 +1,25 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
-import { DemoContextService } from '../../common/demo-context.service';
+import { RequestContextService } from '../auth/request-context.service';
 
 @Injectable()
 export class OfflineService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly demoContext: DemoContextService,
+    private readonly requestContext: RequestContextService,
   ) {}
+
+  private getUserId(): string {
+    const id = this.requestContext.getUserId();
+    if (!id) throw new UnauthorizedException('Authentication required');
+    return id;
+  }
+
+  private getTripId(): string {
+    const id = this.requestContext.getTripId();
+    if (!id) throw new NotFoundException({ code: 'trip_not_found', message: 'No active trip found.' });
+    return id;
+  }
 
   async cacheRegions(body: {
     tripId?: string;
@@ -17,8 +29,8 @@ export class OfflineService {
     includeRouteIds?: string[];
     includeSpotIds?: string[];
   }) {
-    const tripId = body.tripId ?? this.demoContext.getTripId();
-    const userId = this.demoContext.getUserId();
+    const tripId = body.tripId ?? this.getTripId();
+    const userId = this.getUserId();
 
     const region = body.regions?.[0];
     const includes: string[] = [

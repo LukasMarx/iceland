@@ -475,26 +475,6 @@ export class AppStateService {
     void this.router.navigateByUrl('/spot-action/step1');
   }
 
-  async createDirectRouteFromSpot(): Promise<void> {
-    const spot = this.spotActionWizard.targetSpot();
-    if (!spot) return;
-
-    try {
-      const response = await this.api.createPlannedRoute({
-        title: `${spot.name} route`,
-        start: this.wizardBasePayload(this.currentWizardBase()),
-        direction: 'LOOP',
-        spotIds: [spot.id],
-        source: 'spot_action',
-      });
-      this.routeSuggestions.update((routes) => [response.route, ...routes]);
-      this.actionNotice.set(this.i18n.t('route.createdForSpot', { spot: spot.name }));
-      void this.router.navigateByUrl('/routes');
-    } catch {
-      this.markApiOffline(`Could not create route for ${spot.name}.`);
-    }
-  }
-
   async addSpotToExistingRoute(routeId: string): Promise<void> {
     const spot = this.spotActionWizard.targetSpot();
     if (!spot) return;

@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
-import { DemoContextService } from '../../common/demo-context.service';
+import { RequestContextService } from '../auth/request-context.service';
 import { mapSpot, buildSpotStatusForContext } from '../../common/spot-mapper';
 
 const SPOT_INCLUDE = {
@@ -18,8 +18,14 @@ const SPOT_INCLUDE = {
 export class ExploreService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly demoContext: DemoContextService,
+    private readonly requestContext: RequestContextService,
   ) {}
+
+  private getTripId(): string {
+    const id = this.requestContext.getTripId();
+    if (!id) throw new NotFoundException({ code: 'trip_not_found', message: 'No active trip found.' });
+    return id;
+  }
 
   async getExplore(
     query: {
@@ -104,7 +110,7 @@ export class ExploreService {
       throw new NotFoundException({ code: 'spot_not_found', message: `Spot ${spotId} not found.` });
     }
 
-    const tripId = query.tripId ?? this.demoContext.getTripId();
+    const tripId = query.tripId ?? this.getTripId();
     const savedSpots = await this.prisma.savedSpot.findMany({ where: { tripId }, select: { spotId: true } });
     const isSaved = savedSpots.some((s) => s.spotId === spotId);
 
@@ -152,7 +158,7 @@ export class ExploreService {
       throw new NotFoundException({ code: 'spot_not_found', message: `Spot ${spotId} not found.` });
     }
 
-    const tripId = body.tripId ?? this.demoContext.getTripId();
+    const tripId = body.tripId ?? this.getTripId();
     const now = new Date();
 
     const existing = await this.prisma.spotStatusSnapshot.findFirst({

@@ -6,16 +6,18 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "nx:run-commands",
+      "executor": "@nx/webpack:webpack",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
       "options": {
-        "command": "webpack-cli build",
-        "args": ["--node-env=production"],
-        "cwd": "apps/api"
+        "webpackConfig": "apps/api/webpack.config.js",
+        "outputPath": "dist/apps/api",
+        "outputFileName": "main.js",
+        "target": "node"
       },
       "configurations": {
-        "development": {
-          "args": ["--node-env=development"]
-        }
+        "production": {},
+        "development": {}
       }
     },
     "prune-lockfile": {
@@ -47,7 +49,6 @@
       "continuous": true,
       "executor": "@nx/js:node",
       "defaultConfiguration": "development",
-      "dependsOn": ["build"],
       "options": {
         "buildTarget": "api:build",
         "runBuildTargetDependencies": false

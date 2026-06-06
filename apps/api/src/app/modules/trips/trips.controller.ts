@@ -1,6 +1,8 @@
 import { Body, Controller, Get, HttpCode, Post, Query } from '@nestjs/common';
+import { RequireAuth } from '../auth/require-auth.decorator';
 import { TripsService } from './trips.service';
 
+@RequireAuth()
 @Controller()
 export class TripsController {
   constructor(private readonly tripsService: TripsService) {}

@@ -3,10 +3,11 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
-import { DemoContextService } from '../../common/demo-context.service';
+import { RequestContextService } from '../auth/request-context.service';
 import { mapSpot } from '../../common/spot-mapper';
 
 const SPOT_INCLUDE = {
@@ -26,13 +27,19 @@ const STOP_ORDER = { orderBy: { position: 'asc' as const } } as const;
 export class RoutesService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly demoContext: DemoContextService,
+    private readonly requestContext: RequestContextService,
   ) {}
+
+  private getTripId(): string {
+    const id = this.requestContext.getTripId();
+    if (!id) throw new NotFoundException({ code: 'trip_not_found', message: 'No active trip found.' });
+    return id;
+  }
 
   // ─── GET /today ──────────────────────────────────────────────────────────────
 
   async getToday(query: { tripId?: string; date?: string }) {
-    const tripId = query.tripId ?? this.demoContext.getTripId();
+    const tripId = query.tripId ?? this.getTripId();
     const date = query.date ?? new Date().toISOString().split('T')[0];
 
     const route = await this.prisma.route.findFirst({
@@ -62,7 +69,7 @@ export class RoutesService {
       throw new BadRequestException('Provide spotId, routeId, or suggestionId.');
     }
 
-    const tripId = body.tripId ?? this.demoContext.getTripId();
+    const tripId = body.tripId ?? this.getTripId();
     const date = body.date ?? new Date().toISOString().split('T')[0];
 
     const existing = await this.prisma.route.findFirst({
@@ -105,7 +112,7 @@ export class RoutesService {
     allowUnsafe?: boolean;
     expectedVersion?: number;
   }) {
-    const tripId = body.tripId ?? this.demoContext.getTripId();
+    const tripId = body.tripId ?? this.getTripId();
     const date = body.date ?? new Date().toISOString().split('T')[0];
 
     const route = await this.prisma.route.findFirst({
@@ -172,7 +179,7 @@ export class RoutesService {
   // ─── POST /routes/today/insert-preview ────────────────────────────────────
 
   async insertPreview(body: { spotId: string; tripId?: string; date?: string; positionMode?: string }, baseUrl?: string) {
-    const tripId = body.tripId ?? this.demoContext.getTripId();
+    const tripId = body.tripId ?? this.getTripId();
     const date = body.date ?? new Date().toISOString().split('T')[0];
 
     const spot = await this.prisma.spot.findUnique({ where: { id: body.spotId }, include: SPOT_INCLUDE });
@@ -247,7 +254,7 @@ export class RoutesService {
   // ─── PATCH /routes/today/stops/:stopId/done ────────────────────────────────
 
   async markStopDone(stopId: string, body: { tripId?: string; date?: string; completedAt?: string; undo?: boolean; expectedVersion?: number }) {
-    const tripId = body.tripId ?? this.demoContext.getTripId();
+    const tripId = body.tripId ?? this.getTripId();
     const date = body.date ?? new Date().toISOString().split('T')[0];
 
     const route = await this.prisma.route.findFirst({
@@ -288,7 +295,7 @@ export class RoutesService {
   // ─── GET /routes/suggestions ──────────────────────────────────────────────
 
   async getRouteSuggestions(query: { tripId?: string; date?: string; limit?: string; cursor?: string }, baseUrl?: string) {
-    const tripId = query.tripId ?? this.demoContext.getTripId();
+    const tripId = query.tripId ?? this.getTripId();
     const date = query.date ?? new Date().toISOString().split('T')[0];
     const limit = Math.min(Number(query.limit ?? 20), 50);
 
@@ -342,7 +349,7 @@ export class RoutesService {
   // ─── POST /routes/suggestions/start ──────────────────────────────────────
 
   async startSuggestedRoute(body: { suggestionId: string; tripId?: string; date?: string; replaceExisting?: boolean; expectedVersion?: number }) {
-    const tripId = body.tripId ?? this.demoContext.getTripId();
+    const tripId = body.tripId ?? this.getTripId();
     const date = body.date ?? new Date().toISOString().split('T')[0];
 
     const cached = await this.prisma.routeSuggestionCache.findFirst({
@@ -376,7 +383,7 @@ export class RoutesService {
     makeActiveToday?: boolean;
     replaceExistingToday?: boolean;
   }) {
-    const tripId = body.tripId ?? this.demoContext.getTripId();
+    const tripId = body.tripId ?? this.getTripId();
     const trip = await this.prisma.trip.findFirst({ where: { id: tripId }, include: { activeHub: true } });
     if (!trip) throw new NotFoundException({ code: 'trip_not_found', message: 'Trip not found.' });
 
@@ -609,7 +616,7 @@ export class RoutesService {
     vehicle?: string;
     maxCandidates?: number;
   }, baseUrl?: string) {
-    const tripId = body.tripId ?? this.demoContext.getTripId();
+    const tripId = body.tripId ?? this.getTripId();
     const spotIds = body.spotIds ?? (body.targetSpotId ? [body.targetSpotId] : []);
 
     const spotsData = await Promise.all(

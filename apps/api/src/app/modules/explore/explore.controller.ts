@@ -1,8 +1,10 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Query, Req } from '@nestjs/common';
 import { Request } from 'express';
 import { baseUrlFromRequest } from '../../common/image-url';
+import { RequireAuth } from '../auth/require-auth.decorator';
 import { ExploreService } from './explore.service';
 
+@RequireAuth()
 @Controller()
 export class ExploreController {
   constructor(private readonly exploreService: ExploreService) {}

@@ -1,16 +1,22 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
-import { DemoContextService } from '../../common/demo-context.service';
+import { RequestContextService } from '../auth/request-context.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly demoContext: DemoContextService,
+    private readonly requestContext: RequestContextService,
   ) {}
 
+  private getUserId(): string {
+    const id = this.requestContext.getUserId();
+    if (!id) throw new UnauthorizedException('Authentication required');
+    return id;
+  }
+
   async getMe() {
-    const userId = this.demoContext.getUserId();
+    const userId = this.getUserId();
 
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -73,7 +79,7 @@ export class UsersService {
     currency?: string;
     safety?: { pushAlertsTomorrowRoute?: boolean; notifyStatusWorsensEnRoute?: boolean };
   }) {
-    const userId = this.demoContext.getUserId();
+    const userId = this.getUserId();
 
     const update: Record<string, unknown> = {};
     if (body.locale) update['locale'] = body.locale;

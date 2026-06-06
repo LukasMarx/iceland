@@ -1,8 +1,10 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query, Req } from '@nestjs/common';
 import { Request } from 'express';
 import { baseUrlFromRequest } from '../../common/image-url';
+import { RequireAuth } from '../auth/require-auth.decorator';
 import { SavedSpotsService } from './saved-spots.service';
 
+@RequireAuth()
 @Controller('saved-spots')
 export class SavedSpotsController {
   constructor(private readonly savedSpotsService: SavedSpotsService) {}

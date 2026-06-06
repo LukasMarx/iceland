@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
-import { DemoContextService } from '../../common/demo-context.service';
+import { RequestContextService } from '../auth/request-context.service';
 import { mapSpot } from '../../common/spot-mapper';
 
 const SPOT_INCLUDE = {
@@ -18,11 +18,17 @@ const SPOT_INCLUDE = {
 export class SavedSpotsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly demoContext: DemoContextService,
+    private readonly requestContext: RequestContextService,
   ) {}
 
+  private getTripId(): string {
+    const id = this.requestContext.getTripId();
+    if (!id) throw new NotFoundException({ code: 'trip_not_found', message: 'No active trip found.' });
+    return id;
+  }
+
   async getSavedSpots(query: { tripId?: string; limit?: string; cursor?: string }, baseUrl?: string) {
-    const tripId = query.tripId ?? this.demoContext.getTripId();
+    const tripId = query.tripId ?? this.getTripId();
     const limit = Math.min(Number(query.limit ?? 20), 50);
 
     const trip = await this.prisma.trip.findFirst({ where: { id: tripId } });
@@ -49,7 +55,7 @@ export class SavedSpotsService {
   }
 
   async saveSpot(body: { spotId: string; tripId?: string }, baseUrl?: string) {
-    const tripId = body.tripId ?? this.demoContext.getTripId();
+    const tripId = body.tripId ?? this.getTripId();
 
     const spot = await this.prisma.spot.findUnique({ where: { id: body.spotId }, include: SPOT_INCLUDE });
     if (!spot) throw new NotFoundException({ code: 'spot_not_found', message: `Spot ${body.spotId} not found.` });
@@ -76,7 +82,7 @@ export class SavedSpotsService {
   }
 
   async unsaveSpot(spotId: string, query: { tripId?: string }) {
-    const tripId = query.tripId ?? this.demoContext.getTripId();
+    const tripId = query.tripId ?? this.getTripId();
 
     const trip = await this.prisma.trip.findFirst({ where: { id: tripId } });
     if (!trip) throw new NotFoundException({ code: 'trip_not_found', message: 'Trip not found.' });
