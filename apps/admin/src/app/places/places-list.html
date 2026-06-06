@@ -1,0 +1,96 @@
+@defer {
+<div class="places-list">
+  <div class="places-header">
+    <h1>Unterkünfte</h1>
+    <span class="places-count">{{ total() }} Einträge</span>
+  </div>
+
+  <div class="places-toolbar">
+    <lib-input
+      placeholder="Suchen …"
+      [value]="search()"
+      (valueChange)="search.set($event); onSearch()"
+    />
+  </div>
+
+  @if (error()) {
+    <div class="places-error">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <p class="places-empty">Lade …</p>
+  } @else if (places().length === 0) {
+    <p class="places-empty">Keine Unterkünfte gefunden.</p>
+  } @else {
+    <div class="places-table-wrapper">
+      <table class="places-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Quelle</th>
+            <th>Typ</th>
+            <th>Region</th>
+            <th>Sterne</th>
+            <th>Erstellt</th>
+            <th>Aktionen</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (place of places(); track place.id) {
+            <tr class="places-table-row">
+              <td class="places-name">{{ place.name }}</td>
+              <td>
+                <span class="source-badge">{{ sourceLabel(place.source) }}</span>
+              </td>
+              <td>{{ tourismLabel(place.tourismType) }}</td>
+              <td>{{ place.region ?? '—' }}</td>
+              <td>
+                @if (place.stars) {
+                  {{ place.stars }}★
+                } @else {
+                  —
+                }
+              </td>
+              <td>{{ formatDate(place.createdAt) }}</td>
+              <td>
+                <button
+                  libButton="text"
+                  libButtonSize="sm"
+                  [libButtonBlock]="false"
+                  (click)="deletePlace(place.id, $event)"
+                >
+                  Löschen
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (totalPages() > 1) {
+      <div class="places-pagination">
+        <button
+          libButton="secondary"
+          libButtonSize="sm"
+          [libButtonBlock]="false"
+          [disabled]="page() <= 1"
+          (click)="prevPage()"
+        >
+          Zurück
+        </button>
+        <span>Seite {{ page() }} von {{ totalPages() }}</span>
+        <button
+          libButton="secondary"
+          libButtonSize="sm"
+          [libButtonBlock]="false"
+          [disabled]="page() >= totalPages()"
+          (click)="nextPage()"
+        >
+          Weiter
+        </button>
+      </div>
+    }
+  }
+</div>
+}

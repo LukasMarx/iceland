@@ -54,7 +54,7 @@ export class PlacesService {
   }
 
   async searchHotels(query: { q?: string; lat?: string; lon?: string; radiusKm?: string; stars?: string; locale?: string; limit?: string; cursor?: string }, baseUrl?: string) {
-    const limit = Math.min(Number(query.limit ?? 10), 30);
+    const limit = Math.min(Number(query.limit ?? 10), 3000);
     const q = query.q?.trim().toLowerCase();
 
     const hotels = await this.prisma.place.findMany({

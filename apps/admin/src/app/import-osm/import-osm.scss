@@ -1,0 +1,145 @@
+:host {
+  display: block;
+}
+
+.import-page {
+  display: grid;
+  gap: 24px;
+}
+
+.import-header h1 {
+  font-size: 32px;
+  margin: 0;
+}
+
+.import-header p {
+  color: var(--color-muted);
+  margin: 8px 0 0;
+}
+
+.import-loading p {
+  font-style: italic;
+}
+
+.import-hint {
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.import-error {
+  padding: 12px;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #dc2626;
+  font-size: 14px;
+}
+
+.import-result {
+  display: grid;
+  gap: 24px;
+}
+
+.import-result h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.import-stats {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.stat {
+  display: grid;
+  gap: 4px;
+  padding: 16px 24px;
+  border-radius: 8px;
+  background: var(--color-bg, #f8f8f8);
+  text-align: center;
+  min-width: 100px;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stat--created .stat-value {
+  color: #16a34a;
+}
+
+.stat--updated .stat-value {
+  color: #2563eb;
+}
+
+.stat--skipped .stat-value {
+  color: #ca8a04;
+}
+
+.import-breakdown {
+  width: 100%;
+  max-width: 400px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.import-breakdown th,
+.import-breakdown td {
+  text-align: left;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.import-breakdown th {
+  color: var(--color-muted);
+  font-family: var(--font-family-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.import-breakdown td:last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.import-form {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.file-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 16px;
+  border: 2px dashed var(--color-line);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.file-label:hover {
+  border-color: var(--color-primary, #2563eb);
+}
+
+.file-label input {
+  display: none;
+}
+
+.file-name {
+  font-weight: 600;
+}
+
+.file-placeholder {
+  color: var(--color-muted);
+}

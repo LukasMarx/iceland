@@ -263,6 +263,61 @@ export class AdminService {
     return { id: imageId, deleted: true };
   }
 
+  async listPlaces(page: number, limit: number, search?: string, source?: string) {
+    const skip = (page - 1) * limit;
+
+    const where: Record<string, unknown> = {
+      type: 'hotel',
+    };
+
+    if (source) {
+      where['source'] = source;
+    }
+
+    if (search) {
+      where['OR'] = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { region: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [places, total] = await Promise.all([
+      this.prisma.place.findMany({
+        where,
+        include: {
+          hotelProfile: {
+            select: { stars: true, bookingState: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.place.count({ where }),
+    ]);
+
+    const mapped = places.map((p) => ({
+      id: p.id,
+      name: p.name,
+      source: p.source,
+      sourceId: p.sourceId,
+      region: p.region,
+      lat: p.lat,
+      lon: p.lon,
+      tourismType: (p.metadata as Record<string, unknown> | null)?.tourism ?? null,
+      stars: p.hotelProfile?.stars ?? null,
+      bookingState: p.hotelProfile?.bookingState ?? 'unknown',
+      createdAt: p.createdAt.toISOString(),
+    }));
+
+    return { places: mapped, total, page };
+  }
+
+  async deletePlace(id: string) {
+    await this.prisma.place.delete({ where: { id } });
+    return { id, deleted: true };
+  }
+
   async reorderSpotImages(spotId: string, imageIds: string[], baseUrl?: string) {
     const existing = await this.prisma.mediaAsset.count({
       where: { id: { in: imageIds }, spotId },

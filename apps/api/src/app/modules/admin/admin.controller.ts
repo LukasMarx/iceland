@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -9,18 +10,20 @@ import {
   Put,
   Query,
   Req,
+  UploadedFile,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
-import { diskStorage } from 'multer';
+import { diskStorage, memoryStorage } from 'multer';
 import { extname, join } from 'node:path';
 import { baseUrlFromRequest } from '../../common/image-url';
 import { AdminGuard } from '../auth/admin.guard';
 import { RequireAdmin } from '../auth/require-admin.decorator';
 import { AdminService } from './admin.service';
+import { OsmImportService } from './osm-import.service';
 
 const UPLOADS_DIR = join(process.cwd(), 'uploads', 'spots');
 
@@ -28,7 +31,10 @@ const UPLOADS_DIR = join(process.cwd(), 'uploads', 'spots');
 @UseGuards(AdminGuard)
 @RequireAdmin()
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly osmImportService: OsmImportService,
+  ) {}
 
   @Get('spots')
   listSpots(
@@ -101,4 +107,44 @@ export class AdminController {
   ) {
     return this.adminService.deleteSpotImage(id, imageId);
   }
+
+  @Get('places')
+  listPlaces(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('source') source?: string,
+  ) {
+    return this.adminService.listPlaces(
+      page ? Number(page) : 1,
+      limit ? Number(limit) : 20,
+      search,
+      source,
+    );
+  }
+
+  @Delete('places/:id')
+  deletePlace(@Param('id') id: string) {
+    return this.adminService.deletePlace(id);
+  }
+
+  @Post('places/import-from-geojson')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  importFromGeoJson(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('GeoJSON-Datei erforderlich');
+    }
+
+    const raw = file.buffer.toString('utf-8');
+    let geoJson: any;
+
+    try {
+      geoJson = JSON.parse(raw);
+    } catch {
+      throw new BadRequestException('Ungültiges JSON');
+    }
+
+    return this.osmImportService.importFromGeoJson(geoJson);
+  }
+
 }

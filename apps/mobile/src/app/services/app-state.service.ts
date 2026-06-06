@@ -1160,6 +1160,15 @@ export class AppStateService {
 
   currentWizardBase(): WizardBase {
     const hub = this.explore().hub;
+    if (!hub.id) {
+      return {
+        id: 'keflavik-airport',
+        name: 'Keflavik Airport',
+        region: 'Suðurnes',
+        type: 'airport',
+        location: { lat: 63.985, lon: -22.6056 },
+      };
+    }
     return {
       id: hub.id,
       name: hub.name,

@@ -148,14 +148,31 @@ export class AddRouteWizardService {
     });
   }
 
+  private readonly FALLBACK_BASES: WizardBase[] = [
+    {
+      id: 'keflavik-airport',
+      name: 'Keflavik Airport',
+      region: 'Suðurnes',
+      type: 'airport',
+      location: { lat: 63.985, lon: -22.6056 },
+    },
+    {
+      id: 'reykjavik',
+      name: 'Reykjavik',
+      region: 'Höfuðborgarsvæðið',
+      type: 'city',
+      location: { lat: 64.1466, lon: -21.9426 },
+    },
+  ];
+
   private async loadBases(defaultBase: WizardBase): Promise<void> {
     this.basesLoading.set(true);
     try {
       const response = await this.api.searchPlaces({ limit: 20 });
       const places = response.places.map((place) => this.placeToBase(place));
-      this.bases.set(this.uniqueBases([defaultBase, ...places]));
+      this.bases.set(this.uniqueBases([defaultBase, ...places, ...this.FALLBACK_BASES]));
     } catch {
-      this.bases.set([defaultBase]);
+      this.bases.set(this.uniqueBases([defaultBase, ...this.FALLBACK_BASES]));
     } finally {
       this.basesLoading.set(false);
     }
@@ -164,7 +181,7 @@ export class AddRouteWizardService {
   private async loadHotels(base: WizardBase): Promise<void> {
     this.hotelsLoading.set(true);
     try {
-      const response = await this.api.searchHotels({ lat: base.location.lat, lon: base.location.lon, limit: 20 });
+      const response = await this.api.searchHotels({ lat: base.location.lat, lon: base.location.lon, limit: 3000 });
       this.hotels.set(response.hotels.map((hotel) => this.hotelToWizardHotel(hotel, base)));
     } catch {
       this.hotels.set([]);
