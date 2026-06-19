@@ -26,6 +26,7 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
 				bottom: 0;
 				z-index: 8;
 				display: flex;
+				gap: 12px;
 				flex-direction: column;
 				max-height: 85%;
 				overflow: hidden;
@@ -33,6 +34,7 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
 				background: white;
 				box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.14);
 				transition: max-height 0.35s cubic-bezier(0.32, 0, 0.18, 1);
+				padding: 0 20px 16px 20px;
 			}
 
 			.wizard-sheet-handle-row {
@@ -61,19 +63,6 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
 				color: var(--color-ink, #101114);
 				font-size: 14px;
 				font-weight: 700;
-			}
-
-			.wizard-sheet-list {
-				display: grid;
-				flex: 1;
-				gap: 8px;
-				overflow-y: auto;
-				padding: 4px 16px 0;
-			}
-
-			.wizard-bottom-sheet:not(.expanded) .wizard-sheet-list {
-				max-height: 148px;
-				overflow: hidden;
 			}
 
 			.expanded {

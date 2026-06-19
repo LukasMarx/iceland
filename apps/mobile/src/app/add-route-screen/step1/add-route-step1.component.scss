@@ -1,6 +1,11 @@
-.wizard-list {
-    flex: 1;
-    overflow-y: auto;
+:host {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+lib-wizard-body {
+    min-height: 0;
 }
 
 .location-btn {
@@ -12,4 +17,10 @@
 	font-size: 16px;
 	line-height: 1.4;
     margin-top:0 ;
+}
+
+lib-option-group {
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
 }
