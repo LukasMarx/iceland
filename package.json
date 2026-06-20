@@ -11,10 +11,10 @@
     "prisma:generate": "prisma generate",
     "prisma:db:push": "prisma db push",
     "prisma:studio": "prisma studio",
-    "test": "nx run-many -t test --projects=domain,api-contracts,map,i18n,api,mobile",
+    "test": "nx run-many -t test --projects=domain,api,mobile",
     "e2e": "playwright test -c apps/mobile-e2e/playwright.config.ts",
     "e2e:ui": "playwright test -c apps/mobile-e2e/playwright.config.ts --ui",
-    "lint": "nx run-many -t lint --projects=mobile,admin,api,domain,api-contracts,map,i18n,ui,mobile-e2e,api-e2e",
+    "lint": "nx run-many -t lint --projects=mobile,admin,api,domain,ui,mobile-e2e,api-e2e",
     "ralph:run": "tsx scripts/ralph.ts run",
     "ralph:list": "tsx scripts/ralph.ts list",
     "ralph:reset": "tsx scripts/ralph.ts reset"

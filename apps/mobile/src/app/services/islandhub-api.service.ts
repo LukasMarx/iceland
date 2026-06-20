@@ -1,5 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
+import { normalizeRouteSuggestion } from '@islandhub/domain';
 import type {
   AddRouteStopRequest,
   AuthLoginRequest,
@@ -22,6 +23,7 @@ import type {
   PlanSpotResponse,
   PlaceSuggestion,
   PlacesSearchResponse,
+  RawRouteSuggestion,
   RouteMutationResponse,
   RouteStop,
   RouteSuggestionsResponse,
@@ -36,7 +38,7 @@ import type {
   StartSuggestedRouteRequest,
   TodayResponse,
   TripResponse,
-} from '@islandhub/api-contracts';
+} from '@islandhub/domain';
 import { firstValueFrom } from 'rxjs';
 import { API_BASE_URL } from '../api-base-url.token';
 
@@ -274,7 +276,7 @@ export class IslandhubApiService {
     const raw = this.record(response);
     return {
       savedSpots: this.array(raw['savedSpots']).map((spot) => this.normalizeSpot(spot)),
-      routes: this.array(raw['routes']) as RouteSuggestionsResponse['routes'],
+      routes: (this.array(raw['routes']) as RawRouteSuggestion[]).map((entry) => normalizeRouteSuggestion(entry)),
       pageInfo: { hasMore: Boolean(this.record(raw['pageInfo'])['hasMore']), nextCursor: this.stringValue(this.record(raw['pageInfo'])['nextCursor']) || undefined },
     };
   }

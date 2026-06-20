@@ -1,5 +1,5 @@
 ﻿import { Injectable } from '@nestjs/common';
-import type { HealthResponse } from '@islandhub/api-contracts';
+import type { HealthResponse } from '@islandhub/domain';
 import { ApiDemoStateRepository } from './api-demo-state.repository';
 
 @Injectable()

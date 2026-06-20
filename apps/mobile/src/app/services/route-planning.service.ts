@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import type { AttractionRouteSummary } from '@islandhub/api-contracts';
+import type { AttractionRouteSummary } from '@islandhub/domain';
 import type { Spot } from '@islandhub/domain';
 
 export interface SelectedRouteStop {

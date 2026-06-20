@@ -15,10 +15,7 @@
     "skipDefaultLibCheck": true,
     "paths": {
       "@islandhub/domain": ["./libs/domain/src/index.ts"],
-      "@islandhub/api-contracts": ["./libs/api-contracts/src/index.ts"],
-      "@islandhub/ui": ["./libs/ui/src/index.ts"],
-      "@islandhub/map": ["./libs/map/src/index.ts"],
-      "@islandhub/i18n": ["./libs/i18n/src/index.ts"]
+      "@islandhub/ui": ["./libs/ui/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

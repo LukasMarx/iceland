@@ -6,7 +6,7 @@ import type { Spot } from '@islandhub/domain';
 import { API_BASE_URL } from './api-base-url.token';
 import { App } from './app';
 import { AppStateService } from './services/app-state.service';
-import { AuthService } from './auth.service';
+import { AuthService } from './services/auth.service';
 import { appRoutes } from './app.routes';
 
 describe('App', () => {

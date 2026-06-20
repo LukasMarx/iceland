@@ -1,5 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
-import type { HotelSuggestion, PlaceSuggestion } from '@islandhub/api-contracts';
+import type { HotelSuggestion, PlaceSuggestion } from '@islandhub/domain';
 import { Subject } from 'rxjs';
 import { IslandhubApiService } from '../services/islandhub-api.service';
 
