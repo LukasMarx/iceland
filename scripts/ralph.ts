@@ -32,8 +32,16 @@ const BRANCH_PREFIX = 'agent/issue-';
 const READY_LABEL = 'ready-for-agent';
 const PRD_LABEL = 'prd'; // umbrella/tracking issues — never picked up by the loop
 const REVIEW_LABEL = 'ready-for-human';
-const FULL_GATE_PROJECTS =
-  'mobile,admin,api,domain,api-contracts,map,i18n,ui,mobile-e2e,api-e2e';
+const FULL_GATE_TARGETS = ['lint', 'test', 'build'];
+const FULL_GATE_PROJECTS = [
+  'mobile',
+  'admin',
+  'api',
+  'domain',
+  'ui',
+  'mobile-e2e',
+  'api-e2e',
+];
 const BASE_BRANCH = 'main';
 
 const stopReasonMessages: Record<string, string> = {
@@ -384,8 +392,9 @@ async function runGate(): Promise<IterationResult> {
     'nx',
     'run-many',
     '-t',
-    'lint,test,build',
-    '--projects=' + FULL_GATE_PROJECTS,
+    ...FULL_GATE_TARGETS,
+    '-p',
+    ...FULL_GATE_PROJECTS,
     '--skip-nx-cache',
   ]);
 }
