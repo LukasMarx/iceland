@@ -1,6 +1,11 @@
-export type SafetyStatus = 'green' | 'yellow' | 'red' | 'unknown';
+import type { SafetyStatus } from './safety';
+import type { GeoPoint } from './map';
+
+// ── domain primitives ──────────────────────────────────────
 
 export type VehicleProfile = 'car_2wd' | 'car_4wd' | 'unknown';
+
+export type TripMode = 'ideas' | 'hub' | 'roadtrip';
 
 export interface SourceTimestamp {
   source: 'Vedur.is' | 'Vegagerdin' | 'Community' | 'Seed';
@@ -8,10 +13,7 @@ export interface SourceTimestamp {
   ageMinutes: number;
 }
 
-export interface GeoPoint {
-  lat: number;
-  lon: number;
-}
+// ── spot & status ──────────────────────────────────────────
 
 export interface SpotStatusSnapshot {
   spotId: string;
@@ -25,6 +27,15 @@ export interface SpotStatusSnapshot {
   calculatedAt: string;
   validUntil: string;
   version: number;
+}
+
+export interface MediaAsset {
+  id: string;
+  type: string;
+  url: string;
+  thumbnailUrl?: string;
+  alt: string;
+  credit?: string;
 }
 
 export interface Spot {
@@ -42,14 +53,7 @@ export interface Spot {
   media?: MediaAsset[];
 }
 
-export interface MediaAsset {
-  id: string;
-  type: string;
-  url: string;
-  thumbnailUrl?: string;
-  alt: string;
-  credit?: string;
-}
+// ── places & hotels ────────────────────────────────────────
 
 export type PlaceType = 'city' | 'hotel' | 'home' | 'airport' | 'custom' | 'hub';
 
@@ -80,6 +84,8 @@ export interface HotelsSearchResponse {
   hotels: HotelSuggestion[];
   pageInfo?: PageInfo;
 }
+
+// ── auth & user ────────────────────────────────────────────
 
 export interface UserPreferences {
   locale: string;
@@ -144,6 +150,8 @@ export interface MeResponse {
   };
 }
 
+// ── offline ────────────────────────────────────────────────
+
 export interface OfflineCacheRegionRequest {
   tripId?: string;
   mode: 'map-area' | 'today-route' | 'trip-core';
@@ -159,6 +167,8 @@ export interface OfflineCacheRegionResponse {
   label: string;
   message: string;
 }
+
+// ── hub & routes ───────────────────────────────────────────
 
 export interface Hub {
   id: string;
@@ -195,6 +205,8 @@ export interface AttractionRouteSummary extends SmartRoute {
   daylight: string;
   reason: string;
 }
+
+// ── trip ───────────────────────────────────────────────────
 
 export type TripStatus = 'draft' | 'planned' | 'active' | 'completed';
 
@@ -250,6 +262,8 @@ export interface TripSummary {
   unplacedRoutes?: UnplacedRoute[];
   days: TripDay[];
 }
+
+// ── API responses ──────────────────────────────────────────
 
 export interface HealthResponse {
   status: 'ok';
@@ -349,12 +363,6 @@ export interface PlanSpotResponse {
   message: string;
 }
 
-export interface RouteSuggestionsResponse {
-  savedSpots: Spot[];
-  routes: RouteSuggestion[];
-  pageInfo?: PageInfo;
-}
-
 export interface StartSuggestedRouteRequest {
   suggestionId: string;
   date?: string;
@@ -362,7 +370,24 @@ export interface StartSuggestedRouteRequest {
   expectedVersion?: number;
 }
 
-export interface RouteSuggestion {
+export interface PageInfo {
+  hasMore: boolean;
+  nextCursor?: string;
+}
+
+export interface TripResponse {
+  trip: TripSummary;
+}
+
+// ── route suggestions ──────────────────────────────────────
+
+/**
+ * Shape returned by the API for a route suggestion.
+ * Consumers should use {@link normalizeRouteSuggestion} to convert to the clean
+ * {@link RouteSuggestion} shape. This type is only needed for casting raw API
+ * payloads before normalization.
+ */
+export interface RawRouteSuggestion {
   suggestionId: string;
   route: Partial<AttractionRouteSummary> & {
     id?: string;
@@ -381,14 +406,94 @@ export interface RouteSuggestion {
   expiresAt: string;
 }
 
-export interface PageInfo {
-  hasMore: boolean;
-  nextCursor?: string;
+/**
+ * Clean route suggestion with singular field shapes — the canonical type
+ * returned by the domain normalization module.
+ */
+export interface RouteSuggestion {
+  id: string;
+  suggestionId: string;
+  expiresAt: string;
+  title: string;
+  summary: string;
+  driveMinutes: number;
+  stops: number;
+  distanceKm: number;
+  highestStatus: SafetyStatus;
+  spotIds: string[];
+  daylight: string;
+  reason: string;
 }
 
-export interface TripResponse {
-  trip: TripSummary;
+export interface RouteSuggestionsResponse {
+  savedSpots: Spot[];
+  routes: RouteSuggestion[];
+  pageInfo?: PageInfo;
 }
+
+/**
+ * Normalizes a raw API route suggestion into a clean {@link RouteSuggestion}.
+ * Handles union field shapes (stops, highestStatus) and falls back to
+ * sensible defaults for every field.
+ */
+export function normalizeRouteSuggestion(entry: RawRouteSuggestion | RouteSuggestion): RouteSuggestion {
+  if (!('route' in entry)) {
+    return entry;
+  }
+
+  const route = entry.route;
+  const spotIds =
+    route.spotIds ?? spotIdsFromSuggestionStops(route.stops) ?? [];
+  const stops = typeof route.stops === 'number' ? route.stops : spotIds.length;
+
+  return {
+    id: route.id ?? entry.suggestionId,
+    suggestionId: entry.suggestionId,
+    expiresAt: entry.expiresAt,
+    title: route.title,
+    summary: route.summary ?? entry.reason,
+    driveMinutes: route.driveMinutes ?? route.totalDriveMinutes ?? 0,
+    stops,
+    distanceKm: Math.round(route.distanceKm ?? 0),
+    highestStatus: normalizeHighestStatus(route.highestStatus),
+    spotIds,
+    daylight: route.daylight ?? '',
+    reason: route.reason ?? entry.reason,
+  };
+}
+
+function spotIdsFromSuggestionStops(
+  stops: RawRouteSuggestion['route']['stops'],
+): string[] | null {
+  if (!Array.isArray(stops)) {
+    return null;
+  }
+
+  return stops
+    .map((stop) => stop.spotId)
+    .filter((spotId): spotId is string => Boolean(spotId));
+}
+
+function normalizeHighestStatus(
+  status: RawRouteSuggestion['route']['highestStatus'],
+): SafetyStatus {
+  if (!status) {
+    return 'unknown';
+  }
+
+  if (typeof status === 'string') {
+    return isSafetyStatus(status) ? status : 'unknown';
+  }
+
+  const objectStatus = status as { level: SafetyStatus };
+  return isSafetyStatus(objectStatus.level) ? objectStatus.level : 'unknown';
+}
+
+function isSafetyStatus(value: string): value is SafetyStatus {
+  return value === 'green' || value === 'yellow' || value === 'red' || value === 'unknown';
+}
+
+// ── admin ──────────────────────────────────────────────────
 
 export interface AdminSpotListItem {
   id: string;

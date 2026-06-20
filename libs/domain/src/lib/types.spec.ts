@@ -1,6 +1,6 @@
-import type { HealthResponse } from './api-contracts';
+import type { HealthResponse } from './types';
 
-describe('apiContracts', () => {
+describe('domain — api contracts', () => {
   it('models a seed health response', () => {
     const response: HealthResponse = {
       status: 'ok',

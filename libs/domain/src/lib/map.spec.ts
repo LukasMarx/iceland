@@ -1,6 +1,6 @@
 import { projectIcelandPoint } from './map';
 
-describe('map', () => {
+describe('domain — map', () => {
   it('projects Iceland coordinates into a bounded canvas', () => {
     const point = projectIcelandPoint('hub', 'Reykholt Cabin', { lat: 64.663, lon: -21.292 });
 

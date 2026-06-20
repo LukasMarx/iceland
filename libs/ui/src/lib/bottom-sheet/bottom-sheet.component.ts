@@ -6,7 +6,7 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	template: `
 		<div class="wizard-bottom-sheet" [class.expanded]="expanded()" [class.stops-sheet]="cssClass() === 'stops-sheet'">
-			<button class="wizard-sheet-handle-row" type="button" (click)="toggle.emit()">
+			<button class="wizard-sheet-handle-row" type="button" (click)="sheetToggle.emit()">
 				<span class="wizard-sheet-handle"></span>
 				<span class="wizard-sheet-peek-label">{{ peekLabel() }}</span>
 			</button>
@@ -76,5 +76,5 @@ export class LibBottomSheetComponent {
 	readonly expanded = input.required<boolean>();
 	readonly peekLabel = input.required<string>();
 	readonly cssClass = input<string>('');
-	readonly toggle = output<void>();
+	readonly sheetToggle = output<void>();
 }

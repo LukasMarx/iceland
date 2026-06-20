@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { computed, Injectable, signal, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import type { AuthResponse, AuthUser } from '@islandhub/api-contracts';
+import type { AuthResponse, AuthUser } from '@islandhub/domain';
 import { IslandhubApiService } from './islandhub-api.service';
 import { SocialAuthClientService } from '../social-auth-client.service';
 

@@ -3,7 +3,7 @@ import {
   Component,
   ElementRef,
   EventEmitter,
-  Inject,
+  inject,
   Input,
   OnChanges,
   OnDestroy,
@@ -59,7 +59,7 @@ export class LibMapComponent implements AfterViewInit, OnChanges, OnDestroy {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private mgl: typeof maplibregl | null = null;
 
-  constructor(@Inject(PLATFORM_ID) private readonly platformId: object) {}
+  private readonly platformId = inject(PLATFORM_ID);
 
   async ngAfterViewInit(): Promise<void> {
     if (!isPlatformBrowser(this.platformId) || !this.hasWebGlSupport()) return;

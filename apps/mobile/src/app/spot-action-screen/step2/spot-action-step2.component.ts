@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import type { AttractionRouteSummary } from '@islandhub/api-contracts';
+import type { AttractionRouteSummary } from '@islandhub/domain';
 import { LibButtonDirective, LibWizardBodyComponent, LibWizardFooterComponent } from '@islandhub/ui';
 import { AppScreenBase } from '../../screen-base';
 import { SpotActionWizardService } from '../spot-action-wizard.service';

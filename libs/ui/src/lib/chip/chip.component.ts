@@ -52,6 +52,7 @@ export type LibChipSize = 'sm' | 'md' | 'lg';
  *   <span lib-chip [outlined]="true">Re-checked 5 min ago</span>
  */
 @Component({
+  // eslint-disable-next-line @angular-eslint/component-selector
   selector: '[lib-chip]',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,

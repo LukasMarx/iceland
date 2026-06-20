@@ -1,6 +1,7 @@
 import { DestroyRef, Injectable, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
+import { I18nService, projectIcelandPoint } from '@islandhub/domain';
 import type {
   AddRouteStopRequest,
   AttractionRouteSummary,
@@ -8,21 +9,21 @@ import type {
   ExploreQuery,
   ExploreResponse,
   HealthResponse,
+  Hub,
   InsertPreviewResponse,
   MeResponse,
   RouteSuggestion,
   RouteSuggestionsResponse,
+  SafetyStatus,
   SaveSpotResponse,
+  Spot,
   SpotContextResponse,
   StartSuggestedRouteRequest,
   TodayResponse,
   TripResponse,
   VehicleProfile,
-} from '@islandhub/api-contracts';
-import type { Hub, SafetyStatus, Spot } from '@islandhub/domain';
-import { projectIcelandPoint } from '@islandhub/map';
+} from '@islandhub/domain';
 import type { LibChipVariant } from '@islandhub/ui';
-import { I18nService } from '@islandhub/i18n';
 import { filter } from 'rxjs';
 import { AddRouteWizardService } from '../add-route-screen/add-route-wizard.service';
 import type { WizardBase } from '../add-route-screen/add-route-wizard.service';
@@ -1072,61 +1073,7 @@ export class AppStateService {
   }
 
   private applyRouteSuggestions(response: RouteSuggestionsResponse): void {
-    const routes = response.routes
-      .map((entry) => this.normalizeRouteSuggestion(entry))
-      .filter((route): route is RouteSummary => Boolean(route));
-
-    this.routeSuggestions.set(routes);
-  }
-
-  private normalizeRouteSuggestion(entry: RouteSuggestion | RouteSummary): RouteSummary | null {
-    if ('route' in entry) {
-      const route = entry.route;
-      const spotIds = route.spotIds ?? this.spotIdsFromSuggestionStops(route.stops) ?? [];
-      const stops = typeof route.stops === 'number' ? route.stops : spotIds.length;
-
-      return {
-        id: route.id ?? entry.suggestionId,
-        suggestionId: entry.suggestionId,
-        expiresAt: entry.expiresAt,
-        title: route.title,
-        summary: route.summary ?? entry.reason,
-        driveMinutes: route.driveMinutes ?? route.totalDriveMinutes ?? 0,
-        stops,
-        distanceKm: Math.round(route.distanceKm ?? 0),
-        highestStatus: this.normalizeHighestStatus(route.highestStatus) ?? this.highestStatusForSpotIds(spotIds),
-        spotIds,
-        daylight: route.daylight ?? '',
-        reason: route.reason ?? entry.reason,
-      };
-    }
-
-    return { ...entry, suggestionId: entry.suggestionId ?? entry.id };
-  }
-
-  private spotIdsFromSuggestionStops(stops: RouteSuggestion['route']['stops']): string[] | null {
-    if (!Array.isArray(stops)) {
-      return null;
-    }
-
-    return stops.map((stop) => stop.spotId).filter((spotId): spotId is string => Boolean(spotId));
-  }
-
-  private normalizeHighestStatus(status: RouteSuggestion['route']['highestStatus']): SafetyStatus | null {
-    if (!status) {
-      return null;
-    }
-
-    const normalized = status as SafetyStatus | { level: SafetyStatus };
-    return typeof normalized === 'string' ? normalized : normalized.level;
-  }
-
-  private highestStatusForSpotIds(spotIds: string[]): SafetyStatus {
-    const order: Record<SafetyStatus, number> = { green: 0, yellow: 1, unknown: 2, red: 3 };
-
-    return spotIds
-      .map((spotId) => this.findSpot(spotId)?.status.status ?? 'unknown')
-      .reduce<SafetyStatus>((highest, status) => order[status] > order[highest] ? status : highest, 'green');
+    this.routeSuggestions.set(response.routes);
   }
 
   private stopTitle(stopId?: string): string | null {

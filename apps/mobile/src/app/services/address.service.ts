@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
@@ -23,8 +23,7 @@ export interface PhotonResponse {
 })
 export class AddressService {
   private apiUrl = 'https://photon.komoot.io/api/';
-
-  constructor(private http: HttpClient) {}
+  private http = inject(HttpClient);
 
   searchAddress(query: string): Observable<string[]> {
     return this.http

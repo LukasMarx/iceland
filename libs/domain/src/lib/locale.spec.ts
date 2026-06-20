@@ -1,6 +1,6 @@
-import { appCopy, localeNames } from './i18n';
+import { appCopy, localeNames } from './locale';
 
-describe('i18n', () => {
+describe('domain — locale', () => {
   it('contains the initial safety promise copy', () => {
     expect(localeNames.en).toEqual('English');
     expect(appCopy.promise).toContain('open today');

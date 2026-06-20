@@ -1,6 +1,6 @@
-import { sortBySafetyThenDrive, type Spot } from './domain';
+import { sortBySafetyThenDrive, type Spot } from './safety';
 
-describe('domain', () => {
+describe('domain — safety', () => {
   it('sorts safer statuses before risky statuses', () => {
     const base = {
       region: 'South Iceland',
