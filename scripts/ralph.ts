@@ -30,6 +30,7 @@ const DEFAULT_MAX_ITERATIONS = 10;
 const MAX_ATTEMPTS_PER_ISSUE = 2; // K=2
 const BRANCH_PREFIX = 'agent/issue-';
 const READY_LABEL = 'ready-for-agent';
+const PRD_LABEL = 'prd'; // umbrella/tracking issues — never picked up by the loop
 const REVIEW_LABEL = 'ready-for-human';
 const FULL_GATE_PROJECTS =
   'mobile,admin,api,domain,api-contracts,map,i18n,ui,mobile-e2e,api-e2e';
@@ -212,7 +213,9 @@ async function listReadyIssues(): Promise<GhIssue[]> {
     '--limit',
     '100',
   ]);
-  return issues;
+  // Defensive: never pick up umbrella PRDs, even if one accidentally carries
+  // the ready-for-agent label. Only leaf issues are units of work.
+  return issues.filter((i) => !i.labels.some((l) => l.name === PRD_LABEL));
 }
 
 async function listClaimedIssueNumbers(): Promise<Set<number>> {
