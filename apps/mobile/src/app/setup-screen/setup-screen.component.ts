@@ -1,22 +1,23 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { Subject, debounceTime, distinctUntilChanged, of, switchMap } from 'rxjs';
-import { LibButtonDirective } from '../../../../../libs/ui/src/lib/button/button.directive';
-import { LibCalendarComponent } from '../../../../../libs/ui/src/lib/calendar/calendar.component';
 import {
+  LibAutocompleteComponent,
+  LibButtonDirective,
+  LibCalendarComponent,
+  LibOptionGroupComponent,
+  LibOptionGroupItemComponent,
+  LibScreenIntroComponent,
+  LibSwitchComponent,
+  LibWizardHeaderComponent,
   LucideCarFront,
   LucideCompass,
   LucideHouse,
   LucideLightbulb,
   LucideMountain,
   LucideRoute,
-} from '../../../../../libs/ui/src/lib/icons';
-import { LibOptionGroupComponent, LibOptionGroupItemComponent } from '../../../../../libs/ui/src/lib/option-group/option-group.component';
-import { LibScreenIntroComponent } from '../../../../../libs/ui/src/lib/screen-intro/screen-intro.component';
-import { LibSwitchComponent } from '../../../../../libs/ui/src/lib/switch/switch.component';
-import { LibWizardHeaderComponent } from '../../../../../libs/ui/src/lib/wizard-header/wizard-header.component';
+} from '@islandhub/ui';
 import { AppScreenBase } from '../screen-base';
 import { AddressService } from '../services/address.service';
-import { LibAutocompleteComponent } from '@islandhub/ui';
 
 @Component({
   imports: [

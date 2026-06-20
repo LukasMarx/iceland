@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { LibButtonDirective, LucideKeyRound, LucideMail } from '@islandhub/ui';
-import { LibInputComponent } from '../../../../../libs/ui/src/lib/input/input.component';
+import { LibButtonDirective, LibInputComponent, LucideKeyRound, LucideMail } from '@islandhub/ui';
 import { AppScreenBase } from '../screen-base';
 import { AuthService } from '../services/auth.service';
 
