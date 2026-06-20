@@ -455,9 +455,9 @@ async function abandon(
   issue: PickableIssue,
   reason: string,
   logExcerpt: string,
-  git: SimpleGit,
 ): Promise<void> {
   step(`abandoning issue #${issue.number}: ${reason}`);
+  const branch = `${BRANCH_PREFIX}${issue.number}`;
   const commentBody = `Ralph could not complete this issue after ${MAX_ATTEMPTS_PER_ISSUE} attempts.
 
 **Reason:** ${reason}
@@ -470,14 +470,14 @@ ${logExcerpt.slice(-4000)}
 
 </details>
 
-The issue has been moved to \`${REVIEW_LABEL}\` for human inspection. The partial branch \`${BRANCH_PREFIX}${issue.number}\` has been deleted.`;
+The issue has been moved to \`${REVIEW_LABEL}\` for human inspection. The partial branch \`${branch}\` has been preserved for review.`;
 
   await commentOnIssue(issue.number, commentBody);
   await relabelToReview(issue.number);
-  await deleteRemoteBranch(`${BRANCH_PREFIX}${issue.number}`, git);
 }
 
 async function cleanupBetweenIterations(git: SimpleGit, issueNumber: number): Promise<void> {
+  const branch = `${BRANCH_PREFIX}${issueNumber}`;
   try {
     const status = await git.status();
     if (status.files.length > 0) {
@@ -531,6 +531,7 @@ async function runRalphLoop(opts: RunOptions): Promise<number> {
 
   const startTime = Date.now();
   let iterationCount = 0;
+  const abandonedThisRun = new Set<number>();
 
   while (iterationCount < opts.maxIterations) {
     if (opts.maxMinutes && (Date.now() - startTime) / 1000 / 60 >= opts.maxMinutes) {
@@ -547,7 +548,11 @@ async function runRalphLoop(opts: RunOptions): Promise<number> {
       return 0;
     }
 
-    const issue = pickable[0];
+    const issue = pickable.find((p) => !abandonedThisRun.has(p.number));
+    if (!issue) {
+      log('all pickable issues were abandoned this run; stopping');
+      break;
+    }
     const branch = `${BRANCH_PREFIX}${issue.number}`;
     log(`picked issue #${issue.number}: ${issue.title}`);
     if (issue.unresolvedBlockers.length > 0) {
@@ -573,7 +578,9 @@ async function runRalphLoop(opts: RunOptions): Promise<number> {
           await git.checkoutLocalBranch(branch);
         } catch (e: any) {
           log(`error preparing branch: ${e.message}`);
-          return 1;
+          abandonedThisRun.add(issue.number);
+          await cleanupBetweenIterations(git, issue.number);
+          break;
         }
 
         try {
@@ -624,8 +631,8 @@ async function runRalphLoop(opts: RunOptions): Promise<number> {
           issue,
           `Agent crashed twice (last exit code ${opencodeResult.exitCode})`,
           opencodeResult.stderr + '\n' + opencodeResult.stdout,
-          git,
         );
+        abandonedThisRun.add(issue.number);
         issueResolved = false;
         break;
       }
@@ -643,8 +650,8 @@ async function runRalphLoop(opts: RunOptions): Promise<number> {
           issue,
           'Agent produced no commits in 2 attempts',
           opencodeResult.stdout,
-          git,
         );
+        abandonedThisRun.add(issue.number);
         issueResolved = false;
         break;
       }
@@ -672,8 +679,8 @@ async function runRalphLoop(opts: RunOptions): Promise<number> {
           issue,
           'Verification gate failed twice',
           gate.stdout + '\n' + gate.stderr,
-          git,
         );
+        abandonedThisRun.add(issue.number);
         issueResolved = false;
         break;
       }
