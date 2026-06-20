@@ -74,15 +74,15 @@ export class AddRouteStep4Component extends AppScreenBase {
     const markers: MapMarker[] = [];
 
     if (base) {
-      markers.push({ id: 'start', coordinates: [base.location.lon, base.location.lat], color: '#101114', size: 'lg', label: base.name });
+      markers.push({ id: 'start', coordinates: base.location, color: '#101114', size: 'lg', label: base.name });
     }
 
     for (const spot of this.candidateStops()) {
-      markers.push({ id: spot.id, coordinates: [spot.location.lon, spot.location.lat], color: this.statusColor(spot.status.status), size: this.service.selectedStopIds().includes(spot.id) ? 'lg' : 'md', label: spot.name });
+      markers.push({ id: spot.id, coordinates: spot.location, color: this.statusColor(spot.status.status), size: this.service.selectedStopIds().includes(spot.id) ? 'lg' : 'md', label: spot.name });
     }
 
     if (destination) {
-      markers.push({ id: 'destination', coordinates: [destination.lon, destination.lat], color: '#2563eb', size: 'lg', label: hotel?.name ?? base?.name ?? 'Destination' });
+      markers.push({ id: 'destination', coordinates: destination, color: '#2563eb', size: 'lg', label: hotel?.name ?? base?.name ?? 'Destination' });
     }
 
     return markers;
@@ -100,9 +100,9 @@ export class AddRouteStep4Component extends AppScreenBase {
     return [{
       id: 'wizard-route-corridor',
       coordinates: [
-        [base.location.lon, base.location.lat],
-        ...this.selectedStops().map((spot: Spot): [number, number] => [spot.location.lon, spot.location.lat]),
-        [destination.lon, destination.lat],
+        base.location,
+        ...this.selectedStops().map((spot: Spot) => spot.location),
+        destination,
       ],
       color: '#101114',
       width: 4,

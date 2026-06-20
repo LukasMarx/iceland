@@ -27,7 +27,7 @@ You do not ask questions. You make reasonable decisions and document them in com
 
 - **Monorepo** managed by Nx. Projects: `mobile`, `admin`, `api`, `domain`, `api-contracts`, `map`, `i18n`, `ui`, `mobile-e2e`, `api-e2e`.
 - **Stack:** Angular 21 (mobile/admin), NestJS 11 (api), Prisma 6 (db), Vitest/Jest (tests), Playwright (e2e).
-- **Default branch:** `master`.
+- **Default branch:** `main`.
 - **Domain docs:** read `CONTEXT.md` at repo root and any `docs/adr/*.md` that touch the area you're working in. If they don't exist, proceed silently.
 - **Triage labels:** `ready-for-agent`, `ready-for-human`, `needs-triage`, `needs-info`, `wontfix`. Don't touch issue labels — the ralph script handles that.
 
@@ -35,7 +35,7 @@ You do not ask questions. You make reasonable decisions and document them in com
 
 Run these **after each logical change**, not just at the end. Fix until all three pass.
 
-For fast iteration during implementation, use **affected-scoping** — only the projects touched by your change since `master`:
+For fast iteration during implementation, use **affected-scoping** — only the projects touched by your change since `main`:
 
 ```powershell
 npx nx run-many -t lint,test,build --affected

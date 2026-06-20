@@ -16,7 +16,13 @@ import {
 import { isPlatformBrowser } from '@angular/common';
 import type maplibregl from 'maplibre-gl';
 import type { Map } from 'maplibre-gl';
+import type { GeoPoint } from '@islandhub/domain';
 import { MapMarker, MapRadius, MapRoute } from './map.types';
+
+/** Converts a GeoPoint to a [longitude, latitude] tuple for maplibre-gl. */
+function toLngLat(point: GeoPoint): [number, number] {
+  return [point.lon, point.lat];
+}
 
 @Component({
   selector: 'lib-map',
@@ -29,8 +35,8 @@ export class LibMapComponent implements AfterViewInit, OnChanges, OnDestroy {
   @ViewChild('mapContainer', { static: true })
   private readonly mapContainer!: ElementRef<HTMLDivElement>;
 
-  /** Initial map center as [longitude, latitude]. Defaults to Iceland. */
-  @Input() center: [number, number] = [-18.5, 64.9];
+  /** Initial map center as a GeoPoint. Defaults to Iceland. */
+  @Input() center: GeoPoint = { lat: 64.9, lon: -18.5 };
 
   /** Initial zoom level */
   @Input() zoom = 6;
@@ -56,7 +62,6 @@ export class LibMapComponent implements AfterViewInit, OnChanges, OnDestroy {
   private map: Map | null = null;
   private mapLoaded = false;
   private pendingRouteIds: string[] = [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private mgl: typeof maplibregl | null = null;
 
   private readonly platformId = inject(PLATFORM_ID);
@@ -71,7 +76,7 @@ export class LibMapComponent implements AfterViewInit, OnChanges, OnDestroy {
       this.map = new this.mgl.Map({
         container: this.mapContainer.nativeElement,
         style: this.style,
-        center: this.center,
+        center: toLngLat(this.center),
         zoom: this.zoom,
         attributionControl: false,
       });
@@ -101,7 +106,7 @@ export class LibMapComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (this.autoFit && (changes['markers'] || changes['routes'])) {
       this.fitToContent();
     } else if (!this.autoFit && (changes['center'] || changes['zoom'])) {
-      this.map.flyTo({ center: this.center, zoom: this.zoom });
+      this.map.flyTo({ center: toLngLat(this.center), zoom: this.zoom });
     }
   }
 
@@ -142,7 +147,7 @@ export class LibMapComponent implements AfterViewInit, OnChanges, OnDestroy {
           },
           geometry: {
             type: 'Point' as const,
-            coordinates: m.coordinates,
+            coordinates: toLngLat(m.coordinates),
           },
         })),
       },
@@ -187,8 +192,8 @@ export class LibMapComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (!this.map || !this.mgl) return;
 
     const coords: [number, number][] = [
-      ...this.markers.map(m => m.coordinates),
-      ...this.routes.flatMap(r => r.coordinates),
+      ...this.markers.map(m => toLngLat(m.coordinates)),
+      ...this.routes.flatMap(r => r.coordinates.map(toLngLat)),
     ];
 
     if (coords.length === 0) return;
@@ -239,7 +244,7 @@ export class LibMapComponent implements AfterViewInit, OnChanges, OnDestroy {
           properties: {},
           geometry: {
             type: 'LineString',
-            coordinates: route.coordinates,
+            coordinates: route.coordinates.map(toLngLat),
           },
         },
       });
@@ -285,7 +290,7 @@ export class LibMapComponent implements AfterViewInit, OnChanges, OnDestroy {
         properties: {},
         geometry: {
           type: 'Polygon',
-          coordinates: [this.buildCircleCoords(this.radius.center, this.radius.radiusKm)],
+          coordinates: [this.buildCircleCoords(toLngLat(this.radius.center), this.radius.radiusKm)],
         },
       },
     });

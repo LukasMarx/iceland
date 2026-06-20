@@ -30,6 +30,7 @@ const DEFAULT_MAX_ITERATIONS = 10;
 const MAX_ATTEMPTS_PER_ISSUE = 2; // K=2
 const BRANCH_PREFIX = 'agent/issue-';
 const READY_LABEL = 'ready-for-agent';
+const PRD_LABEL = 'prd'; // umbrella/tracking issues — never picked up by the loop
 const REVIEW_LABEL = 'ready-for-human';
 const FULL_GATE_PROJECTS =
   'mobile,admin,api,domain,api-contracts,map,i18n,ui,mobile-e2e,api-e2e';
@@ -212,7 +213,9 @@ async function listReadyIssues(): Promise<GhIssue[]> {
     '--limit',
     '100',
   ]);
-  return issues;
+  // Defensive: never pick up umbrella PRDs, even if one accidentally carries
+  // the ready-for-agent label. Only leaf issues are units of work.
+  return issues.filter((i) => !i.labels.some((l) => l.name === PRD_LABEL));
 }
 
 async function listClaimedIssueNumbers(): Promise<Set<number>> {
@@ -563,6 +566,10 @@ async function runRalphLoop(opts: RunOptions): Promise<number> {
     let attempt = 0;
     let sessionId: string | null = null;
     let issueResolved = false;
+    // Must persist across attempts: a failure branch sets this and `continue`s,
+    // and the next attempt feeds it to the agent. Re-declaring it inside the
+    // loop would reset it to null and drop the correction prompt.
+    let retryFeedback: string | null = null;
 
     while (attempt < MAX_ATTEMPTS_PER_ISSUE) {
       attempt++;
@@ -603,7 +610,6 @@ async function runRalphLoop(opts: RunOptions): Promise<number> {
       if (attempt === 1) {
         issueBodyFile = await writeIssueBodyTemp(issue);
       }
-      let retryFeedback: string | null = null;
       const opencodeResult = await invokeOpencode(
         issue,
         branch,

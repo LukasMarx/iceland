@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { PrismaService } from '../../prisma.service';
 import { AdminGuard } from './admin.guard';
 import { AppAuthGuard } from './auth.guard';
+import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { AuthTokensService } from './auth-tokens.service';
 import { PasswordHasherService } from './password-hasher.service';
@@ -12,6 +13,7 @@ import { SocialLoginVerifierService } from './social-login-verifier.service';
 
 @Global()
 @Module({
+  controllers: [AuthController],
   providers: [
     AuthService,
     AuthTokensService,

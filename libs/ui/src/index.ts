@@ -1,4 +1,3 @@
-export * from './lib/ui/ui';
 export * from './lib/map/map.component';
 export * from './lib/map/map.types';
 export * from './lib/button/button.directive';

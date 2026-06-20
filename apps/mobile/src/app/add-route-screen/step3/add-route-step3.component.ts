@@ -41,14 +41,14 @@ export class AddRouteStep3Component extends AppScreenBase {
     const selected = this.service.endHotel();
     const hubMarker: MapMarker = {
       id: 'hub',
-      coordinates: [hub.location.lon, hub.location.lat],
+      coordinates: hub.location,
       color: '#101114',
       size: 'lg',
       label: hub.name,
     };
     const hotelMarkers: MapMarker[] = this.service.hotels().map((h) => ({
       id: h.id,
-      coordinates: [h.location.lon, h.location.lat],
+      coordinates: h.location,
       color: selected?.id === h.id ? '#101114' : '#666a73',
       size: 'sm',
       label: h.name,
