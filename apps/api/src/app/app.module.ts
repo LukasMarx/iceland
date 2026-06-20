@@ -5,7 +5,9 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { OnboardingModule } from './modules/onboarding/onboarding.module';
 import { ExploreModule } from './modules/explore/explore.module';
-import { RoutesModule } from './modules/routes/routes.module';
+import { TodayModule } from './modules/today/today.module';
+import { SuggestionModule } from './modules/suggestions/suggestions.module';
+import { RouteCrudModule } from './modules/route-crud/route-crud.module';
 import { SavedSpotsModule } from './modules/saved-spots/saved-spots.module';
 import { TripsModule } from './modules/trips/trips.module';
 import { PlacesModule } from './modules/places/places.module';
@@ -18,7 +20,9 @@ import { AdminModule } from './modules/admin/admin.module';
     UsersModule,
     OnboardingModule,
     ExploreModule,
-    RoutesModule,
+    TodayModule,
+    SuggestionModule,
+    RouteCrudModule,
     SavedSpotsModule,
     TripsModule,
     PlacesModule,
