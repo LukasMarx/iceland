@@ -561,6 +561,10 @@ async function runRalphLoop(opts: RunOptions): Promise<number> {
     let attempt = 0;
     let sessionId: string | null = null;
     let issueResolved = false;
+    // Must persist across attempts: a failure branch sets this and `continue`s,
+    // and the next attempt feeds it to the agent. Re-declaring it inside the
+    // loop would reset it to null and drop the correction prompt.
+    let retryFeedback: string | null = null;
 
     while (attempt < MAX_ATTEMPTS_PER_ISSUE) {
       attempt++;
@@ -599,7 +603,6 @@ async function runRalphLoop(opts: RunOptions): Promise<number> {
       if (attempt === 1) {
         issueBodyFile = await writeIssueBodyTemp(issue);
       }
-      let retryFeedback: string | null = null;
       const opencodeResult = await invokeOpencode(
         issue,
         branch,
