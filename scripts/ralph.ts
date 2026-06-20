@@ -359,8 +359,8 @@ async function invokeOpencode(
   const args: string[] = ['run', '--agent', RALPH_AGENT, '--model', model, '--format', 'json'];
 
   if (attempt === 1) {
-    if (issueBodyFile) args.push('--file', issueBodyFile);
     args.push(buildIterationPrompt(issue.number, branch));
+    if (issueBodyFile) args.push('--file', issueBodyFile);
   } else {
     if (sessionId) args.push('--session', sessionId);
     args.push(retryFeedback ?? buildCrashRetryFeedback(1, issue.number));
