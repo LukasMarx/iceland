@@ -1,27 +1,11 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
-import { RequestContextService } from '../auth/request-context.service';
 
 @Injectable()
 export class OfflineService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly requestContext: RequestContextService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  private getUserId(): string {
-    const id = this.requestContext.getUserId();
-    if (!id) throw new UnauthorizedException('Authentication required');
-    return id;
-  }
-
-  private getTripId(): string {
-    const id = this.requestContext.getTripId();
-    if (!id) throw new NotFoundException({ code: 'trip_not_found', message: 'No active trip found.' });
-    return id;
-  }
-
-  async cacheRegions(body: {
+  async cacheRegions(userId: string, tripId: string, body: {
     tripId?: string;
     mode: string;
     label?: string;
@@ -29,8 +13,7 @@ export class OfflineService {
     includeRouteIds?: string[];
     includeSpotIds?: string[];
   }) {
-    const tripId = body.tripId ?? this.getTripId();
-    const userId = this.getUserId();
+    const resolvedTripId = body.tripId ?? tripId;
 
     const region = body.regions?.[0];
     const includes: string[] = [
@@ -42,7 +25,7 @@ export class OfflineService {
     const job = await this.prisma.offlineCacheJob.create({
       data: {
         userId,
-        tripId,
+        tripId: resolvedTripId,
         mode: mode as any,
         state: 'queued',
         label: body.label ?? `Offline cache — ${body.mode}`,

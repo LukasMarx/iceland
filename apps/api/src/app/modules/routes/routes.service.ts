@@ -3,47 +3,25 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
-  UnauthorizedException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
-import { RequestContextService } from '../auth/request-context.service';
-import { mapSpot } from '../../common/spot-mapper';
-
-const SPOT_INCLUDE = {
-  translations: true,
-  categories: true,
-  media: { orderBy: { sortOrder: 'asc' as const } },
-  statusSnapshots: {
-    include: { sourceStamps: true },
-    orderBy: { calculatedAt: 'desc' as const },
-    take: 1,
-  },
-} as const;
+import { mapSpot, SPOT_INCLUDE } from '../../common/spot-mapper';
 
 const STOP_ORDER = { orderBy: { position: 'asc' as const } } as const;
 
 @Injectable()
 export class RoutesService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly requestContext: RequestContextService,
-  ) {}
-
-  private getTripId(): string {
-    const id = this.requestContext.getTripId();
-    if (!id) throw new NotFoundException({ code: 'trip_not_found', message: 'No active trip found.' });
-    return id;
-  }
+  constructor(private readonly prisma: PrismaService) {}
 
   // ─── GET /today ──────────────────────────────────────────────────────────────
 
-  async getToday(query: { tripId?: string; date?: string }) {
-    const tripId = query.tripId ?? this.getTripId();
+  async getToday(tripId: string, query: { tripId?: string; date?: string }) {
+    const resolvedTripId = query.tripId ?? tripId;
     const date = query.date ?? new Date().toISOString().split('T')[0];
 
     const route = await this.prisma.route.findFirst({
-      where: { tripId, lifecycle: 'active_today', date: new Date(date) },
+      where: { tripId: resolvedTripId, lifecycle: 'active_today', date: new Date(date) },
       include: { stops: { ...STOP_ORDER, include: { spot: { include: SPOT_INCLUDE } } } },
     });
 
@@ -51,12 +29,12 @@ export class RoutesService {
       throw new NotFoundException({ code: 'no_active_route', message: 'No active route for today.' });
     }
 
-    return this.buildTodayResponse(route, tripId, date);
+    return this.buildTodayResponse(route, resolvedTripId, date);
   }
 
   // ─── POST /routes/today ───────────────────────────────────────────────────────
 
-  async createTodayRoute(body: {
+  async createTodayRoute(tripId: string, body: {
     spotId?: string;
     routeId?: string;
     suggestionId?: string;
@@ -69,11 +47,11 @@ export class RoutesService {
       throw new BadRequestException('Provide spotId, routeId, or suggestionId.');
     }
 
-    const tripId = body.tripId ?? this.getTripId();
+    const resolvedTripId = body.tripId ?? tripId;
     const date = body.date ?? new Date().toISOString().split('T')[0];
 
     const existing = await this.prisma.route.findFirst({
-      where: { tripId, lifecycle: 'active_today', date: new Date(date) },
+      where: { tripId: resolvedTripId, lifecycle: 'active_today', date: new Date(date) },
     });
 
     if (existing && !body.replaceExisting) {
@@ -84,27 +62,27 @@ export class RoutesService {
       await this.prisma.route.update({ where: { id: existing.id }, data: { lifecycle: 'done', activeKey: null } });
     }
 
-    const trip = await this.prisma.trip.findUniqueOrThrow({ where: { id: tripId }, include: { activeHub: true } });
+    const trip = await this.prisma.trip.findUniqueOrThrow({ where: { id: resolvedTripId }, include: { activeHub: true } });
     const hub = trip.activeHub;
     if (!hub) throw new NotFoundException({ code: 'hub_not_found', message: 'No active hub for this trip.' });
 
     let newRoute: Awaited<ReturnType<typeof this.prisma.route.create>>;
 
     if (body.spotId) {
-      newRoute = await this.createSpotRoute(body.spotId, tripId, date, hub);
+      newRoute = await this.createSpotRoute(body.spotId, resolvedTripId, date, hub);
     } else if (body.suggestionId) {
-      newRoute = await this.startSuggestionRoute(body.suggestionId, tripId, date, hub);
+      newRoute = await this.startSuggestionRoute(body.suggestionId, resolvedTripId, date, hub);
     } else {
       throw new BadRequestException('routeId-based today creation not yet implemented. Use spotId or suggestionId.');
     }
 
-    const today = await this.getToday({ tripId, date });
+    const today = await this.getToday(tripId, { tripId: resolvedTripId, date });
     return { today };
   }
 
   // ─── POST /routes/today/stops ──────────────────────────────────────────────
 
-  async addTodayStop(body: {
+  async addTodayStop(tripId: string, body: {
     spotId: string;
     position: number | 'recommended' | 'end';
     tripId?: string;
@@ -112,11 +90,11 @@ export class RoutesService {
     allowUnsafe?: boolean;
     expectedVersion?: number;
   }) {
-    const tripId = body.tripId ?? this.getTripId();
+    const resolvedTripId = body.tripId ?? tripId;
     const date = body.date ?? new Date().toISOString().split('T')[0];
 
     const route = await this.prisma.route.findFirst({
-      where: { tripId, lifecycle: 'active_today', date: new Date(date) },
+      where: { tripId: resolvedTripId, lifecycle: 'active_today', date: new Date(date) },
       include: { stops: STOP_ORDER },
     });
 
@@ -172,21 +150,21 @@ export class RoutesService {
     });
 
     await this.recalculateRoute(route.id);
-    const today = await this.getToday({ tripId, date });
+    const today = await this.getToday(tripId, { tripId: resolvedTripId, date });
     return { today };
   }
 
   // ─── POST /routes/today/insert-preview ────────────────────────────────────
 
-  async insertPreview(body: { spotId: string; tripId?: string; date?: string; positionMode?: string }, baseUrl?: string) {
-    const tripId = body.tripId ?? this.getTripId();
+  async insertPreview(tripId: string, body: { spotId: string; tripId?: string; date?: string; positionMode?: string }, baseUrl?: string) {
+    const resolvedTripId = body.tripId ?? tripId;
     const date = body.date ?? new Date().toISOString().split('T')[0];
 
     const spot = await this.prisma.spot.findUnique({ where: { id: body.spotId }, include: SPOT_INCLUDE });
     if (!spot) throw new NotFoundException({ code: 'spot_not_found', message: `Spot ${body.spotId} not found.` });
 
     const route = await this.prisma.route.findFirst({
-      where: { tripId, date: new Date(date) },
+      where: { tripId: resolvedTripId, date: new Date(date) },
       orderBy: { version: 'desc' },
       include: { stops: { orderBy: { position: 'asc' } } },
     });
@@ -210,7 +188,7 @@ export class RoutesService {
 
     const daylightImpact: 'ample' | 'tight' | 'unknown' = 'ample';
 
-    const savedSpots = await this.prisma.savedSpot.findMany({ where: { tripId }, select: { spotId: true } });
+    const savedSpots = await this.prisma.savedSpot.findMany({ where: { tripId: resolvedTripId }, select: { spotId: true } });
     const isSaved = savedSpots.some((s) => s.spotId === body.spotId);
     const mappedSpot = mapSpot(spot as any, isSaved, undefined, baseUrl);
 
@@ -253,12 +231,12 @@ export class RoutesService {
 
   // ─── PATCH /routes/today/stops/:stopId/done ────────────────────────────────
 
-  async markStopDone(stopId: string, body: { tripId?: string; date?: string; completedAt?: string; undo?: boolean; expectedVersion?: number }) {
-    const tripId = body.tripId ?? this.getTripId();
+  async markStopDone(tripId: string, stopId: string, body: { tripId?: string; date?: string; completedAt?: string; undo?: boolean; expectedVersion?: number }) {
+    const resolvedTripId = body.tripId ?? tripId;
     const date = body.date ?? new Date().toISOString().split('T')[0];
 
     const route = await this.prisma.route.findFirst({
-      where: { tripId, lifecycle: 'active_today', date: new Date(date) },
+      where: { tripId: resolvedTripId, lifecycle: 'active_today', date: new Date(date) },
       include: { stops: STOP_ORDER },
     });
 
@@ -288,22 +266,22 @@ export class RoutesService {
     }
 
     await this.prisma.route.update({ where: { id: route.id }, data: { version: { increment: 1 } } });
-    const today = await this.getToday({ tripId, date });
+    const today = await this.getToday(tripId, { tripId: resolvedTripId, date });
     return { today };
   }
 
   // ─── GET /routes/suggestions ──────────────────────────────────────────────
 
-  async getRouteSuggestions(query: { tripId?: string; date?: string; limit?: string; cursor?: string }, baseUrl?: string) {
-    const tripId = query.tripId ?? this.getTripId();
+  async getRouteSuggestions(tripId: string, query: { tripId?: string; date?: string; limit?: string; cursor?: string }, baseUrl?: string) {
+    const resolvedTripId = query.tripId ?? tripId;
     const date = query.date ?? new Date().toISOString().split('T')[0];
     const limit = Math.min(Number(query.limit ?? 20), 50);
 
-    const trip = await this.prisma.trip.findFirst({ where: { id: tripId }, include: { activeHub: true } });
+    const trip = await this.prisma.trip.findFirst({ where: { id: resolvedTripId }, include: { activeHub: true } });
     const hub = trip?.activeHub;
 
     const savedRecords = await this.prisma.savedSpot.findMany({
-      where: { tripId },
+      where: { tripId: resolvedTripId },
       include: { spot: { include: SPOT_INCLUDE } },
       orderBy: { sortOrder: 'asc' },
     });
@@ -311,7 +289,7 @@ export class RoutesService {
     const savedSpots = savedRecords.map((r) => mapSpot(r.spot as any, true, undefined, baseUrl));
 
     const cached = await this.prisma.routeSuggestionCache.findMany({
-      where: { tripId, date: new Date(date), expiresAt: { gt: new Date() } },
+      where: { tripId: resolvedTripId, date: new Date(date), expiresAt: { gt: new Date() } },
       orderBy: { createdAt: 'desc' },
       take: limit,
     });
@@ -325,13 +303,13 @@ export class RoutesService {
         expiresAt: c.expiresAt.toISOString(),
       }));
     } else {
-      suggestions = buildSuggestionsFromSavedSpots(savedSpots, hub, date, tripId);
+      suggestions = buildSuggestionsFromSavedSpots(savedSpots, hub, date, resolvedTripId);
       for (const s of suggestions) {
         await this.prisma.routeSuggestionCache.upsert({
           where: { suggestionId: s.suggestionId },
           create: {
             suggestionId: s.suggestionId,
-            tripId,
+            tripId: resolvedTripId,
             date: new Date(date),
             vehicle: 'car_2wd',
             payload: s.route,
@@ -348,21 +326,21 @@ export class RoutesService {
 
   // ─── POST /routes/suggestions/start ──────────────────────────────────────
 
-  async startSuggestedRoute(body: { suggestionId: string; tripId?: string; date?: string; replaceExisting?: boolean; expectedVersion?: number }) {
-    const tripId = body.tripId ?? this.getTripId();
+  async startSuggestedRoute(tripId: string, body: { suggestionId: string; tripId?: string; date?: string; replaceExisting?: boolean; expectedVersion?: number }) {
+    const resolvedTripId = body.tripId ?? tripId;
     const date = body.date ?? new Date().toISOString().split('T')[0];
 
     const cached = await this.prisma.routeSuggestionCache.findFirst({
-      where: { suggestionId: body.suggestionId, tripId, expiresAt: { gt: new Date() } },
+      where: { suggestionId: body.suggestionId, tripId: resolvedTripId, expiresAt: { gt: new Date() } },
     });
 
     if (!cached) {
       throw new NotFoundException({ code: 'suggestion_expired', message: 'Route suggestion not found or expired.' });
     }
 
-    return this.createTodayRoute({
+    return this.createTodayRoute(tripId, {
       suggestionId: body.suggestionId,
-      tripId,
+      tripId: resolvedTripId,
       date,
       replaceExisting: body.replaceExisting,
       expectedVersion: body.expectedVersion,
@@ -371,7 +349,7 @@ export class RoutesService {
 
   // ─── POST /routes ─────────────────────────────────────────────────────────
 
-  async createRoute(body: {
+  async createRoute(tripId: string, body: {
     tripId?: string;
     title?: string;
     date?: string;
@@ -383,8 +361,8 @@ export class RoutesService {
     makeActiveToday?: boolean;
     replaceExistingToday?: boolean;
   }) {
-    const tripId = body.tripId ?? this.getTripId();
-    const trip = await this.prisma.trip.findFirst({ where: { id: tripId }, include: { activeHub: true } });
+    const resolvedTripId = body.tripId ?? tripId;
+    const trip = await this.prisma.trip.findFirst({ where: { id: resolvedTripId }, include: { activeHub: true } });
     if (!trip) throw new NotFoundException({ code: 'trip_not_found', message: 'Trip not found.' });
 
     const hub = trip.activeHub;
@@ -401,12 +379,12 @@ export class RoutesService {
     const routeName = body.title ?? spotData.map((s) => s!.translations.find((t) => t.locale === 'en')?.name ?? s!.id).slice(0, 2).join(' · ') + ' loop';
 
     const dayId = body.date
-      ? (await this.prisma.tripDay.findFirst({ where: { tripId, date: new Date(body.date) } }))?.id
+      ? (await this.prisma.tripDay.findFirst({ where: { tripId: resolvedTripId, date: new Date(body.date) } }))?.id
       : undefined;
 
     const route = await this.prisma.route.create({
       data: {
-        tripId,
+        tripId: resolvedTripId,
         tripDayId: dayId,
         title: routeName,
         date: body.date ? new Date(body.date) : undefined,
@@ -425,7 +403,7 @@ export class RoutesService {
         totalTripMinutes: totalDrive + body.spotIds.reduce((sum, _id) => sum + 30, 0),
         distanceKm: totalDrive * 1.2,
         highestStatus: 'unknown',
-        activeKey: body.makeActiveToday ? `${tripId}-today-${body.date ?? new Date().toISOString().split('T')[0]}` : undefined,
+        activeKey: body.makeActiveToday ? `${resolvedTripId}-today-${body.date ?? new Date().toISOString().split('T')[0]}` : undefined,
         version: 1,
       },
     });
@@ -455,7 +433,7 @@ export class RoutesService {
     const result: Record<string, unknown> = { route: built, message: 'Route created.' };
 
     if (body.makeActiveToday) {
-      const today = await this.getToday({ tripId, date: body.date ?? new Date().toISOString().split('T')[0] });
+      const today = await this.getToday(tripId, { tripId: resolvedTripId, date: body.date ?? new Date().toISOString().split('T')[0] });
       result['today'] = today;
     }
 
@@ -604,7 +582,7 @@ export class RoutesService {
 
   // ─── POST /routes/preview ─────────────────────────────────────────────────
 
-  async routePreview(body: {
+  async routePreview(tripId: string, body: {
     tripId?: string;
     date?: string;
     start: { id?: string; name?: string; type: string; location?: { lat: number; lon: number } };
@@ -616,14 +594,14 @@ export class RoutesService {
     vehicle?: string;
     maxCandidates?: number;
   }, baseUrl?: string) {
-    const tripId = body.tripId ?? this.getTripId();
+    const resolvedTripId = body.tripId ?? tripId;
     const spotIds = body.spotIds ?? (body.targetSpotId ? [body.targetSpotId] : []);
 
     const spotsData = await Promise.all(
       spotIds.map((id) => this.prisma.spot.findUnique({ where: { id }, include: SPOT_INCLUDE })),
     );
 
-    const savedSpots = await this.prisma.savedSpot.findMany({ where: { tripId }, select: { spotId: true } });
+    const savedSpots = await this.prisma.savedSpot.findMany({ where: { tripId: resolvedTripId }, select: { spotId: true } });
     const savedIds = new Set(savedSpots.map((s) => s.spotId));
 
     const candidateStops = spotsData

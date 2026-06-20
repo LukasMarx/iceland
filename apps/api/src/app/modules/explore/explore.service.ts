@@ -1,33 +1,13 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
-import { RequestContextService } from '../auth/request-context.service';
-import { mapSpot, buildSpotStatusForContext } from '../../common/spot-mapper';
-
-const SPOT_INCLUDE = {
-  translations: true,
-  categories: true,
-  media: { orderBy: { sortOrder: 'asc' as const } },
-  statusSnapshots: {
-    include: { sourceStamps: true },
-    orderBy: { calculatedAt: 'desc' as const },
-    take: 1,
-  },
-} as const;
+import { mapSpot, buildSpotStatusForContext, SPOT_INCLUDE } from '../../common/spot-mapper';
 
 @Injectable()
 export class ExploreService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly requestContext: RequestContextService,
-  ) {}
-
-  private getTripId(): string {
-    const id = this.requestContext.getTripId();
-    if (!id) throw new NotFoundException({ code: 'trip_not_found', message: 'No active trip found.' });
-    return id;
-  }
+  constructor(private readonly prisma: PrismaService) {}
 
   async getExplore(
+    tripId: string | undefined,
     query: {
       status?: string;
       category?: string;
@@ -41,7 +21,7 @@ export class ExploreService {
     },
     baseUrl?: string,
   ) {
-
+    const resolvedTripId = query.tripId ?? tripId;
 
     const vehicle = (query.vehicle) as string;
     const showFRoads = query.showFRoads === 'true' || vehicle === 'car_4wd';
@@ -50,9 +30,9 @@ export class ExploreService {
     const categoryFilter = query.category ? query.category.split(',').filter(Boolean) : undefined;
     const limit = Math.min(Number(query.limit ?? 20), 50);
 
-    const savedSpots = await this.prisma.savedSpot.findMany({
-      select: { spotId: true },
-    });
+    const savedSpots = resolvedTripId
+      ? await this.prisma.savedSpot.findMany({ where: { tripId: resolvedTripId }, select: { spotId: true } })
+      : [];
     const savedSpotIds = new Set(savedSpots.map((s) => s.spotId));
 
     const where: Record<string, unknown> = { isPublished: true };
@@ -100,7 +80,7 @@ export class ExploreService {
     };
   }
 
-  async getSpotContext(spotId: string, query: { tripId?: string; date?: string }, baseUrl?: string) {
+  async getSpotContext(tripId: string, spotId: string, query: { tripId?: string; date?: string }, baseUrl?: string) {
     const spot = await this.prisma.spot.findUnique({
       where: { id: spotId },
       include: SPOT_INCLUDE,
@@ -110,8 +90,8 @@ export class ExploreService {
       throw new NotFoundException({ code: 'spot_not_found', message: `Spot ${spotId} not found.` });
     }
 
-    const tripId = query.tripId ?? this.getTripId();
-    const savedSpots = await this.prisma.savedSpot.findMany({ where: { tripId }, select: { spotId: true } });
+    const resolvedTripId = query.tripId ?? tripId;
+    const savedSpots = await this.prisma.savedSpot.findMany({ where: { tripId: resolvedTripId }, select: { spotId: true } });
     const isSaved = savedSpots.some((s) => s.spotId === spotId);
 
     const mappedSpot = mapSpot(spot as any, isSaved, undefined, baseUrl);
@@ -152,17 +132,17 @@ export class ExploreService {
     };
   }
 
-  async refreshSpotStatus(spotId: string, body: { tripId?: string; date?: string; force?: boolean }, baseUrl?: string) {
+  async refreshSpotStatus(tripId: string, spotId: string, body: { tripId?: string; date?: string; force?: boolean }, baseUrl?: string) {
     const spot = await this.prisma.spot.findUnique({ where: { id: spotId } });
     if (!spot) {
       throw new NotFoundException({ code: 'spot_not_found', message: `Spot ${spotId} not found.` });
     }
 
-    const tripId = body.tripId ?? this.getTripId();
+    const resolvedTripId = body.tripId ?? tripId;
     const now = new Date();
 
     const existing = await this.prisma.spotStatusSnapshot.findFirst({
-      where: { spotId, tripId },
+      where: { spotId, tripId: resolvedTripId },
       orderBy: { calculatedAt: 'desc' },
       include: { sourceStamps: true },
     });
@@ -191,7 +171,7 @@ export class ExploreService {
     const snapshot = await this.prisma.spotStatusSnapshot.create({
       data: {
         spotId,
-        tripId,
+        tripId: resolvedTripId,
         vehicle: 'car_2wd',
         targetDate: new Date(body.date ?? now.toISOString().split('T')[0]),
         level: 'unknown',

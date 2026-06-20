@@ -1,4 +1,5 @@
-import { sortBySafetyThenDrive, type Spot } from './safety';
+import { sortBySafetyThenDrive, highestStatusFor, estimateDriveMinutes, type SafetyStatus } from './safety';
+import type { Spot } from './types';
 
 describe('domain — safety', () => {
   it('sorts safer statuses before risky statuses', () => {
@@ -31,5 +32,39 @@ describe('domain — safety', () => {
     ]);
 
     expect(sorted.map((spot) => spot.id)).toEqual(['open', 'caution', 'closed']);
+  });
+});
+
+describe('highestStatusFor', () => {
+  const makeSpot = (status: SafetyStatus) => ({
+    status: { status },
+  }) as Pick<Spot, 'status'>;
+
+  it('returns green for an empty list', () => {
+    expect(highestStatusFor([])).toBe('green');
+  });
+
+  it('returns the worst status among spots', () => {
+    expect(highestStatusFor([makeSpot('green'), makeSpot('yellow')])).toBe('yellow');
+    expect(highestStatusFor([makeSpot('green'), makeSpot('red')])).toBe('red');
+    expect(highestStatusFor([makeSpot('yellow'), makeSpot('unknown')])).toBe('unknown');
+  });
+
+  it('returns red when any spot is red', () => {
+    expect(highestStatusFor([makeSpot('green'), makeSpot('yellow'), makeSpot('red')])).toBe('red');
+  });
+});
+
+describe('estimateDriveMinutes', () => {
+  it('returns at least 8 minutes', () => {
+    expect(estimateDriveMinutes(0)).toBe(8);
+    expect(estimateDriveMinutes(10)).toBe(8);
+    expect(estimateDriveMinutes(39)).toBe(8);
+  });
+
+  it('scales with driveMinutes / 5', () => {
+    expect(estimateDriveMinutes(50)).toBe(10);
+    expect(estimateDriveMinutes(100)).toBe(20);
+    expect(estimateDriveMinutes(250)).toBe(50);
   });
 });

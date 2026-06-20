@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import type { SafetyStatus, Spot } from '@islandhub/domain';
+import { highestStatusFor, estimateDriveMinutes } from '@islandhub/domain';
 import { LibButtonDirective, LibChipComponent, LibMapComponent, LibWizardBodyComponent, LibBottomSheetComponent } from '@islandhub/ui';
 import type { LibChipVariant, MapMarker, MapRoute } from '@islandhub/ui';
 import { AppScreenBase } from '../../screen-base';
@@ -61,11 +62,11 @@ export class AddRouteStep4Component extends AppScreenBase {
     return 90;
   });
 
-  protected readonly totalDriveMinutes = computed(() => this.directDriveMinutes() + this.selectedStops().reduce((sum, spot: Spot) => sum + Math.max(8, Math.round(spot.driveMinutes / 5)), 0));
+  protected readonly totalDriveMinutes = computed(() => this.directDriveMinutes() + this.selectedStops().reduce((sum, spot: Spot) => sum + estimateDriveMinutes(spot.driveMinutes), 0));
 
   protected readonly totalTripMinutes = computed(() => this.totalDriveMinutes() + this.selectedStops().reduce((sum, spot: Spot) => sum + spot.stayMinutes, 0));
 
-  protected readonly highestStatus = computed(() => this.highestStatusFor(this.selectedStops()));
+  protected readonly highestStatus = computed(() => highestStatusFor(this.selectedStops()));
 
   protected readonly wizardMarkers = computed((): MapMarker[] => {
     const base = this.service.base();
@@ -166,7 +167,7 @@ export class AddRouteStep4Component extends AppScreenBase {
   }
 
   protected extraDriveMinutes(spot: Spot): number {
-    return Math.max(8, Math.round(spot.driveMinutes / 5));
+    return estimateDriveMinutes(spot.driveMinutes);
   }
 
   protected attractionImage(spot: Spot): string {
@@ -175,12 +176,6 @@ export class AddRouteStep4Component extends AppScreenBase {
 
   protected isSelected(spot: Spot): boolean {
     return this.service.selectedStopIds().includes(spot.id);
-  }
-
-  private highestStatusFor(spots: Spot[]): SafetyStatus {
-    const order: Record<SafetyStatus, number> = { green: 0, yellow: 1, unknown: 2, red: 3 };
-
-    return spots.reduce<SafetyStatus>((highest, spot) => order[spot.status.status] > order[highest] ? spot.status.status : highest, 'green');
   }
 
   private statusColor(status: SafetyStatus): string {

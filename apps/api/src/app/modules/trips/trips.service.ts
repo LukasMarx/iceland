@@ -1,30 +1,14 @@
-import { BadRequestException, Injectable, NotFoundException, UnauthorizedException, UnprocessableEntityException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
-import { RequestContextService } from '../auth/request-context.service';
 
 @Injectable()
 export class TripsService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly requestContext: RequestContextService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  private getUserId(): string {
-    const id = this.requestContext.getUserId();
-    if (!id) throw new UnauthorizedException('Authentication required');
-    return id;
-  }
-
-  private getTripId(): string {
-    const id = this.requestContext.getTripId();
-    if (!id) throw new NotFoundException({ code: 'trip_not_found', message: 'No active trip found.' });
-    return id;
-  }
-
-  async getTrip(query: { tripId?: string }) {
-    const tripId = query.tripId ?? this.getTripId();
+  async getTrip(userId: string, tripId: string, query: { tripId?: string }) {
+    const resolvedTripId = query.tripId ?? tripId;
     const trip = await this.prisma.trip.findFirst({
-      where: { id: tripId, ownerId: this.getUserId(), archivedAt: null },
+      where: { id: resolvedTripId, ownerId: userId, archivedAt: null },
       include: {
         activeHub: true,
         days: {
@@ -87,14 +71,14 @@ export class TripsService {
     };
   }
 
-  async addDraftDay(body: { spotId?: string; routeId?: string; tripId?: string; title?: string; date?: string; idempotencyKey?: string }) {
+  async addDraftDay(userId: string, tripId: string, body: { spotId?: string; routeId?: string; tripId?: string; title?: string; date?: string; idempotencyKey?: string }) {
     if (!body.spotId && !body.routeId) {
       throw new BadRequestException({ code: 'missing_target', message: 'Provide spotId or routeId.' });
     }
 
-    const tripId = body.tripId ?? this.getTripId();
+    const resolvedTripId = body.tripId ?? tripId;
     const trip = await this.prisma.trip.findFirst({
-      where: { id: tripId, archivedAt: null },
+      where: { id: resolvedTripId, archivedAt: null },
       include: { days: { orderBy: { date: 'asc' } } },
     });
 
@@ -129,14 +113,14 @@ export class TripsService {
 
       if (targetDate) {
         const day = await this.prisma.tripDay.upsert({
-          where: { tripId_date: { tripId, date: targetDate } },
-          create: { tripId, date: targetDate, title: draftTitle, status: 'draft', version: 1 },
+          where: { tripId_date: { tripId: resolvedTripId, date: targetDate } },
+          create: { tripId: resolvedTripId, date: targetDate, title: draftTitle, status: 'draft', version: 1 },
           update: { title: draftTitle, status: 'draft', version: { increment: 1 } },
         });
 
         await this.prisma.route.create({
           data: {
-            tripId,
+            tripId: resolvedTripId,
             tripDayId: day.id,
             title: draftTitle,
             date: targetDate,
@@ -170,7 +154,7 @@ export class TripsService {
       } else {
         await this.prisma.route.create({
           data: {
-            tripId,
+            tripId: resolvedTripId,
             title: draftTitle,
             lifecycle: 'draft',
             direction: 'LOOP',
@@ -192,26 +176,26 @@ export class TripsService {
         ? `${name} added as draft for ${targetDate.toISOString().split('T')[0]}.`
         : `${name} added to unplaced routes.`;
 
-      return { trip: (await this.getTrip({ tripId })).trip, message };
+      return { trip: (await this.getTrip(userId, resolvedTripId, {})).trip, message };
     }
 
     if (body.routeId) {
-      const route = await this.prisma.route.findFirst({ where: { id: body.routeId, tripId } });
+      const route = await this.prisma.route.findFirst({ where: { id: body.routeId, tripId: resolvedTripId } });
       if (!route) throw new NotFoundException({ code: 'route_not_found', message: 'Route not found.' });
 
       if (body.date) {
         const day = await this.prisma.tripDay.upsert({
-          where: { tripId_date: { tripId, date: new Date(body.date) } },
-          create: { tripId, date: new Date(body.date), title: body.title ?? route.title, status: 'draft', version: 1 },
+          where: { tripId_date: { tripId: resolvedTripId, date: new Date(body.date) } },
+          create: { tripId: resolvedTripId, date: new Date(body.date), title: body.title ?? route.title, status: 'draft', version: 1 },
           update: {},
         });
         await this.prisma.route.update({ where: { id: body.routeId }, data: { tripDayId: day.id, date: new Date(body.date), lifecycle: 'planned' } });
       }
 
-      return { trip: (await this.getTrip({ tripId })).trip, message: 'Route added as draft day.' };
+      return { trip: (await this.getTrip(userId, resolvedTripId, {})).trip, message: 'Route added as draft day.' };
     }
 
-    return { trip: (await this.getTrip({ tripId })).trip, message: 'Draft day added.' };
+    return { trip: (await this.getTrip(userId, resolvedTripId, {})).trip, message: 'Draft day added.' };
   }
 }
 
