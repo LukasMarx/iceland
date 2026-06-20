@@ -64,7 +64,7 @@ All types and runtime utilities live in `@islandhub/domain`, organized into focu
 | Module | Exports |
 |--------|---------|
 | `types.ts` | Domain types + API request/response types |
-| `safety.ts` | SafetyStatus, statusRank, statusCopy, sortBySafetyThenDrive |
+| `safety.ts` | SafetyStatus, statusRank, sortBySafetyThenDrive |
 | `map.ts` | GeoPoint, MapPoint, projectIcelandPoint |
 | `locale.ts` | LocaleCode, localeNames, appCopy, I18nService |
 

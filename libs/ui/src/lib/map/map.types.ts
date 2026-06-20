@@ -1,8 +1,10 @@
+import type { GeoPoint } from '@islandhub/domain';
+
 export interface MapMarker {
   /** Unique identifier for the marker */
   id: string;
-  /** [longitude, latitude] */
-  coordinates: [number, number];
+  /** Geographic coordinate */
+  coordinates: GeoPoint;
   /** CSS color string, e.g. '#E53E3E' or 'var(--color-danger)' */
   color: string;
   /** Optional popup / tooltip label */
@@ -14,8 +16,8 @@ export interface MapMarker {
 export interface MapRoute {
   /** Unique identifier for the route */
   id: string;
-  /** Ordered list of [longitude, latitude] waypoints */
-  coordinates: [number, number][];
+  /** Ordered list of geographic waypoints */
+  coordinates: GeoPoint[];
   /** Stroke color (default #0066CC) */
   color?: string;
   /** Stroke width in px (default 3) */
@@ -25,8 +27,8 @@ export interface MapRoute {
 }
 
 export interface MapRadius {
-  /** [longitude, latitude] center */
-  center: [number, number];
+  /** Geographic center */
+  center: GeoPoint;
   /** Radius in kilometres */
   radiusKm: number;
   /** Fill and outline color (default #0066CC) */

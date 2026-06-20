@@ -22,7 +22,7 @@ export class ExploreScreenComponent extends AppScreenBase {
   protected readonly exploreMarkers = computed((): MapMarker[] =>
     this.app.mapPoints().map((point: { id: string; label: string; lat: number; lon: number }) => ({
       id: point.id,
-      coordinates: [point.lon, point.lat] as [number, number],
+      coordinates: { lat: point.lat, lon: point.lon },
       color: STATUS_COLORS[point.id === 'hub' ? 'hub' : this.app.mapPointStatus(point.id)] ?? STATUS_COLORS['unknown'],
       label: point.label,
       size: (point.id === 'hub' ? 'lg' : 'md') as 'lg' | 'md',

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
+import type { GeoPoint } from '@islandhub/domain';
 import { LibButtonDirective, LibChipComponent, LibMapComponent, LibRouteStopCardComponent, LibStatsDarkComponent, LucideArrowRight, LucideCheck, LucideClock, LucideChevronLeft, LucideSlidersHorizontal } from '@islandhub/ui';
 import type { MapMarker, MapRoute } from '@islandhub/ui';
 import { AppScreenBase } from '../screen-base';
@@ -23,10 +24,10 @@ export class RouteDetailScreenComponent extends AppScreenBase {
     const stops = this.app.selectedRouteStops();
     if (!hub) return [];
     return [
-      { id: 'hub', coordinates: [hub.location.lon, hub.location.lat] as [number, number], color: '#101114', size: 'lg', label: hub.name },
+      { id: 'hub', coordinates: hub.location, color: '#101114', size: 'lg', label: hub.name },
       ...stops.map((entry) => ({
         id: entry.spot.id,
-        coordinates: [entry.spot.location.lon, entry.spot.location.lat] as [number, number],
+        coordinates: entry.spot.location,
         color: STATUS_COLORS[entry.spot.status.status] ?? STATUS_COLORS['unknown'],
         size: 'md' as const,
         label: entry.spot.name,
@@ -38,13 +39,12 @@ export class RouteDetailScreenComponent extends AppScreenBase {
     const hub = this.app.explore().hub;
     const stops = this.app.selectedRouteStops();
     if (!hub || stops.length === 0) return [];
-    const hubCoord: [number, number] = [hub.location.lon, hub.location.lat];
     return [{
       id: 'route',
       coordinates: [
-        hubCoord,
-        ...stops.map((entry): [number, number] => [entry.spot.location.lon, entry.spot.location.lat]),
-        hubCoord,
+        hub.location,
+        ...stops.map((entry) => entry.spot.location),
+        hub.location,
       ],
       color: '#101114',
       width: 2,
@@ -52,8 +52,8 @@ export class RouteDetailScreenComponent extends AppScreenBase {
     }];
   });
 
-  protected readonly routeCenter = computed((): [number, number] => {
+  protected readonly routeCenter = computed((): GeoPoint => {
     const hub = this.app.explore().hub;
-    return hub ? [hub.location.lon, hub.location.lat] : [-18.5, 64.9];
+    return hub ? hub.location : { lat: 64.9, lon: -18.5 };
   });
 }

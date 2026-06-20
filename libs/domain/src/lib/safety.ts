@@ -9,13 +9,6 @@ export const statusRank: Record<SafetyStatus, number> = {
   red: 3,
 };
 
-export const statusCopy: Record<SafetyStatus, { label: string; icon: string }> = {
-  green: { label: 'Open', icon: 'check' },
-  yellow: { label: 'Caution', icon: 'alert' },
-  red: { label: 'Closed', icon: 'block' },
-  unknown: { label: 'No data', icon: 'help' },
-};
-
 export function sortBySafetyThenDrive(spots: Spot[]): Spot[] {
   return [...spots].sort((left, right) => {
     const statusDelta = statusRank[left.status.status] - statusRank[right.status.status];

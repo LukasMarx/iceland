@@ -1,10 +1,7 @@
 import { Module } from '@nestjs/common';
-import { ApiDemoStateRepository } from './api-demo-state.repository';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { AuthController } from './modules/auth/auth.controller';
 import { AuthModule } from './modules/auth/auth.module';
-import { PrismaService } from './prisma.service';
 import { UsersModule } from './modules/users/users.module';
 import { OnboardingModule } from './modules/onboarding/onboarding.module';
 import { ExploreModule } from './modules/explore/explore.module';
@@ -28,7 +25,7 @@ import { AdminModule } from './modules/admin/admin.module';
     OfflineModule,
     AdminModule,
   ],
-  controllers: [AppController, AuthController],
-  providers: [AppService, ApiDemoStateRepository, PrismaService],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}
