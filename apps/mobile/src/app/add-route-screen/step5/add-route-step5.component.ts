@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import type { SafetyStatus, Spot } from '@islandhub/domain';
+import { highestStatusFor, estimateDriveMinutes } from '@islandhub/domain';
 import { LibButtonDirective, LibChipComponent, LibStatsDarkChildComponent, LibStatsDarkComponent, LibWizardBodyComponent, LibWizardFooterComponent } from '@islandhub/ui';
 import type { LibChipVariant } from '@islandhub/ui';
 import { AppScreenBase } from '../../screen-base';
@@ -38,11 +39,11 @@ export class AddRouteStep5Component extends AppScreenBase {
     return 90;
   });
 
-  protected readonly totalDriveMinutes = computed(() => this.directDriveMinutes() + this.selectedStops().reduce((sum, spot: Spot) => sum + Math.max(8, Math.round(spot.driveMinutes / 5)), 0));
+  protected readonly totalDriveMinutes = computed(() => this.directDriveMinutes() + this.selectedStops().reduce((sum, spot: Spot) => sum + estimateDriveMinutes(spot.driveMinutes), 0));
 
   protected readonly totalTripMinutes = computed(() => this.totalDriveMinutes() + this.selectedStops().reduce((sum, spot: Spot) => sum + spot.stayMinutes, 0));
 
-  protected readonly highestStatus = computed(() => this.highestStatusFor(this.selectedStops()));
+  protected readonly highestStatus = computed(() => highestStatusFor(this.selectedStops()));
 
   protected get destinationName(): string {
     return this.service.endHotel()?.name ?? this.service.base()?.name ?? 'Destination';
@@ -101,12 +102,6 @@ export class AddRouteStep5Component extends AppScreenBase {
   }
 
   protected extraDriveMinutes(spot: Spot): number {
-    return Math.max(8, Math.round(spot.driveMinutes / 5));
-  }
-
-  private highestStatusFor(spots: Spot[]): SafetyStatus {
-    const order: Record<SafetyStatus, number> = { green: 0, yellow: 1, unknown: 2, red: 3 };
-
-    return spots.reduce<SafetyStatus>((highest, spot) => order[spot.status.status] > order[highest] ? spot.status.status : highest, 'green');
+    return estimateDriveMinutes(spot.driveMinutes);
   }
 }

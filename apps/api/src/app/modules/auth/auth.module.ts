@@ -10,6 +10,7 @@ import { PasswordHasherService } from './password-hasher.service';
 import { RequestContextMiddleware } from './request-context.middleware';
 import { RequestContextService } from './request-context.service';
 import { SocialLoginVerifierService } from './social-login-verifier.service';
+import { TripResolutionInterceptor } from './trip-resolution.interceptor';
 
 @Global()
 @Module({
@@ -21,6 +22,7 @@ import { SocialLoginVerifierService } from './social-login-verifier.service';
     SocialLoginVerifierService,
     RequestContextService,
     RequestContextMiddleware,
+    TripResolutionInterceptor,
     PrismaService,
     AdminGuard,
     {
@@ -28,7 +30,7 @@ import { SocialLoginVerifierService } from './social-login-verifier.service';
       useClass: AppAuthGuard,
     },
   ],
-  exports: [AuthService, AuthTokensService, RequestContextService, AdminGuard],
+  exports: [AuthService, AuthTokensService, RequestContextService, AdminGuard, TripResolutionInterceptor],
 })
 export class AuthModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

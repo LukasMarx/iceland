@@ -1,13 +1,19 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, NotFoundException, Param, Post, Query, Req, UseInterceptors } from '@nestjs/common';
 import { Request } from 'express';
 import { baseUrlFromRequest } from '../../common/image-url';
 import { RequireAuth } from '../auth/require-auth.decorator';
+import { RequestContextService } from '../auth/request-context.service';
+import { TripResolutionInterceptor } from '../auth/trip-resolution.interceptor';
 import { ExploreService } from './explore.service';
 
 @RequireAuth()
 @Controller()
+@UseInterceptors(TripResolutionInterceptor)
 export class ExploreController {
-  constructor(private readonly exploreService: ExploreService) {}
+  constructor(
+    private readonly exploreService: ExploreService,
+    private readonly requestContext: RequestContextService,
+  ) {}
 
   @Get('explore')
   getExplore(
@@ -22,7 +28,8 @@ export class ExploreController {
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
   ) {
-    return this.exploreService.getExplore({ status, category, vehicle, showFRoads, maxDriveMinutes, tripId, date, limit, cursor }, baseUrlFromRequest(req));
+    const resolvedTripId = this.requestContext.getTripId();
+    return this.exploreService.getExplore(resolvedTripId, { status, category, vehicle, showFRoads, maxDriveMinutes, tripId, date, limit, cursor }, baseUrlFromRequest(req));
   }
 
   @Get('spots/:spotId/context')
@@ -32,7 +39,9 @@ export class ExploreController {
     @Query('tripId') tripId?: string,
     @Query('date') date?: string,
   ) {
-    return this.exploreService.getSpotContext(spotId, { tripId, date }, baseUrlFromRequest(req));
+    const resolvedTripId = this.requestContext.getTripId();
+    if (!resolvedTripId) throw new NotFoundException({ code: 'trip_not_found', message: 'No active trip found.' });
+    return this.exploreService.getSpotContext(resolvedTripId, spotId, { tripId, date }, baseUrlFromRequest(req));
   }
 
   @Post('spots/:spotId/status-refresh')
@@ -42,6 +51,8 @@ export class ExploreController {
     @Param('spotId') spotId: string,
     @Body() body: { tripId?: string; date?: string; force?: boolean },
   ) {
-    return this.exploreService.refreshSpotStatus(spotId, body ?? {}, baseUrlFromRequest(req));
+    const resolvedTripId = this.requestContext.getTripId();
+    if (!resolvedTripId) throw new NotFoundException({ code: 'trip_not_found', message: 'No active trip found.' });
+    return this.exploreService.refreshSpotStatus(resolvedTripId, spotId, body ?? {}, baseUrlFromRequest(req));
   }
 }

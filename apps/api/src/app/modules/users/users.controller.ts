@@ -1,15 +1,21 @@
-import { Body, Controller, Get, HttpCode, Patch } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Patch, UnauthorizedException } from '@nestjs/common';
+import { RequestContextService } from '../auth/request-context.service';
 import { RequireAuth } from '../auth/require-auth.decorator';
 import { UsersService } from './users.service';
 
 @RequireAuth()
 @Controller('me')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly requestContext: RequestContextService,
+  ) {}
 
   @Get()
   getMe() {
-    return this.usersService.getMe();
+    const userId = this.requestContext.getUserId();
+    if (!userId) throw new UnauthorizedException('Authentication required');
+    return this.usersService.getMe(userId);
   }
 
   @Patch('preferences')
@@ -24,6 +30,8 @@ export class UsersController {
       safety?: { pushAlertsTomorrowRoute?: boolean; notifyStatusWorsensEnRoute?: boolean };
     },
   ) {
-    return this.usersService.updatePreferences(body);
+    const userId = this.requestContext.getUserId();
+    if (!userId) throw new UnauthorizedException('Authentication required');
+    return this.usersService.updatePreferences(userId, body);
   }
 }

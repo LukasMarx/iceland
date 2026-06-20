@@ -1,6 +1,22 @@
 import type { Spot as PrismaSpot, SpotTranslation, SpotCategory, MediaAsset, SpotStatusSnapshot, StatusSourceTimestamp } from '@prisma/client';
 import { toImageUrl } from './image-url';
 
+/**
+ * Canonical Prisma include for loading a Spot with all relations needed
+ * for mapping. Defined once here and shared by explore, routes, and
+ * saved-spots services.
+ */
+export const SPOT_INCLUDE = {
+  translations: true,
+  categories: true,
+  media: { orderBy: { sortOrder: 'asc' as const } },
+  statusSnapshots: {
+    include: { sourceStamps: true },
+    orderBy: { calculatedAt: 'desc' as const },
+    take: 1,
+  },
+} as const;
+
 export type SpotWithRelations = PrismaSpot & {
   translations: SpotTranslation[];
   categories: (SpotCategory & { category?: { translations: { label: string; locale: string }[] } })[];

@@ -1,21 +1,11 @@
-import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
-import { RequestContextService } from '../auth/request-context.service';
 
 @Injectable()
 export class OnboardingService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly requestContext: RequestContextService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  private getUserId(): string {
-    const id = this.requestContext.getUserId();
-    if (!id) throw new UnauthorizedException('Authentication required');
-    return id;
-  }
-
-  async completeOnboarding(body: {
+  async completeOnboarding(userId: string, body: {
     locale: string;
     planningPhase: 'ideas' | 'fixed_hub' | 'roadtrip';
     dateRange: { startsOn: string; endsOn: string };
@@ -29,7 +19,6 @@ export class OnboardingService {
       throw new BadRequestException('hub is required for fixed_hub planning phase');
     }
 
-    const userId = this.getUserId();
     const startsOn = new Date(body.dateRange.startsOn);
     const endsOn = new Date(body.dateRange.endsOn);
 
