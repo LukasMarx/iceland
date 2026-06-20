@@ -25,7 +25,7 @@ import { randomUUID } from 'node:crypto';
 // ─── Constants from the grilling session ──────────────────────────────────
 
 const RALPH_AGENT = 'ralph';
-const DEFAULT_MODEL = 'opencode-go/deepseek-v4-pro';
+const DEFAULT_MODEL = 'opencode-go/qwen3.7-plus';
 const DEFAULT_MAX_ITERATIONS = 10;
 const MAX_ATTEMPTS_PER_ISSUE = 2; // K=2
 const BRANCH_PREFIX = 'agent/issue-';
@@ -561,29 +561,34 @@ async function runRalphLoop(opts: RunOptions): Promise<number> {
 
     while (attempt < MAX_ATTEMPTS_PER_ISSUE) {
       attempt++;
-      iterationCount++;
 
-      // Claim: branch from main, push (CAS via remote ref).
-      step(`claiming: checkout ${BASE_BRANCH}, create ${branch}`);
-      try {
-        await git.checkout(BASE_BRANCH);
-        await git.pull('origin', BASE_BRANCH, ['--ff-only']);
-        await git.checkoutLocalBranch(branch);
-      } catch (e: any) {
-        log(`error preparing branch: ${e.message}`);
-        return 1;
-      }
+      if (attempt === 1) {
+        iterationCount++;
 
-      try {
-        await git.push('origin', branch, ['-u']);
-      } catch (e: any) {
-        log(`claim race lost on issue #${issue.number} (push rejected). Skipping.`);
-        // Best effort cleanup
+        // Claim: branch from main, push (CAS via remote ref).
+        step(`claiming: checkout ${BASE_BRANCH}, create ${branch}`);
         try {
           await git.checkout(BASE_BRANCH);
-          await git.deleteLocalBranch(branch, true);
-        } catch {}
-        break; // try next issue
+          await git.pull('origin', BASE_BRANCH, ['--ff-only']);
+          await git.checkoutLocalBranch(branch);
+        } catch (e: any) {
+          log(`error preparing branch: ${e.message}`);
+          return 1;
+        }
+
+        try {
+          await git.push('origin', branch, ['-u']);
+        } catch (e: any) {
+          log(`claim race lost on issue #${issue.number} (push rejected). Skipping.`);
+          try {
+            await git.checkout(BASE_BRANCH);
+            await git.deleteLocalBranch(branch, true);
+          } catch {}
+          break;
+        }
+      } else {
+        step(`retry: checkout existing branch ${branch}`);
+        await git.checkout(branch);
       }
 
       // Invoke opencode

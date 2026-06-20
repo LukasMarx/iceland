@@ -44,6 +44,11 @@ A latitude/longitude pair representing a geographic coordinate.
 ### MapPoint
 A GeoPoint projected onto a bounded Iceland canvas, adding canvas coordinates (x, y). Produced by `projectIcelandPoint`.
 
+## Routing
+
+### DrivingPath
+A road-network path between two GeoPoints, carrying an ordered coordinate array (the geometry to draw on the map), a drive-time estimate, a distance, and a warnings list. Distinct from the itinerary **Route** — a DrivingPath is a single origin→destination leg, not a sequence of stops. Multiple DrivingPaths can be stitched together to power a Route's stop-to-stop legs. In the interim, DrivingPaths are computed by an external routing provider (OpenRouteService) behind a swappable `RoutingProvider` adapter; F-road/4WD/closure awareness is deferred to the Valhalla phase and surfaces via the `warnings` field without changing the contract.
+
 ## Locale
 
 ### LocaleCode
