@@ -1,13 +1,25 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Post, Query, Req, UseInterceptors } from '@nestjs/common';
 import { Request } from 'express';
 import { baseUrlFromRequest } from '../../common/image-url';
 import { RequireAuth } from '../auth/require-auth.decorator';
+import { RequestContextService } from '../auth/request-context.service';
+import { TripResolutionInterceptor } from '../auth/trip-resolution.interceptor';
 import { SavedSpotsService } from './saved-spots.service';
 
 @RequireAuth()
 @Controller('saved-spots')
+@UseInterceptors(TripResolutionInterceptor)
 export class SavedSpotsController {
-  constructor(private readonly savedSpotsService: SavedSpotsService) {}
+  constructor(
+    private readonly savedSpotsService: SavedSpotsService,
+    private readonly requestContext: RequestContextService,
+  ) {}
+
+  private requireTripId(): string {
+    const tripId = this.requestContext.getTripId();
+    if (!tripId) throw new NotFoundException({ code: 'trip_not_found', message: 'No active trip found.' });
+    return tripId;
+  }
 
   @Get()
   getSavedSpots(
@@ -16,7 +28,7 @@ export class SavedSpotsController {
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
   ) {
-    return this.savedSpotsService.getSavedSpots({ tripId, limit, cursor }, baseUrlFromRequest(req));
+    return this.savedSpotsService.getSavedSpots(this.requireTripId(), { tripId, limit, cursor }, baseUrlFromRequest(req));
   }
 
   @Post()
@@ -25,7 +37,7 @@ export class SavedSpotsController {
     @Req() req: Request,
     @Body() body: { spotId: string; tripId?: string },
   ) {
-    return this.savedSpotsService.saveSpot(body, baseUrlFromRequest(req));
+    return this.savedSpotsService.saveSpot(this.requireTripId(), body, baseUrlFromRequest(req));
   }
 
   @Delete(':spotId')
@@ -33,6 +45,6 @@ export class SavedSpotsController {
     @Param('spotId') spotId: string,
     @Query('tripId') tripId?: string,
   ) {
-    return this.savedSpotsService.unsaveSpot(spotId, { tripId });
+    return this.savedSpotsService.unsaveSpot(this.requireTripId(), spotId, { tripId });
   }
 }

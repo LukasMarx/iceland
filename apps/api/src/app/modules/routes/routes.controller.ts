@@ -4,27 +4,41 @@ import {
   Delete,
   Get,
   HttpCode,
+  NotFoundException,
   Param,
   Patch,
   Post,
   Query,
   Req,
+  UseInterceptors,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { baseUrlFromRequest } from '../../common/image-url';
 import { RequireAuth } from '../auth/require-auth.decorator';
+import { RequestContextService } from '../auth/request-context.service';
+import { TripResolutionInterceptor } from '../auth/trip-resolution.interceptor';
 import { RoutesService } from './routes.service';
 
 @RequireAuth()
 @Controller()
+@UseInterceptors(TripResolutionInterceptor)
 export class RoutesController {
-  constructor(private readonly routesService: RoutesService) {}
+  constructor(
+    private readonly routesService: RoutesService,
+    private readonly requestContext: RequestContextService,
+  ) {}
+
+  private requireTripId(): string {
+    const tripId = this.requestContext.getTripId();
+    if (!tripId) throw new NotFoundException({ code: 'trip_not_found', message: 'No active trip found.' });
+    return tripId;
+  }
 
   // ─── Today ─────────────────────────────────────────────────────────────────
 
   @Get('today')
   getToday(@Query('tripId') tripId?: string, @Query('date') date?: string) {
-    return this.routesService.getToday({ tripId, date });
+    return this.routesService.getToday(this.requireTripId(), { tripId, date });
   }
 
   @Post('routes/today')
@@ -41,7 +55,7 @@ export class RoutesController {
       expectedVersion?: number;
     },
   ) {
-    return this.routesService.createTodayRoute(body);
+    return this.routesService.createTodayRoute(this.requireTripId(), body);
   }
 
   @Post('routes/today/stops')
@@ -57,7 +71,7 @@ export class RoutesController {
       expectedVersion?: number;
     },
   ) {
-    return this.routesService.addTodayStop(body);
+    return this.routesService.addTodayStop(this.requireTripId(), body);
   }
 
   @Post('routes/today/insert-preview')
@@ -66,7 +80,7 @@ export class RoutesController {
     @Req() req: Request,
     @Body() body: { spotId: string; tripId?: string; date?: string; positionMode?: string },
   ) {
-    return this.routesService.insertPreview(body, baseUrlFromRequest(req));
+    return this.routesService.insertPreview(this.requireTripId(), body, baseUrlFromRequest(req));
   }
 
   @Patch('routes/today/stops/:stopId/done')
@@ -81,7 +95,7 @@ export class RoutesController {
       expectedVersion?: number;
     },
   ) {
-    return this.routesService.markStopDone(stopId, body ?? {});
+    return this.routesService.markStopDone(this.requireTripId(), stopId, body ?? {});
   }
 
   // ─── Suggestions ───────────────────────────────────────────────────────────
@@ -94,7 +108,7 @@ export class RoutesController {
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
   ) {
-    return this.routesService.getRouteSuggestions({ tripId, date, limit, cursor }, baseUrlFromRequest(req));
+    return this.routesService.getRouteSuggestions(this.requireTripId(), { tripId, date, limit, cursor }, baseUrlFromRequest(req));
   }
 
   @Post('routes/suggestions/start')
@@ -109,7 +123,7 @@ export class RoutesController {
       expectedVersion?: number;
     },
   ) {
-    return this.routesService.startSuggestedRoute(body);
+    return this.routesService.startSuggestedRoute(this.requireTripId(), body);
   }
 
   // ─── Route CRUD ────────────────────────────────────────────────────────────
@@ -131,7 +145,7 @@ export class RoutesController {
       replaceExistingToday?: boolean;
     },
   ) {
-    return this.routesService.createRoute(body);
+    return this.routesService.createRoute(this.requireTripId(), body);
   }
 
   @Patch('routes/:routeId')
@@ -195,6 +209,6 @@ export class RoutesController {
       maxCandidates?: number;
     },
   ) {
-    return this.routesService.routePreview(body, baseUrlFromRequest(req));
+    return this.routesService.routePreview(this.requireTripId(), body, baseUrlFromRequest(req));
   }
 }

@@ -5,7 +5,6 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { PrismaService } from '../../prisma.service';
 import { AuthTokensService } from './auth-tokens.service';
 import { REQUIRE_AUTH_KEY } from './require-auth.decorator';
 import { RequestContextService } from './request-context.service';
@@ -16,7 +15,6 @@ export class AppAuthGuard implements CanActivate {
     private readonly reflector: Reflector,
     private readonly authTokens: AuthTokensService,
     private readonly requestContext: RequestContextService,
-    private readonly prisma: PrismaService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -41,17 +39,10 @@ export class AppAuthGuard implements CanActivate {
     }
 
     const user = await this.authTokens.verifyAccessToken(token);
-    const activeTrip = await this.prisma.trip.findFirst({
-      where: { ownerId: user.userId, archivedAt: null },
-      orderBy: { createdAt: 'desc' },
-      select: { id: true, activeHubId: true },
-    });
 
-    this.requestContext.setAuthState({
-      user,
-      activeTripId: activeTrip?.id,
-      activeHubId: activeTrip?.activeHubId,
-    });
+    // AuthGuard only authenticates the JWT. Trip resolution is handled
+    // separately by TripResolutionMiddleware for routes that need it.
+    this.requestContext.setAuthState({ user });
 
     return true;
   }
