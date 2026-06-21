@@ -18,11 +18,11 @@
     <div class="lib-autocomplete__dropdown">
       @if (loading()) {
         <div class="lib-autocomplete__status">Loading…</div>
-      } @else if (items().length === 0) {
+      } @else if (query() && filteredItems().length === 0) {
         <div class="lib-autocomplete__status">{{ noResultsText() }}</div>
       } @else {
         <div class="lib-autocomplete__list" role="listbox">
-          @for (item of items(); track $index; let i = $index) {
+          @for (item of filteredItems(); track $index; let i = $index) {
             <button
               type="button"
               class="lib-autocomplete__option"
