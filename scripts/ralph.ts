@@ -35,7 +35,7 @@ const REVIEW_FIX_CAP = 2;
 const TOTAL_ROUND_CAP = 10;
 const INFRA_RETRY_MAX = 3;
 const INFRA_RETRY_BACKOFF_MS = 5_000;
-const IMPL_TIMEOUT_MS = 30 * 60 * 1000;
+const IMPL_TIMEOUT_MS = 45 * 60 * 1000;
 const FIX_TIMEOUT_MS = 20 * 60 * 1000;
 const REVIEW_TIMEOUT_MS = 15 * 60 * 1000;
 const BRANCH_PREFIX = 'agent/issue-';
@@ -674,8 +674,8 @@ function buildOpencodeArgs(
 ): string[] {
   const args: string[] = ['run', '--agent', opts.agent, '--model', opts.model, '--format', 'json'];
   if (opts.sessionId) args.push('--session', opts.sessionId);
-  if (opts.issueBodyFile) args.push('--file', opts.issueBodyFile);
   args.push(opts.prompt);
+  if (opts.issueBodyFile) args.push('--file', opts.issueBodyFile);
   return args;
 }
 
@@ -1057,6 +1057,12 @@ async function runRalphLoop(opts: RunOptions): Promise<number> {
         if (state.phase === 'implementation' || state.phase === 'gate-fix' || state.phase === 'review-fix') {
           const result = await runImprovementRound({ issue, branch, state, model: opts.model, issueBodyFile, git });
           totalRoundCount++;
+          
+          if (result.crashed) {
+            log(`round crashed: exit code ${result.exitCode}`);
+            if (result.stderr) log(`stderr: ${result.stderr.slice(0, 500)}`);
+          }
+          
           state = nextAttemptState(state, result);
 
           if (state.phase === 'abandon') break;
