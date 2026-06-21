@@ -883,7 +883,7 @@ model OfficialWeatherSnapshot {
   @@map("official_weather_snapshots")
 }
 
-model RoutingLegCache {
+model DrivingPathCache {
   id                  String                                     @id @default(uuid()) @db.Uuid
   cacheKey            String                                     @unique
   provider            String                                     @default("valhalla")
@@ -912,7 +912,7 @@ model RoutingLegCache {
   @@index([originLocation], type: Gist)
   @@index([destinationLocation], type: Gist)
   @@index([routeGeometry], type: Gist)
-  @@map("routing_leg_cache")
+  @@map("driving_path_cache")
 }
 
 model IsochroneCache {

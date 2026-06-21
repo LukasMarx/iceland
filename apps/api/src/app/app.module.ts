@@ -13,6 +13,7 @@ import { TripsModule } from './modules/trips/trips.module';
 import { PlacesModule } from './modules/places/places.module';
 import { OfflineModule } from './modules/offline/offline.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { DrivingPathModule } from './modules/driving-path/driving-path.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { AdminModule } from './modules/admin/admin.module';
     PlacesModule,
     OfflineModule,
     AdminModule,
+    DrivingPathModule,
   ],
   controllers: [AppController],
   providers: [AppService],

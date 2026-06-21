@@ -493,6 +493,29 @@ function isSafetyStatus(value: string): value is SafetyStatus {
   return value === 'green' || value === 'yellow' || value === 'red' || value === 'unknown';
 }
 
+// ── driving path ───────────────────────────────────────────
+
+export interface DrivingPathRequest {
+  start: GeoPoint;
+  end: GeoPoint;
+  vehicle?: VehicleProfile;
+  startRef?: { kind: 'hub' | 'spot' | 'custom'; refId?: string };
+  endRef?: { kind: 'hub' | 'spot' | 'custom'; refId?: string };
+}
+
+export interface DrivingPathWarning {
+  type: string;
+  message: string;
+  details?: Record<string, unknown>;
+}
+
+export interface DrivingPathResponse {
+  coordinates: [number, number][];
+  driveMinutes: number;
+  distanceKm: number;
+  warnings: DrivingPathWarning[];
+}
+
 // ── admin ──────────────────────────────────────────────────
 
 export interface AdminSpotListItem {
