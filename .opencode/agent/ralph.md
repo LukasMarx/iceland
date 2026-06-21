@@ -50,14 +50,14 @@ npx nx run-many -t lint,test,build --projects=domain,api
 The ralph script runs a **full-scope** gate after you exit:
 
 ```powershell
-npx nx run-many -t lint,test,build --projects=mobile,admin,api,domain,api-contracts,map,i18n,ui,mobile-e2e,api-e2e
+npx nx run-many -t lint,test,build --projects=mobile,admin,api,domain,api-contracts,map,i18n,ui
 ```
 
 You do not need to run the full gate yourself — but if your affected-scoped loops are green, the full gate should be too. If you suspect cross-project impact, run the full gate before pushing.
 
-**No standalone `typecheck` target exists.** `build` is the type-check proxy — it runs `tsc` internally. If a type error appears, fix it; don't suppress it.
+**E2E (Playwright) is not part of the gate.** It's a human-review concern.
 
-**E2E (Playwright) is not part of your feedback loops.** It's too slow. Leave it for human review.
+**No standalone `typecheck` target exists.** `build` is the type-check proxy — it runs `tsc` internally. If a type error appears, fix it; don't suppress it.
 
 ## Commits
 
@@ -86,10 +86,19 @@ Commit body (optional): explain *why*, not *what*. Note any decisions you made w
 
 ## When you're done
 
-Your iteration is complete when:
-1. The issue is implemented.
+Your round is complete when:
+1. The issue is implemented (or the feedback is addressed).
 2. `npx nx run-many -t lint,test,build --affected` is green (or the full gate if you suspected cross-project impact).
 3. You've committed with a conventional-commit message.
 4. You've pushed to `origin/agent/issue-<N>` (the branch the script checked out for you).
 
 Then stop. Output a one-line summary of what you did. The script takes it from here.
+
+## Round-based flow
+
+Your work is part of a round-based state machine. After you finish:
+1. The script runs a **verification gate** (lint + test + build across all projects). If it fails, you'll receive structured feedback about which projects/targets failed and get another round to fix them.
+2. If the gate passes, a **separate reviewer agent** inspects your diff against the issue spec. If it finds issues, you'll receive a numbered list of findings and get another round to address them.
+3. After every review-fix, the gate and review both re-run. This strict cycling ensures quality.
+
+You may receive multiple fix rounds. Each round, you'll get structured feedback — either gate output (which projects failed) or review findings (numbered list of issues). Address the feedback, commit, and push. The session resumes where you left off.

@@ -3,8 +3,10 @@
 //
 // Ralph loop — autonomous AFK agent driver for opencode.
 // Reads `ready-for-agent` GitHub issues, picks one per iteration,
-// invokes `opencode run --agent ralph` against it, gates the result
-// with full-scope lint+test+build, and opens a PR per issue.
+// invokes `opencode run --agent ralph` against it in a round-based
+// state machine: Implementation → Gate-fix loop (G=3) → Code-review
+// → Review-fix loop (R=2), with strict gate↔review cycling.
+// Total rounds capped at T=10. Opens a PR per issue on review sign-off.
 //
 // Usage:
 //   npx tsx scripts/ralph.ts run [--max-iterations 10] [--max-minutes N] [--model <m>] [--dry-run]
@@ -18,19 +20,27 @@ import simpleGit, { SimpleGit } from 'simple-git';
 import { parseArgs } from 'node:util';
 import { writeFile, rm, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 
 // ─── Constants from the grilling session ──────────────────────────────────
 
 const RALPH_AGENT = 'ralph';
+const REVIEWER_AGENT = 'ralph-reviewer';
 const DEFAULT_MODEL = 'opencode-go/qwen3.7-plus';
 const DEFAULT_MAX_ITERATIONS = 10;
-const MAX_ATTEMPTS_PER_ISSUE = 2; // K=2
+const GATE_FIX_CAP = 3;
+const REVIEW_FIX_CAP = 2;
+const TOTAL_ROUND_CAP = 10;
+const INFRA_RETRY_MAX = 3;
+const INFRA_RETRY_BACKOFF_MS = 5_000;
+const IMPL_TIMEOUT_MS = 30 * 60 * 1000;
+const FIX_TIMEOUT_MS = 20 * 60 * 1000;
+const REVIEW_TIMEOUT_MS = 15 * 60 * 1000;
 const BRANCH_PREFIX = 'agent/issue-';
 const READY_LABEL = 'ready-for-agent';
-const PRD_LABEL = 'prd'; // umbrella/tracking issues — never picked up by the loop
+const PRD_LABEL = 'prd';
 const REVIEW_LABEL = 'ready-for-human';
 const FULL_GATE_TARGETS = ['lint', 'test', 'build'];
 const FULL_GATE_PROJECTS = [
@@ -38,9 +48,10 @@ const FULL_GATE_PROJECTS = [
   'admin',
   'api',
   'domain',
+  'api-contracts',
+  'map',
+  'i18n',
   'ui',
-  'mobile-e2e',
-  'api-e2e',
 ];
 const BASE_BRANCH = 'main';
 
@@ -49,8 +60,6 @@ const stopReasonMessages: Record<string, string> = {
   S2: 'Waiting on review — all remaining issues are blocked by unmerged PRs.',
   S3: 'Permanently stuck this run — remaining issues are blocked by non-agent issues.',
   S4: 'Cap reached — pickable issues remain. Re-run to continue.',
-  'S-F3':
-    'Infra failure (git push / gh pr create failed). Aborting loop to avoid burning tokens.',
 };
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -81,6 +90,60 @@ interface IterationResult {
   sessionId: string | null;
   transcript: string;
 }
+
+type RoundType = 'implementation' | 'gate-fix' | 'review-fix';
+type RoundOutcome = 'crash' | 'no-commits' | 'gate-fail' | 'gate-pass' | 'review-findings' | 'review-clean';
+
+interface RoundLogEntry {
+  type: RoundType | 'gate' | 'code-review';
+  outcome: RoundOutcome;
+  note: string;
+}
+
+interface AttemptState {
+  phase:
+    | 'implementation'
+    | 'gate'
+    | 'gate-fix'
+    | 'code-review'
+    | 'review-fix'
+    | 'open-pr'
+    | 'abandon';
+  sessionId: string | null;
+  gateFixUsed: number;
+  reviewFixUsed: number;
+  totalRounds: number;
+  roundLog: RoundLogEntry[];
+  usedFallback: boolean;
+  gateFeedback: string | null;
+  reviewFindings: string | null;
+  abandonReason: string | null;
+}
+
+interface ImprovementRoundResult {
+  newCommits: boolean;
+  crashed: boolean;
+  sessionId: string | null;
+  usedFallback: boolean;
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+}
+
+interface ReviewRoundResult {
+  clean: boolean;
+  findings: string | null;
+  crashed: boolean;
+  output: string;
+}
+
+interface GateFailureStructure {
+  failedProjects: { project: string; targets: string[] }[];
+  summary: string;
+  fullOutput: string;
+}
+
+type CmdRunner = (cmd: string, args: string[], opts?: { cwd?: string; timeout?: number; inheritStdio?: boolean }) => IterationResult;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -318,16 +381,6 @@ function buildIterationPrompt(issueNumber: number, branch: string): string {
   );
 }
 
-function buildRetryFeedback(gateOutput: string, issueNumber: number): string {
-  return `The verification gate failed with:
-
-\`\`\`
-${gateOutput.slice(-4000)}
-\`\`\`
-
-Fix these issues, commit, and push to \`origin/${BRANCH_PREFIX}${issueNumber}\`.`;
-}
-
 function buildCrashRetryFeedback(exitCode: number, issueNumber: number): string {
   return `Your previous attempt exited unexpectedly (exit code ${exitCode}). Continue implementing issue #${issueNumber}. You are on branch \`${BRANCH_PREFIX}${issueNumber}\`.`;
 }
@@ -336,7 +389,7 @@ function buildNoCommitRetryFeedback(issueNumber: number): string {
   return `You made no commits in your previous attempt. Implement issue #${issueNumber}, run feedback loops, commit, and push to \`origin/${BRANCH_PREFIX}${issueNumber}\`.`;
 }
 
-function parseSessionIdFromTranscript(transcript: string): string | null {
+export function parseSessionIdFromTranscript(transcript: string): string | null {
   for (const line of transcript.split('\n')) {
     const trimmed = line.trim();
     if (!trimmed || !trimmed.startsWith('{')) continue;
@@ -350,6 +403,243 @@ function parseSessionIdFromTranscript(transcript: string): string | null {
   return null;
 }
 
+export function parseReviewToken(output: string): { clean: boolean; findings: string | null } {
+  const trimmed = output.trimEnd();
+  const findingsMatch = trimmed.match(/REVIEW_FINDINGS:\s*\n?([\s\S]*)$/);
+  if (findingsMatch && trimmed.includes('REVIEW_FINDINGS:')) {
+    return { clean: false, findings: findingsMatch[1].trim() || '' };
+  }
+  if (trimmed.endsWith('REVIEW_CLEAN')) {
+    return { clean: true, findings: null };
+  }
+  return { clean: false, findings: null };
+}
+
+export function structureGateFailure(output: string): GateFailureStructure {
+  const failedProjects: { project: string; targets: string[] }[] = [];
+  const projectTargetRegex = /> NX\s+(?:Running|Executing).*?(\w+):(\w+)/g;
+  const failRegex = /Failed.*?(\w+):(\w+)/g;
+  const seen = new Map<string, Set<string>>();
+
+  for (const m of output.matchAll(failRegex)) {
+    const project = m[1];
+    const target = m[2];
+    if (!seen.has(project)) seen.set(project, new Set());
+    seen.get(project)!.add(target);
+  }
+
+  if (seen.size === 0) {
+    const nxErrorRegex = /(\w+):(\w+)\s.*failed/gi;
+    for (const m of output.matchAll(nxErrorRegex)) {
+      const project = m[1];
+      const target = m[2];
+      if (!seen.has(project)) seen.set(project, new Set());
+      seen.get(project)!.add(target);
+    }
+  }
+
+  for (const [project, targets] of seen) {
+    failedProjects.push({ project, targets: [...targets] });
+  }
+
+  const summary = failedProjects.length > 0
+    ? failedProjects.map(fp => `${fp.project}: ${fp.targets.join(', ')}`).join('\n')
+    : 'Unknown failures — see full output below.';
+
+  return { failedProjects, summary, fullOutput: output };
+}
+
+export function buildRoundLog(log: RoundLogEntry[]): string {
+  if (log.length === 0) return '(no prior rounds)';
+  return log.map((e, i) => `  Round ${i + 1} [${e.type}]: ${e.outcome} — ${e.note}`).join('\n');
+}
+
+export function buildGateFixFeedback(structured: GateFailureStructure, issueNumber: number): string {
+  return `The verification gate failed. The following projects/targets need fixing:
+
+${structured.summary}
+
+Fix these issues, commit, and push to \`origin/${BRANCH_PREFIX}${issueNumber}\`.
+
+<details><summary>Full gate output</summary>
+
+\`\`\`
+${structured.fullOutput.slice(-4000)}
+\`\`\`
+
+</details>`;
+}
+
+export function buildReviewFixFeedback(findings: string, issueNumber: number): string {
+  return `Code review found the following issues:
+
+${findings}
+
+Address each finding, commit, and push to \`origin/${BRANCH_PREFIX}${issueNumber}\`.
+After your fix, the gate and review will both re-run.`;
+}
+
+export function buildFallbackFeedback(
+  issueNumber: number,
+  branch: string,
+  diff: string,
+  roundLog: RoundLogEntry[],
+  currentFeedback: string,
+): string {
+  return `Your previous session could not be resumed. You are being cold-started with context.
+
+You are on branch \`${branch}\` working on issue #${issueNumber}.
+
+## Current task
+${currentFeedback}
+
+## Diff from main (your progress so far)
+\`\`\`diff
+${diff.slice(-8000)}
+\`\`\`
+
+## Prior rounds
+${buildRoundLog(roundLog)}
+
+Continue from where the previous rounds left off. Commit and push to \`origin/${branch}\`.`;
+}
+
+export function createInitialState(): AttemptState {
+  return {
+    phase: 'implementation',
+    sessionId: null,
+    gateFixUsed: 0,
+    reviewFixUsed: 0,
+    totalRounds: 0,
+    roundLog: [],
+    usedFallback: false,
+    gateFeedback: null,
+    reviewFindings: null,
+    abandonReason: null,
+  };
+}
+
+export function nextAttemptState(
+  current: AttemptState,
+  result: ImprovementRoundResult | ReviewRoundResult,
+  gateOutput?: IterationResult,
+): AttemptState {
+  const s: AttemptState = {
+    ...current,
+    roundLog: [...current.roundLog],
+  };
+
+  if ('clean' in result) {
+    if (result.crashed) {
+      s.roundLog.push({ type: 'code-review', outcome: 'review-findings', note: 'reviewer crashed' });
+      s.phase = 'code-review';
+      return s;
+    }
+    if (result.clean) {
+      s.roundLog.push({ type: 'code-review', outcome: 'review-clean', note: 'review passed' });
+      s.phase = 'open-pr';
+      s.reviewFindings = null;
+      return s;
+    }
+    s.reviewFixUsed++;
+    s.roundLog.push({ type: 'code-review', outcome: 'review-findings', note: 'review found issues' });
+    s.reviewFindings = result.findings;
+    if (s.reviewFixUsed > REVIEW_FIX_CAP) {
+      s.phase = 'abandon';
+      s.abandonReason = `Review-fix cap hit (${REVIEW_FIX_CAP})`;
+      return s;
+    }
+    if (s.totalRounds >= TOTAL_ROUND_CAP) {
+      s.phase = 'abandon';
+      s.abandonReason = `Total round cap hit (${TOTAL_ROUND_CAP})`;
+      return s;
+    }
+    s.phase = 'review-fix';
+    s.usedFallback = false;
+    return s;
+  }
+
+  if (result.crashed || !result.newCommits) {
+    s.totalRounds++;
+    const outcome = result.crashed ? 'crash' : 'no-commits';
+    const note = result.crashed
+      ? `exited with code ${result.exitCode}`
+      : 'no new commits produced';
+    s.roundLog.push({ type: current.phase as RoundType, outcome, note });
+    s.sessionId = result.sessionId ?? s.sessionId;
+
+    if (current.usedFallback) {
+      s.phase = 'abandon';
+      s.abandonReason = `Double failure: ${outcome} on fallback round`;
+      return s;
+    }
+    if (s.totalRounds >= TOTAL_ROUND_CAP) {
+      s.phase = 'abandon';
+      s.abandonReason = `Total round cap hit (${TOTAL_ROUND_CAP})`;
+      return s;
+    }
+    s.usedFallback = true;
+    return s;
+  }
+
+  s.totalRounds++;
+  s.usedFallback = false;
+  s.sessionId = result.sessionId ?? s.sessionId;
+  s.roundLog.push({ type: current.phase as RoundType, outcome: 'gate-pass', note: 'new commits pushed' });
+
+  if (s.totalRounds >= TOTAL_ROUND_CAP) {
+    s.phase = 'abandon';
+    s.abandonReason = `Total round cap hit (${TOTAL_ROUND_CAP})`;
+    return s;
+  }
+
+  if (current.phase === 'review-fix') {
+    s.phase = 'gate';
+    s.gateFeedback = null;
+    return s;
+  }
+
+  if (current.phase === 'implementation' || current.phase === 'gate-fix') {
+    s.phase = 'gate';
+    s.gateFeedback = null;
+    return s;
+  }
+
+  return s;
+}
+
+export function nextAfterGate(current: AttemptState, gateResult: IterationResult): AttemptState {
+  const s: AttemptState = {
+    ...current,
+    roundLog: [...current.roundLog],
+  };
+
+  if (gateResult.exitCode === 0) {
+    s.roundLog.push({ type: 'gate', outcome: 'gate-pass', note: 'gate passed' });
+    s.phase = 'code-review';
+    s.gateFeedback = null;
+    return s;
+  }
+
+  s.gateFixUsed++;
+  s.roundLog.push({ type: 'gate', outcome: 'gate-fail', note: 'gate failed' });
+  s.gateFeedback = gateResult.stdout + '\n' + gateResult.stderr;
+
+  if (s.gateFixUsed > GATE_FIX_CAP) {
+    s.phase = 'abandon';
+    s.abandonReason = `Gate-fix cap hit (${GATE_FIX_CAP})`;
+    return s;
+  }
+  if (s.totalRounds >= TOTAL_ROUND_CAP) {
+    s.phase = 'abandon';
+    s.abandonReason = `Total round cap hit (${TOTAL_ROUND_CAP})`;
+    return s;
+  }
+  s.phase = 'gate-fix';
+  s.usedFallback = false;
+  return s;
+}
+
 async function writeIssueBodyTemp(issue: PickableIssue): Promise<string> {
   const dir = join(tmpdir(), 'ralph');
   if (!existsSync(dir)) await mkdir(dir, { recursive: true });
@@ -360,31 +650,33 @@ async function writeIssueBodyTemp(issue: PickableIssue): Promise<string> {
 }
 
 async function invokeOpencode(
-  issue: PickableIssue,
-  branch: string,
-  attempt: number,
-  sessionId: string | null,
-  model: string,
-  issueBodyFile: string | null,
-  retryFeedback: string | null,
+  args: string[],
+  timeout: number,
+  label: string,
 ): Promise<IterationResult> {
-  const args: string[] = ['run', '--agent', RALPH_AGENT, '--model', model, '--format', 'json'];
-
-  if (attempt === 1) {
-    args.push(buildIterationPrompt(issue.number, branch));
-    if (issueBodyFile) args.push('--file', issueBodyFile);
-  } else {
-    if (sessionId) args.push('--session', sessionId);
-    args.push(retryFeedback ?? buildCrashRetryFeedback(1, issue.number));
-  }
-
-  step(`opencode run (attempt ${attempt}) for issue #${issue.number}`);
-  const r = await runCmd('opencode', args, { timeout: 30 * 60 * 1000, inheritStdio: true }); // 30min per invocation
+  step(`opencode run: ${label}`);
+  const r = runCmd('opencode', args, { timeout });
   const sessionIdFromTranscript = parseSessionIdFromTranscript(r.transcript);
   return {
     ...r,
-    sessionId: sessionIdFromTranscript ?? sessionId,
+    sessionId: sessionIdFromTranscript,
   };
+}
+
+function buildOpencodeArgs(
+  opts: {
+    agent: string;
+    model: string;
+    prompt: string;
+    sessionId?: string | null;
+    issueBodyFile?: string | null;
+  },
+): string[] {
+  const args: string[] = ['run', '--agent', opts.agent, '--model', opts.model, '--format', 'json'];
+  if (opts.sessionId) args.push('--session', opts.sessionId);
+  if (opts.issueBodyFile) args.push('--file', opts.issueBodyFile);
+  args.push(opts.prompt);
+  return args;
 }
 
 async function runGate(): Promise<IterationResult> {
@@ -467,21 +759,23 @@ async function deleteRemoteBranch(branch: string, git: SimpleGit): Promise<void>
 async function abandon(
   issue: PickableIssue,
   reason: string,
-  logExcerpt: string,
+  state: AttemptState,
 ): Promise<void> {
   step(`abandoning issue #${issue.number}: ${reason}`);
   const branch = `${BRANCH_PREFIX}${issue.number}`;
-  const commentBody = `Ralph could not complete this issue after ${MAX_ATTEMPTS_PER_ISSUE} attempts.
+  const roundSummary = state.roundLog.map((e, i) =>
+    `  Round ${i + 1} [${e.type}]: ${e.outcome} — ${e.note}`,
+  ).join('\n');
+  const commentBody = `Ralph could not complete this issue after ${state.totalRounds} rounds.
 
 **Reason:** ${reason}
 
-<details><summary>Log excerpt</summary>
-
+**Round log:**
 \`\`\`
-${logExcerpt.slice(-4000)}
+${roundSummary || '(no rounds completed)'}
 \`\`\`
 
-</details>
+**Caps:** gate-fix ${state.gateFixUsed}/${GATE_FIX_CAP}, review-fix ${state.reviewFixUsed}/${REVIEW_FIX_CAP}, total ${state.totalRounds}/${TOTAL_ROUND_CAP}
 
 The issue has been moved to \`${REVIEW_LABEL}\` for human inspection. The partial branch \`${branch}\` has been preserved for review.`;
 
@@ -508,6 +802,161 @@ async function cleanupBetweenIterations(git: SimpleGit, issueNumber: number): Pr
   }
 }
 
+// ─── Round runners ────────────────────────────────────────────────────────
+
+async function getDiffFromMain(branch: string): Promise<string> {
+  const r = runCmd('git', ['diff', `${BASE_BRANCH}...${branch}`]);
+  return r.stdout;
+}
+
+async function getCommitCount(branch: string, git: SimpleGit): Promise<number> {
+  try {
+    const log = await git.log({ from: `origin/${BASE_BRANCH}`, to: branch });
+    return log.total;
+  } catch {
+    return 0;
+  }
+}
+
+async function runImprovementRound(opts: {
+  issue: PickableIssue;
+  branch: string;
+  state: AttemptState;
+  model: string;
+  issueBodyFile: string;
+  git: SimpleGit;
+}): Promise<ImprovementRoundResult> {
+  const { issue, branch, state, model, issueBodyFile, git } = opts;
+  const isImplementation = state.phase === 'implementation';
+  const timeout = isImplementation ? IMPL_TIMEOUT_MS : FIX_TIMEOUT_MS;
+
+  let prompt: string;
+  let sessionId: string | null = null;
+  let usedFallback = false;
+
+  if (isImplementation) {
+    prompt = buildIterationPrompt(issue.number, branch);
+  } else if (!state.usedFallback && state.sessionId) {
+    sessionId = state.sessionId;
+    const feedback = state.gateFeedback
+      ? buildGateFixFeedback(structureGateFailure(state.gateFeedback), issue.number)
+      : state.reviewFindings
+        ? buildReviewFixFeedback(state.reviewFindings, issue.number)
+        : buildCrashRetryFeedback(1, issue.number);
+    prompt = feedback;
+  } else {
+    usedFallback = true;
+    const diff = await getDiffFromMain(branch);
+    const feedback = state.gateFeedback
+      ? buildGateFixFeedback(structureGateFailure(state.gateFeedback), issue.number)
+      : state.reviewFindings
+        ? buildReviewFixFeedback(state.reviewFindings, issue.number)
+        : buildNoCommitRetryFeedback(issue.number);
+    prompt = buildFallbackFeedback(issue.number, branch, diff, state.roundLog, feedback);
+  }
+
+  const args = buildOpencodeArgs({
+    agent: RALPH_AGENT,
+    model,
+    prompt,
+    sessionId,
+    issueBodyFile: isImplementation || usedFallback ? issueBodyFile : null,
+  });
+
+  const commitsBefore = await getCommitCount(branch, git);
+  const result = await invokeOpencode(args, timeout, `${state.phase} round for #${issue.number}`);
+
+  if (result.exitCode !== 0) {
+    return { newCommits: false, crashed: true, sessionId: result.sessionId, usedFallback, exitCode: result.exitCode, stdout: result.stdout, stderr: result.stderr };
+  }
+
+  const commitsAfter = await getCommitCount(branch, git);
+  return { newCommits: commitsAfter > commitsBefore, crashed: false, sessionId: result.sessionId, usedFallback, exitCode: 0, stdout: result.stdout, stderr: result.stderr };
+}
+
+async function runReviewRound(opts: {
+  issue: PickableIssue;
+  branch: string;
+  model: string;
+  issueBodyFile: string;
+}): Promise<ReviewRoundResult> {
+  const { issue, branch, model, issueBodyFile } = opts;
+  const diff = await getDiffFromMain(branch);
+
+  const diffFile = join(tmpdir(), 'ralph', `diff-${issue.number}-${randomUUID()}.txt`);
+  const dir = join(tmpdir(), 'ralph');
+  if (!existsSync(dir)) await mkdir(dir, { recursive: true });
+  await writeFile(diffFile, diff, 'utf8');
+
+  const prompt = `Review the code changes on branch \`${branch}\` for issue #${issue.number}.
+
+The issue body is attached. The diff from \`${BASE_BRANCH}\` is attached.
+
+Review criteria:
+1. Does the implementation satisfy the issue spec?
+2. Are edge cases handled?
+3. Is type safety maintained (no \`any\`, no \`@ts-ignore\`)?
+4. Are tests present where appropriate?
+5. Do the changes follow patterns in neighboring files?
+
+Your final message MUST end with exactly one of these tokens:
+- \`REVIEW_CLEAN\` — if no actionable issues found
+- \`REVIEW_FINDINGS:\` followed by a numbered list of concrete, fixable findings
+
+Do not say anything after the token and findings list.`;
+
+  const args = buildOpencodeArgs({
+    agent: REVIEWER_AGENT,
+    model,
+    prompt,
+    issueBodyFile,
+  });
+  args.push('--file', diffFile);
+
+  const result = await invokeOpencode(args, REVIEW_TIMEOUT_MS, `code-review for #${issue.number}`);
+  await rm(diffFile, { force: true }).catch(() => {});
+
+  if (result.exitCode !== 0) {
+    return { clean: false, findings: null, crashed: true, output: result.stdout };
+  }
+
+  const parsed = parseReviewToken(result.stdout);
+  return { clean: parsed.clean, findings: parsed.findings, crashed: false, output: result.stdout };
+}
+
+async function pushWithRetry(git: SimpleGit, branch: string): Promise<boolean> {
+  for (let i = 0; i < INFRA_RETRY_MAX; i++) {
+    try {
+      await git.push('origin', branch);
+      return true;
+    } catch (e: any) {
+      log(`push attempt ${i + 1}/${INFRA_RETRY_MAX} failed: ${e.message}`);
+      if (i < INFRA_RETRY_MAX - 1) {
+        await new Promise(r => setTimeout(r, INFRA_RETRY_BACKOFF_MS));
+      }
+    }
+  }
+  return false;
+}
+
+async function openPrWithRetry(
+  issue: PickableIssue,
+  branch: string,
+  git: SimpleGit,
+): Promise<string | null> {
+  for (let i = 0; i < INFRA_RETRY_MAX; i++) {
+    try {
+      return await openPr(issue, branch, git);
+    } catch (e: any) {
+      log(`PR create attempt ${i + 1}/${INFRA_RETRY_MAX} failed: ${e.message}`);
+      if (i < INFRA_RETRY_MAX - 1) {
+        await new Promise(r => setTimeout(r, INFRA_RETRY_BACKOFF_MS));
+      }
+    }
+  }
+  return null;
+}
+
 // ─── The main loop ────────────────────────────────────────────────────────
 
 interface RunOptions {
@@ -520,7 +969,6 @@ interface RunOptions {
 async function runRalphLoop(opts: RunOptions): Promise<number> {
   const git = simpleGit();
 
-  // Startup checks
   step('checking required tools');
   for (const tool of ['gh', 'git', 'opencode']) {
     if (!(await checkTool(tool))) {
@@ -535,7 +983,7 @@ async function runRalphLoop(opts: RunOptions): Promise<number> {
   const repoSlug = await getRepoSlug();
   log(`repo: ${repoSlug}`);
   log(`model: ${opts.model}`);
-  log(`max iterations: ${opts.maxIterations}${opts.maxMinutes ? `, max minutes: ${opts.maxMinutes}` : ''}`);
+  log(`max total rounds: ${opts.maxIterations}${opts.maxMinutes ? `, max minutes: ${opts.maxMinutes}` : ''}`);
 
   if (opts.dryRun) {
     step('dry-run — listing pickable issues only');
@@ -543,17 +991,17 @@ async function runRalphLoop(opts: RunOptions): Promise<number> {
   }
 
   const startTime = Date.now();
-  let iterationCount = 0;
+  let totalRoundCount = 0;
   const abandonedThisRun = new Set<number>();
 
-  while (iterationCount < opts.maxIterations) {
+  while (totalRoundCount < opts.maxIterations) {
     if (opts.maxMinutes && (Date.now() - startTime) / 1000 / 60 >= opts.maxMinutes) {
       log(stopReasonMessages.S4);
       return 0;
     }
 
-    step(`iteration ${iterationCount + 1}/${opts.maxIterations}`);
-    const { pickable, allReady, claimed } = await buildPickable(repoSlug);
+    step(`picking next issue (total rounds so far: ${totalRoundCount}/${opts.maxIterations})`);
+    const { pickable, allReady } = await buildPickable(repoSlug);
 
     const stop = classifyStop(pickable, allReady);
     if (stop) {
@@ -568,167 +1016,107 @@ async function runRalphLoop(opts: RunOptions): Promise<number> {
     }
     const branch = `${BRANCH_PREFIX}${issue.number}`;
     log(`picked issue #${issue.number}: ${issue.title}`);
-    if (issue.unresolvedBlockers.length > 0) {
-      // Shouldn't happen (we filtered), but be defensive.
-      log(`  unresolved blockers: ${issue.unresolvedBlockers.join(', ')}`);
+
+    let state = createInitialState();
+
+    step(`claiming: checkout ${BASE_BRANCH}, create ${branch}`);
+    try {
+      await git.checkout(BASE_BRANCH);
+      await git.pull('origin', BASE_BRANCH, ['--ff-only']);
+      await git.checkoutLocalBranch(branch);
+    } catch (e: any) {
+      log(`error preparing branch: ${e.message}`);
+      abandonedThisRun.add(issue.number);
+      await cleanupBetweenIterations(git, issue.number);
+      continue;
     }
 
-    let attempt = 0;
-    let sessionId: string | null = null;
-    let issueResolved = false;
-    // Must persist across attempts: a failure branch sets this and `continue`s,
-    // and the next attempt feeds it to the agent. Re-declaring it inside the
-    // loop would reset it to null and drop the correction prompt.
-    let retryFeedback: string | null = null;
+    try {
+      await git.push('origin', branch, ['-u']);
+    } catch (e: any) {
+      log(`claim race lost on issue #${issue.number} (push rejected). Skipping.`);
+      try {
+        await git.checkout(BASE_BRANCH);
+        await git.deleteLocalBranch(branch, true);
+      } catch {}
+      continue;
+    }
 
-    while (attempt < MAX_ATTEMPTS_PER_ISSUE) {
-      attempt++;
+    const issueBodyFile = await writeIssueBodyTemp(issue);
+    let reviewCrashRetries = 0;
+    const MAX_REVIEW_CRASH_RETRIES = 3;
 
-      if (attempt === 1) {
-        iterationCount++;
-
-        // Claim: branch from main, push (CAS via remote ref).
-        step(`claiming: checkout ${BASE_BRANCH}, create ${branch}`);
-        try {
-          await git.checkout(BASE_BRANCH);
-          await git.pull('origin', BASE_BRANCH, ['--ff-only']);
-          await git.checkoutLocalBranch(branch);
-        } catch (e: any) {
-          log(`error preparing branch: ${e.message}`);
-          abandonedThisRun.add(issue.number);
-          await cleanupBetweenIterations(git, issue.number);
+    try {
+      while (state.phase !== 'open-pr' && state.phase !== 'abandon') {
+        if (opts.maxMinutes && (Date.now() - startTime) / 1000 / 60 >= opts.maxMinutes) {
+          state.phase = 'abandon';
+          state.abandonReason = 'Time ceiling reached';
           break;
         }
 
-        try {
-          await git.push('origin', branch, ['-u']);
-        } catch (e: any) {
-          log(`claim race lost on issue #${issue.number} (push rejected). Skipping.`);
+        if (state.phase === 'implementation' || state.phase === 'gate-fix' || state.phase === 'review-fix') {
+          const result = await runImprovementRound({ issue, branch, state, model: opts.model, issueBodyFile, git });
+          totalRoundCount++;
+          state = nextAttemptState(state, result);
+
+          if (state.phase === 'abandon') break;
+
+          if (result.newCommits && !result.crashed) {
+            const pushed = await pushWithRetry(git, branch);
+            if (!pushed) {
+              state.phase = 'abandon';
+              state.abandonReason = 'Infra failure: git push failed after retries';
+              break;
+            }
+          }
+          continue;
+        }
+
+        if (state.phase === 'gate') {
+          const gateResult = await runGate();
+          state = nextAfterGate(state, gateResult);
+          continue;
+        }
+
+        if (state.phase === 'code-review') {
+          const reviewResult = await runReviewRound({ issue, branch, model: opts.model, issueBodyFile });
+
+          if (reviewResult.crashed) {
+            reviewCrashRetries++;
+            if (reviewCrashRetries >= MAX_REVIEW_CRASH_RETRIES) {
+              state.phase = 'abandon';
+              state.abandonReason = `Reviewer agent crashed ${MAX_REVIEW_CRASH_RETRIES} times`;
+              break;
+            }
+            continue;
+          }
+          reviewCrashRetries = 0;
+          state = nextAttemptState(state, reviewResult);
+          continue;
+        }
+      }
+
+      if (state.phase === 'open-pr') {
+        const prUrl = await openPrWithRetry(issue, branch, git);
+        if (!prUrl) {
+          await abandon(issue, 'Infra failure: gh pr create failed after retries', state);
+        } else {
+          log(`opened PR: ${prUrl}`);
           try {
-            await git.checkout(BASE_BRANCH);
-            await git.deleteLocalBranch(branch, true);
-          } catch {}
-          break;
+            await relabelToReview(issue.number);
+            await commentOnIssue(issue.number, `Ralph opened PR: ${prUrl}`);
+          } catch (e: any) {
+            log(`warning: failed to relabel/comment on issue #${issue.number}: ${e.message}`);
+          }
         }
-      } else {
-        step(`retry: checkout existing branch ${branch}`);
-        await git.checkout(branch);
-      }
-
-      // Invoke opencode
-      let issueBodyFile: string | null = null;
-      if (attempt === 1) {
-        issueBodyFile = await writeIssueBodyTemp(issue);
-      }
-      const opencodeResult = await invokeOpencode(
-        issue,
-        branch,
-        attempt,
-        sessionId,
-        opts.model,
-        issueBodyFile,
-        retryFeedback,
-      );
-      sessionId = opencodeResult.sessionId;
-
-      if (issueBodyFile) {
-        await rm(issueBodyFile, { force: true }).catch(() => {});
-      }
-
-      // F1: opencode crashed / non-zero exit
-      if (opencodeResult.exitCode !== 0) {
-        log(`opencode exited non-zero (code ${opencodeResult.exitCode}) on attempt ${attempt}`);
-        if (attempt < MAX_ATTEMPTS_PER_ISSUE) {
-          retryFeedback = buildCrashRetryFeedback(opencodeResult.exitCode, issue.number);
-          await cleanupBetweenIterations(git, issue.number);
-          continue;
-        }
-        await abandon(
-          issue,
-          `Agent crashed twice (last exit code ${opencodeResult.exitCode})`,
-          opencodeResult.stderr + '\n' + opencodeResult.stdout,
-        );
+      } else if (state.phase === 'abandon') {
+        await abandon(issue, state.abandonReason ?? 'Unknown reason', state);
         abandonedThisRun.add(issue.number);
-        issueResolved = false;
-        break;
       }
-
-      // F4: no commits on the branch
-      const commits = await getBranchCommits(branch, git);
-      if (commits.length === 0) {
-        log(`no commits produced on attempt ${attempt}`);
-        if (attempt < MAX_ATTEMPTS_PER_ISSUE) {
-          retryFeedback = buildNoCommitRetryFeedback(issue.number);
-          await cleanupBetweenIterations(git, issue.number);
-          continue;
-        }
-        await abandon(
-          issue,
-          'Agent produced no commits in 2 attempts',
-          opencodeResult.stdout,
-        );
-        abandonedThisRun.add(issue.number);
-        issueResolved = false;
-        break;
-      }
-
-      // Push any new commits the agent made
-      try {
-        await git.push('origin', branch);
-      } catch (e: any) {
-        log(`error pushing agent commits: ${e.message}`);
-        // Treat as F3 — infra failure
-        console.error(`[ralph] ${stopReasonMessages['S-F3']}`);
-        return 0;
-      }
-
-      // Gate: full-scope lint+test+build
-      const gate = await runGate();
-      if (gate.exitCode !== 0) {
-        log(`gate failed on attempt ${attempt}`);
-        if (attempt < MAX_ATTEMPTS_PER_ISSUE) {
-          retryFeedback = buildRetryFeedback(gate.stdout + '\n' + gate.stderr, issue.number);
-          await cleanupBetweenIterations(git, issue.number);
-          continue;
-        }
-        await abandon(
-          issue,
-          'Verification gate failed twice',
-          gate.stdout + '\n' + gate.stderr,
-        );
-        abandonedThisRun.add(issue.number);
-        issueResolved = false;
-        break;
-      }
-
-      // Gate passed — open PR
-      let prUrl: string;
-      try {
-        prUrl = await openPr(issue, branch, git);
-      } catch (e: any) {
-        log(`error opening PR: ${e.message}`);
-        console.error(`[ralph] ${stopReasonMessages['S-F3']}`);
-        return 0;
-      }
-      log(`opened PR: ${prUrl}`);
-
-      // L1: relabel + comment
-      try {
-        await relabelToReview(issue.number);
-        await commentOnIssue(issue.number, `Ralph opened PR: ${prUrl}`);
-      } catch (e: any) {
-        log(`warning: failed to relabel/comment on issue #${issue.number}: ${e.message}`);
-      }
-
-      issueResolved = true;
-      break;
+    } finally {
+      await rm(issueBodyFile, { force: true }).catch(() => {});
     }
 
-    if (!issueResolved) {
-      log(`issue #${issue.number} not resolved; continuing to next issue`);
-    }
-
-    // Cleanup between iterations
     await cleanupBetweenIterations(git, issue.number);
   }
 
@@ -815,7 +1203,7 @@ Commands:
   reset <N>       Manually reclaim a stuck issue (deletes branch, relabels to ready-for-agent).
 
 Flags (for run):
-  --max-iterations <N>    Max opencode invocations (default: ${DEFAULT_MAX_ITERATIONS})
+  --max-iterations <N>    Max total rounds across all issues (default: ${DEFAULT_MAX_ITERATIONS})
   --max-minutes <N>       Time ceiling in minutes (default: off)
   --model <provider/model>  Override ralph agent's model (default: ${DEFAULT_MODEL})
   --dry-run               Alias for \`list\``);
@@ -899,11 +1287,13 @@ async function main(): Promise<number> {
   });
 }
 
-main()
-  .then((code) => {
-    process.exit(code);
-  })
-  .catch((err) => {
-    console.error(`[ralph] fatal: ${err?.stack ?? err}`);
-    process.exit(1);
-  });
+if (process.argv[1] && resolve(process.argv[1]) === resolve(__filename)) {
+  main()
+    .then((code) => {
+      process.exit(code);
+    })
+    .catch((err) => {
+      console.error(`[ralph] fatal: ${err?.stack ?? err}`);
+      process.exit(1);
+    });
+}
