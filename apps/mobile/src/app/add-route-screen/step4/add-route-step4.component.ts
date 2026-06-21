@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import type { SafetyStatus, Spot } from '@islandhub/domain';
-import { highestStatusFor, estimateDriveMinutes } from '@islandhub/domain';
+import { highestStatusFor, estimateDriveMinutes, statusColor, statusVariant, statusIcon, statusLabel, minutesToDrive, spotBackground } from '@islandhub/domain';
 import { LibButtonDirective, LibChipComponent, LibMapComponent, LibWizardBodyComponent, LibBottomSheetComponent } from '@islandhub/ui';
-import type { LibChipVariant, MapMarker, MapRoute } from '@islandhub/ui';
+import type { MapMarker, MapRoute } from '@islandhub/ui';
 import { AppScreenBase } from '../../screen-base';
 import { AddRouteWizardService } from '../add-route-wizard.service';
 
@@ -79,7 +79,7 @@ export class AddRouteStep4Component extends AppScreenBase {
     }
 
     for (const spot of this.candidateStops()) {
-      markers.push({ id: spot.id, coordinates: spot.location, color: this.statusColor(spot.status.status), size: this.service.selectedStopIds().includes(spot.id) ? 'lg' : 'md', label: spot.name });
+      markers.push({ id: spot.id, coordinates: spot.location, color: this.statusColorFn(spot.status.status), size: this.service.selectedStopIds().includes(spot.id) ? 'lg' : 'md', label: spot.name });
     }
 
     if (destination) {
@@ -150,20 +150,20 @@ export class AddRouteStep4Component extends AppScreenBase {
     void this.router.navigateByUrl('/routes/add/step5');
   }
 
-  protected statusVariant(status: SafetyStatus): LibChipVariant {
-    return status === 'green' ? 'success' : status === 'yellow' ? 'warning' : status === 'red' ? 'danger' : 'neutral';
+  protected statusVariant(status: SafetyStatus): ReturnType<typeof statusVariant> {
+    return statusVariant(status);
   }
 
   protected statusIcon(status: SafetyStatus): string {
-    return status === 'green' ? '✓' : status === 'yellow' ? '!' : status === 'red' ? '⊘' : '?';
+    return statusIcon(status);
   }
 
   protected statusLabel(status: SafetyStatus): string {
-    return status === 'green' ? 'Open' : status === 'yellow' ? 'Caution' : status === 'red' ? 'Closed' : 'No data';
+    return statusLabel(status);
   }
 
   protected minutesToDrive(minutes: number): string {
-    return this.app.minutesToDrive(minutes);
+    return minutesToDrive(minutes);
   }
 
   protected extraDriveMinutes(spot: Spot): number {
@@ -171,17 +171,14 @@ export class AddRouteStep4Component extends AppScreenBase {
   }
 
   protected attractionImage(spot: Spot): string {
-    return this.app.spotBackground(spot);
+    return spotBackground(spot);
   }
 
   protected isSelected(spot: Spot): boolean {
     return this.service.selectedStopIds().includes(spot.id);
   }
 
-  private statusColor(status: SafetyStatus): string {
-    if (status === 'green') return '#2f6f4f';
-    if (status === 'yellow') return '#c9831f';
-    if (status === 'red') return '#b42318';
-    return '#6b7280';
+  private statusColorFn(status: SafetyStatus): string {
+    return statusColor(status);
   }
 }

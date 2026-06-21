@@ -1,7 +1,16 @@
 import { DestroyRef, Injectable, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
-import { I18nService, projectIcelandPoint } from '@islandhub/domain';
+import {
+  I18nService,
+  projectIcelandPoint,
+  statusClass,
+  statusVariant,
+  minutesToDrive,
+  spotBackground,
+  routeStatusSummary,
+  routeCardClass,
+} from '@islandhub/domain';
 import type {
   AddRouteStopRequest,
   AttractionRouteSummary,
@@ -669,17 +678,15 @@ export class AppStateService {
   }
 
   spotBackground(spot: Spot): string {
-    const imageUrl = spot.media?.find((media) => media.type === 'image' && media.url)?.url;
-
-    return imageUrl ? `linear-gradient(145deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.24)), url("${imageUrl}")` : genericSpotBackground;
+    return spotBackground(spot, genericSpotBackground);
   }
 
   routeStatusSummary(route: AttractionRouteSummary): string {
-    return route.highestStatus === 'yellow' ? '1 caution' : route.highestStatus === 'red' ? 'Closed stop' : route.highestStatus === 'unknown' ? 'Needs refresh' : 'All open';
+    return routeStatusSummary(route);
   }
 
   routeCardClass(route: AttractionRouteSummary, index: number): string {
-    return index === 0 ? 'recommended' : route.highestStatus === 'yellow' ? 'caution' : '';
+    return routeCardClass(route, index);
   }
 
   openNavigation(): void {
@@ -844,17 +851,11 @@ export class AppStateService {
   }
 
   statusClass(status: SafetyStatus): string {
-    return `status-${status}`;
+    return statusClass(status);
   }
 
   statusVariant(status: SafetyStatus): LibChipVariant {
-    const map: Record<SafetyStatus, LibChipVariant> = {
-      green: 'success',
-      yellow: 'warning',
-      red: 'danger',
-      unknown: 'neutral',
-    };
-    return map[status];
+    return statusVariant(status);
   }
 
   mapPointStatus(pointId: string): SafetyStatus | 'unknown' {
@@ -866,9 +867,7 @@ export class AppStateService {
   }
 
   minutesToDrive(minutes: number): string {
-    const hours = Math.floor(minutes / 60);
-    const remainder = minutes % 60;
-    return hours > 0 ? `${hours}h ${remainder.toString().padStart(2, '0')}` : `${remainder}m`;
+    return minutesToDrive(minutes);
   }
 
   async setWizardTodayRoute(params: {

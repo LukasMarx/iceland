@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { Spot } from '@islandhub/domain';
+import { minutesToDrive } from '@islandhub/domain';
 import { LucideArrowRight, LucideCheck, LucideClock, LucideX } from '@lucide/angular';
 import { LibChipComponent, LibChipVariant } from '../chip/chip.component';
 
@@ -23,8 +24,6 @@ export class LibRouteStopCardComponent {
   @Output() readonly remove = new EventEmitter<void>();
 
   protected minutesToDrive(minutes: number): string {
-    const hours = Math.floor(minutes / 60);
-    const remainder = minutes % 60;
-    return hours > 0 ? `${hours}h ${remainder.toString().padStart(2, '0')}` : `${remainder}m`;
+    return minutesToDrive(minutes);
   }
 }

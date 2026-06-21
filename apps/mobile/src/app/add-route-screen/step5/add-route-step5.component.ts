@@ -1,9 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import type { SafetyStatus, Spot } from '@islandhub/domain';
-import { highestStatusFor, estimateDriveMinutes } from '@islandhub/domain';
+import { highestStatusFor, estimateDriveMinutes, statusVariant, statusIcon, statusLabel, minutesToDrive } from '@islandhub/domain';
 import { LibButtonDirective, LibChipComponent, LibStatsDarkChildComponent, LibStatsDarkComponent, LibWizardBodyComponent, LibWizardFooterComponent } from '@islandhub/ui';
-import type { LibChipVariant } from '@islandhub/ui';
 import { AppScreenBase } from '../../screen-base';
 import { AddRouteWizardService } from '../add-route-wizard.service';
 
@@ -85,20 +84,20 @@ export class AddRouteStep5Component extends AppScreenBase {
     void this.app.saveWizardDraftDay(this.routeTitle);
   }
 
-  protected statusVariant(status: SafetyStatus): LibChipVariant {
-    return status === 'green' ? 'success' : status === 'yellow' ? 'warning' : status === 'red' ? 'danger' : 'neutral';
+  protected statusVariant(status: SafetyStatus): ReturnType<typeof statusVariant> {
+    return statusVariant(status);
   }
 
   protected statusIcon(status: SafetyStatus): string {
-    return status === 'green' ? '✓' : status === 'yellow' ? '!' : status === 'red' ? '⊘' : '?';
+    return statusIcon(status);
   }
 
   protected statusLabel(status: SafetyStatus): string {
-    return status === 'green' ? 'Open' : status === 'yellow' ? 'Caution' : status === 'red' ? 'Closed' : 'No data';
+    return statusLabel(status);
   }
 
   protected minutesToDrive(minutes: number): string {
-    return this.app.minutesToDrive(minutes);
+    return minutesToDrive(minutes);
   }
 
   protected extraDriveMinutes(spot: Spot): number {

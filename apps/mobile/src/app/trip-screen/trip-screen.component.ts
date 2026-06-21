@@ -1,5 +1,6 @@
 import { NgClass, UpperCasePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
+import { formatDuration, routeDotClass } from '@islandhub/domain';
 import { AppScreenBase } from '../screen-base';
 import { LibScreenComponent, LibBottomSheetComponent, LibCalendarComponent } from '@islandhub/ui';
 
@@ -25,19 +26,11 @@ export class TripScreenComponent extends AppScreenBase {
   }
 
   protected formatDuration(minutes: number): string {
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    return m === 0 ? `${h}h` : `${h}h ${String(m).padStart(2, '0')}`;
+    return formatDuration(minutes);
   }
 
   protected routeDotClass(status: string): string {
-    const map: Record<string, string> = {
-      green: 'dot--green',
-      yellow: 'dot--yellow',
-      red: 'dot--red',
-      unknown: 'dot--neutral',
-    };
-    return map[status] ?? 'dot--neutral';
+    return routeDotClass(status);
   }
 }
 
