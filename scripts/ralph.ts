@@ -28,7 +28,7 @@ import { randomUUID } from 'node:crypto';
 
 const RALPH_AGENT = 'ralph';
 const REVIEWER_AGENT = 'ralph-reviewer';
-const DEFAULT_MODEL = 'opencode-go/qwen3.7-plus';
+const DEFAULT_MODEL = 'opencode-go/deepseek-v4-pro';
 const DEFAULT_MAX_ITERATIONS = 10;
 const GATE_FIX_CAP = 3;
 const REVIEW_FIX_CAP = 2;
