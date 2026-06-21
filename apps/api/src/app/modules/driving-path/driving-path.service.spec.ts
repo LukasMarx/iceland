@@ -1,3 +1,7 @@
+import {
+  BadRequestException,
+  BadGatewayException,
+} from '@nestjs/common';
 import type { DrivingPathRequest } from '@islandhub/domain';
 import { DrivingPathService } from './driving-path.service';
 import type { RoutingProvider } from './routing-provider.interface';
@@ -323,19 +327,164 @@ describe('DrivingPathService', () => {
 
   // ── No-route handling ──────────────────────────────────────
 
-  it('returns empty coordinates with zero values when provider returns no_route', async () => {
+  it('returns straight-line fallback when provider returns no_route', async () => {
     mockPrisma.drivingPathCache.findUnique.mockResolvedValue(null);
     mockProvider.getRoute.mockResolvedValue({ kind: 'no_route' });
 
     const result = await service.getDrivingPath(makeRequest());
 
-    expect(result.coordinates).toEqual([]);
-    expect(result.driveMinutes).toBe(0);
-    expect(result.distanceKm).toBe(0);
-    expect(result.warnings).toEqual([]);
-    // Should not write to cache on no_route
+    // Two-point straight line from start to end
+    expect(result.coordinates).toEqual([
+      [-21.942236, 64.145981],
+      [-21.123456, 64.258006],
+    ]);
+    // Haversine distance Reykjavik to nearby: ~65 km
+    expect(result.distanceKm).toBeGreaterThan(0);
+    expect(result.distanceKm).toBeLessThan(100);
+    // Drive time = distance / 80 km/h in minutes
+    expect(result.driveMinutes).toBeGreaterThan(0);
+    expect(result.warnings).toEqual([
+      {
+        type: 'fallback_estimate',
+        message: 'No car route found; showing straight-line estimate.',
+      },
+    ]);
+    // Should NOT write to cache on no_route
     expect(mockPrisma.drivingPathCache.upsert).not.toHaveBeenCalled();
     expect(mockPrisma.$executeRaw).not.toHaveBeenCalled();
+  });
+
+  it('does NOT cache fallback results — second call re-invokes provider', async () => {
+    // Use the StubRoutingProvider callCount pattern on mockProvider
+    let providerCalls = 0;
+    mockProvider.getRoute.mockImplementation(async () => {
+      providerCalls++;
+      return { kind: 'no_route' as const };
+    });
+    mockPrisma.drivingPathCache.findUnique.mockResolvedValue(null);
+
+    await service.getDrivingPath(makeRequest());
+    expect(providerCalls).toBe(1);
+
+    await service.getDrivingPath(makeRequest());
+    // Fallback is NOT cached, so provider is called again
+    expect(providerCalls).toBe(2);
+  });
+
+  // ── Input validation ───────────────────────────────────────
+
+  it('throws 400 when start is missing', async () => {
+    await expect(
+      service.getDrivingPath(makeRequest({ start: undefined as any })),
+    ).rejects.toThrow(BadRequestException);
+    await expect(
+      service.getDrivingPath(makeRequest({ start: undefined as any })),
+    ).rejects.toMatchObject({
+      response: {
+        code: 'invalid_request',
+        message: 'start and end coordinates are required.',
+      },
+    });
+  });
+
+  it('throws 400 when end is missing', async () => {
+    await expect(
+      service.getDrivingPath(makeRequest({ end: undefined as any })),
+    ).rejects.toThrow(BadRequestException);
+    await expect(
+      service.getDrivingPath(makeRequest({ end: undefined as any })),
+    ).rejects.toMatchObject({
+      response: {
+        code: 'invalid_request',
+        message: 'start and end coordinates are required.',
+      },
+    });
+  });
+
+  it('throws 400 when start lat is out of range', async () => {
+    await expect(
+      service.getDrivingPath(
+        makeRequest({ start: { lat: 91, lon: 0 } }),
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        code: 'invalid_request',
+        message: 'start coordinates are outside valid range.',
+      },
+    });
+  });
+
+  it('throws 400 when start lon is out of range', async () => {
+    await expect(
+      service.getDrivingPath(
+        makeRequest({ start: { lat: 0, lon: -181 } }),
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        code: 'invalid_request',
+        message: 'start coordinates are outside valid range.',
+      },
+    });
+  });
+
+  it('throws 400 when end lat is out of range', async () => {
+    await expect(
+      service.getDrivingPath(
+        makeRequest({ end: { lat: -91, lon: 0 } }),
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        code: 'invalid_request',
+        message: 'end coordinates are outside valid range.',
+      },
+    });
+  });
+
+  it('throws 400 when end lon is out of range', async () => {
+    await expect(
+      service.getDrivingPath(
+        makeRequest({ end: { lat: 0, lon: 181 } }),
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        code: 'invalid_request',
+        message: 'end coordinates are outside valid range.',
+      },
+    });
+  });
+
+  // ── Provider error ─────────────────────────────────────────
+
+  it('throws 502 Bad Gateway when routing provider throws', async () => {
+    mockPrisma.drivingPathCache.findUnique.mockResolvedValue(null);
+    mockProvider.getRoute.mockRejectedValue(new Error('ORS timeout'));
+
+    await expect(
+      service.getDrivingPath(makeRequest()),
+    ).rejects.toThrow(BadGatewayException);
+
+    await expect(
+      service.getDrivingPath(makeRequest()),
+    ).rejects.toMatchObject({
+      response: {
+        code: 'routing_provider_error',
+        message: 'ORS timeout',
+      },
+    });
+  });
+
+  it('throws 502 with fallback message when provider throws a non-Error', async () => {
+    mockPrisma.drivingPathCache.findUnique.mockResolvedValue(null);
+    mockProvider.getRoute.mockRejectedValue('some string error');
+
+    await expect(
+      service.getDrivingPath(makeRequest()),
+    ).rejects.toMatchObject({
+      response: {
+        code: 'routing_provider_error',
+        message: 'Routing provider unavailable',
+      },
+    });
   });
 
   // ── Geometry write ─────────────────────────────────────────

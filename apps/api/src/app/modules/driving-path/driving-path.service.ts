@@ -1,7 +1,12 @@
-import { Injectable, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  BadRequestException,
+  BadGatewayException,
+} from '@nestjs/common';
 import type { DrivingPathRequest, DrivingPathResponse, GeoPoint, VehicleProfile } from '@islandhub/domain';
 import { PrismaService } from '../../prisma.service';
-import type { RoutingProvider } from './routing-provider.interface';
+import type { RoutingProvider, DrivingPathResult } from './routing-provider.interface';
 import { ROUTING_PROVIDER } from './routing-provider.interface';
 
 /** Rounding precision for coordinate-based cache keys (~11 m). */
@@ -30,6 +35,36 @@ export class DrivingPathService {
    * Douglas-Peucker simplification → cache write → response.
    */
   async getDrivingPath(request: DrivingPathRequest): Promise<DrivingPathResponse> {
+    // 0. Validate input
+    if (!request.start || !request.end) {
+      throw new BadRequestException({
+        code: 'invalid_request',
+        message: 'start and end coordinates are required.',
+      });
+    }
+    if (
+      request.start.lat < -90 ||
+      request.start.lat > 90 ||
+      request.start.lon < -180 ||
+      request.start.lon > 180
+    ) {
+      throw new BadRequestException({
+        code: 'invalid_request',
+        message: 'start coordinates are outside valid range.',
+      });
+    }
+    if (
+      request.end.lat < -90 ||
+      request.end.lat > 90 ||
+      request.end.lon < -180 ||
+      request.end.lon > 180
+    ) {
+      throw new BadRequestException({
+        code: 'invalid_request',
+        message: 'end coordinates are outside valid range.',
+      });
+    }
+
     const vehicle = request.vehicle ?? DEFAULT_VEHICLE;
     const cacheKey = buildCacheKey(request.start, request.end, vehicle);
 
@@ -44,19 +79,41 @@ export class DrivingPathService {
     }
 
     // 2. Provider call
-    const result = await this.routingProvider.getRoute(
-      request.start,
-      request.end,
-      vehicle,
-    );
+    let result: DrivingPathResult;
+    try {
+      result = await this.routingProvider.getRoute(
+        request.start,
+        request.end,
+        vehicle,
+      );
+    } catch (error: unknown) {
+      throw new BadGatewayException({
+        code: 'routing_provider_error',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Routing provider unavailable',
+      });
+    }
 
     if (result.kind === 'no_route') {
-      // Return empty result without caching
+      // Straight-line fallback — NOT cached
+      const distanceKm =
+        Math.round(haversineKm(request.start, request.end) * 10) / 10;
+      const driveMinutes = Math.round((distanceKm / 80) * 60);
       return {
-        coordinates: [],
-        driveMinutes: 0,
-        distanceKm: 0,
-        warnings: [],
+        coordinates: [
+          [request.start.lon, request.start.lat],
+          [request.end.lon, request.end.lat],
+        ],
+        driveMinutes,
+        distanceKm,
+        warnings: [
+          {
+            type: 'fallback_estimate',
+            message: 'No car route found; showing straight-line estimate.',
+          },
+        ],
       };
     }
 
@@ -162,6 +219,24 @@ export class DrivingPathService {
 }
 
 // ── helpers ──────────────────────────────────────────────────
+
+/**
+ * Haversine distance in kilometres between two geographic points.
+ */
+function haversineKm(a: GeoPoint, b: GeoPoint): number {
+  const R = 6371;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLon = ((b.lon - a.lon) * Math.PI) / 180;
+  const sinDLat = Math.sin(dLat / 2);
+  const sinDLon = Math.sin(dLon / 2);
+  const aVal =
+    sinDLat * sinDLat +
+    Math.cos((a.lat * Math.PI) / 180) *
+      Math.cos((b.lat * Math.PI) / 180) *
+      sinDLon * sinDLon;
+  const c = 2 * Math.atan2(Math.sqrt(aVal), Math.sqrt(1 - aVal));
+  return R * c;
+}
 
 /** Build a deterministic cache key from origin, destination, and vehicle. */
 function buildCacheKey(
