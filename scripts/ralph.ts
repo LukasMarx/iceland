@@ -90,7 +90,7 @@ const step = (msg: string) => console.error(`[ralph] → ${msg}`);
 function runCmd(
   cmd: string,
   args: string[],
-  opts: { cwd?: string; timeout?: number } = {}
+  opts: { cwd?: string; timeout?: number; inheritStdio?: boolean } = {}
 ): IterationResult {
   const result = spawnSync(cmd, args, {
     cwd: opts.cwd,
@@ -98,6 +98,7 @@ function runCmd(
     shell: process.platform === 'win32',
     encoding: 'utf8',
     maxBuffer: 20 * 1024 * 1024,
+    stdio: opts.inheritStdio ? 'inherit' : undefined,
   });
   const signal = result.signal;
   return {
@@ -378,7 +379,7 @@ async function invokeOpencode(
   }
 
   step(`opencode run (attempt ${attempt}) for issue #${issue.number}`);
-  const r = await runCmd('opencode', args, { timeout: 30 * 60 * 1000 }); // 30min per invocation
+  const r = await runCmd('opencode', args, { timeout: 30 * 60 * 1000, inheritStdio: true }); // 30min per invocation
   const sessionIdFromTranscript = parseSessionIdFromTranscript(r.transcript);
   return {
     ...r,
