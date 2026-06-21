@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { LibAttractionCardComponent, LibChipComponent, LibEmptyStateComponent, LibMapComponent, LibScreenComponent, LibScreenIntroComponent } from '@islandhub/ui';
 import type { MapMarker } from '@islandhub/ui';
-import { AppScreenBase } from '../screen-base';
+import { AppStateService } from '../services/app-state.service';
 
 const STATUS_COLORS: Record<string, string> = {
   green: '#4ade80',
@@ -18,9 +18,11 @@ const STATUS_COLORS: Record<string, string> = {
   styleUrl: './explore-screen.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ExploreScreenComponent extends AppScreenBase {
+export class ExploreScreenComponent {
+  protected readonly app = inject(AppStateService);
+
   protected readonly exploreMarkers = computed((): MapMarker[] =>
-    this.app.mapPoints().map((point: { id: string; label: string; lat: number; lon: number }) => ({
+    this.app.mapPoints().map((point) => ({
       id: point.id,
       coordinates: { lat: point.lat, lon: point.lon },
       color: STATUS_COLORS[point.id === 'hub' ? 'hub' : this.app.mapPointStatus(point.id)] ?? STATUS_COLORS['unknown'],

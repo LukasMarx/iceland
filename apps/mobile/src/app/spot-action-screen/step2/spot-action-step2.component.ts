@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import type { AttractionRouteSummary } from '@islandhub/domain';
 import { LibButtonDirective, LibWizardBodyComponent, LibWizardFooterComponent } from '@islandhub/ui';
-import { AppScreenBase } from '../../screen-base';
+import { AppStateService } from '../../services/app-state.service';
 import { SpotActionWizardService } from '../spot-action-wizard.service';
 
 interface RouteEntry {
@@ -16,7 +16,8 @@ interface RouteEntry {
   templateUrl: './spot-action-step2.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SpotActionStep2Component extends AppScreenBase {
+export class SpotActionStep2Component {
+  protected readonly app = inject(AppStateService);
   protected readonly service = inject(SpotActionWizardService);
 
   protected readonly selectedRouteId = signal<string | null>(null);
@@ -24,7 +25,6 @@ export class SpotActionStep2Component extends AppScreenBase {
   protected readonly routeEntries = computed((): RouteEntry[] => {
     const spot = this.service.targetSpot();
     if (!spot) return [];
-
     const routes: AttractionRouteSummary[] = this.app.routeSuggestions();
     return routes
       .map((route): RouteEntry => {
@@ -36,15 +36,11 @@ export class SpotActionStep2Component extends AppScreenBase {
       .sort((a, b) => a.addedKm - b.addedKm);
   });
 
-  protected selectRoute(routeId: string): void {
-    this.selectedRouteId.set(routeId);
-  }
+  protected selectRoute(routeId: string): void { this.selectedRouteId.set(routeId); }
 
   protected confirm(): void {
     const routeId = this.selectedRouteId();
-    if (routeId) {
-      this.service.complete(routeId);
-    }
+    if (routeId) this.service.complete(routeId);
   }
 
   protected get confirmLabel(): string {

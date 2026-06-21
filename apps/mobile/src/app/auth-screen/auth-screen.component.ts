@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { LibButtonDirective, LibInputComponent, LucideKeyRound, LucideMail } from '@islandhub/ui';
 import { Router } from '@angular/router';
-import { AppScreenBase } from '../screen-base';
 import { AuthService } from '../services/auth.service';
 
 @Component({
@@ -11,7 +10,7 @@ import { AuthService } from '../services/auth.service';
   styleUrl: './auth-screen.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AuthScreenComponent extends AppScreenBase {
+export class AuthScreenComponent {
   protected readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   protected readonly password = signal('');
@@ -19,7 +18,6 @@ export class AuthScreenComponent extends AppScreenBase {
   protected readonly primaryLabel = computed(() => 'Sign in');
 
   constructor() {
-    super();
     this.auth.backToEmailStep('login');
   }
 

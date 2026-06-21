@@ -1,7 +1,7 @@
 import { NgClass } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { LibButtonDirective, LibChipComponent, LibIllustratedEmptyStateComponent, LibScreenComponent, LibScreenIntroComponent, LucideArrowRight, LucidePlus, LucideSlidersHorizontal } from '@islandhub/ui';
-import { AppScreenBase } from '../screen-base';
+import { AppStateService } from '../services/app-state.service';
 
 @Component({
   imports: [NgClass, LibButtonDirective, LibChipComponent, LibScreenComponent, LibIllustratedEmptyStateComponent, LibScreenIntroComponent, LucideArrowRight, LucidePlus, LucideSlidersHorizontal],
@@ -10,7 +10,9 @@ import { AppScreenBase } from '../screen-base';
   styleUrl: './routes-screen.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class RoutesScreenComponent extends AppScreenBase {
+export class RoutesScreenComponent {
+  protected readonly app = inject(AppStateService);
+
   protected readonly hasRoutes = computed(() => this.app.routeSuggestions().length > 0);
 
   protected handleEmptyStateAction(): void {

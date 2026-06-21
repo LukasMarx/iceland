@@ -1,7 +1,7 @@
 import { NgClass } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { LibButtonDirective, LibChipComponent, LibIllustratedEmptyStateComponent, LibScreenComponent, LibScreenIntroComponent, LibStatsDarkComponent, LucideArrowRight, LucideCheck, LucideChevronsDown } from '@islandhub/ui';
-import { AppScreenBase } from '../screen-base';
+import { AppStateService } from '../services/app-state.service';
 
 @Component({
   imports: [NgClass, LibButtonDirective, LibChipComponent, LibScreenComponent, LibIllustratedEmptyStateComponent, LibScreenIntroComponent, LibStatsDarkComponent, LucideArrowRight, LucideCheck, LucideChevronsDown],
@@ -10,7 +10,9 @@ import { AppScreenBase } from '../screen-base';
   styleUrl: './today-screen.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class TodayScreenComponent extends AppScreenBase {
+export class TodayScreenComponent {
+  protected readonly app = inject(AppStateService);
+
   protected readonly hasStops = computed(() => this.app.today().stops.length > 0);
   protected readonly screenTitle = computed(() => this.hasStops() ? this.app.today().title : 'Today');
   protected readonly emptyStateMessage = computed(() =>
@@ -25,7 +27,6 @@ export class TodayScreenComponent extends AppScreenBase {
       this.app.navigateToTab('routes');
       return;
     }
-
     this.app.addCustomRoute();
   }
 }

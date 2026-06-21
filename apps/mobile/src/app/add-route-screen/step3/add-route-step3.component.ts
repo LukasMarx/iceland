@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { Router } from '@angular/router';
 import { LibButtonDirective, LibMapComponent, LibWizardBodyComponent, LibBottomSheetComponent } from '@islandhub/ui';
 import type { MapMarker } from '@islandhub/ui';
-import { AppScreenBase } from '../../screen-base';
+import { AppStateService } from '../../services/app-state.service';
 import type { WizardHotel } from '../add-route-wizard.service';
 import { AddRouteWizardService } from '../add-route-wizard.service';
 
@@ -13,7 +13,8 @@ import { AddRouteWizardService } from '../add-route-wizard.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./add-route-step3.component.scss'],
 })
-export class AddRouteStep3Component extends AppScreenBase {
+export class AddRouteStep3Component {
+  protected readonly app = inject(AppStateService);
   protected readonly service = inject(AddRouteWizardService);
   private readonly router = inject(Router);
 
@@ -29,7 +30,6 @@ export class AddRouteStep3Component extends AppScreenBase {
   });
 
   constructor() {
-    super();
     this.service.step.set(3);
     if (!this.service.base()) {
       this.service.init(this.app.currentWizardBase());

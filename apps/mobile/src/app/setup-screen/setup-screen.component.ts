@@ -16,7 +16,7 @@ import {
   LucideMountain,
   LucideRoute,
 } from '@islandhub/ui';
-import { AppScreenBase } from '../screen-base';
+import { AppStateService } from '../services/app-state.service';
 import { AddressService } from '../services/address.service';
 
 @Component({
@@ -41,7 +41,8 @@ import { AddressService } from '../services/address.service';
   styleUrl: './setup-screen.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SetupScreenComponent extends AppScreenBase {
+export class SetupScreenComponent {
+  protected readonly app = inject(AppStateService);
   private addressService = inject(AddressService);
   private destroyRef = inject(DestroyRef);
 
@@ -52,8 +53,6 @@ export class SetupScreenComponent extends AppScreenBase {
   private searchQuery = new Subject<string>();
 
   constructor() {
-    super();
-
     const sub = this.searchQuery.pipe(
       debounceTime(300),
       distinctUntilChanged(),

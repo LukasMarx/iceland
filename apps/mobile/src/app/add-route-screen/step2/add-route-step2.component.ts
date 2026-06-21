@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { LibButtonDirective, LibOptionGroupComponent, LibOptionGroupItemComponent, LibWizardBodyComponent, LibWizardFooterComponent, LucideArrowRight, LucideRepeat2 } from '@islandhub/ui';
-import { AppScreenBase } from '../../screen-base';
+import { AppStateService } from '../../services/app-state.service';
 import { AddRouteWizardService } from '../add-route-wizard.service';
 
 @Component({
@@ -10,12 +10,12 @@ import { AddRouteWizardService } from '../add-route-wizard.service';
   templateUrl: './add-route-step2.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AddRouteStep2Component extends AppScreenBase {
+export class AddRouteStep2Component {
+  protected readonly app = inject(AppStateService);
   protected readonly service = inject(AddRouteWizardService);
   private readonly router = inject(Router);
 
   constructor() {
-    super();
     this.service.step.set(2);
     if (!this.service.base()) {
       this.service.init(this.app.currentWizardBase());

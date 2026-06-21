@@ -1,7 +1,7 @@
 import { NgClass, UpperCasePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { formatDuration, routeDotClass } from '@islandhub/domain';
-import { AppScreenBase } from '../screen-base';
+import { AppStateService } from '../services/app-state.service';
 import { LibScreenComponent, LibBottomSheetComponent, LibCalendarComponent } from '@islandhub/ui';
 
 @Component({
@@ -11,7 +11,9 @@ import { LibScreenComponent, LibBottomSheetComponent, LibCalendarComponent } fro
   styleUrl: './trip-screen.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class TripScreenComponent extends AppScreenBase {
+export class TripScreenComponent {
+  protected readonly app = inject(AppStateService);
+
   protected readonly trip = computed(() => this.app.trip().trip);
   protected readonly bottomSheetExpanded = signal(false);
   protected readonly hasDates = computed(() => !!this.app.trip().trip.dates || this.app.setupSelectedDates().length > 0);
@@ -33,4 +35,3 @@ export class TripScreenComponent extends AppScreenBase {
     return routeDotClass(status);
   }
 }
-

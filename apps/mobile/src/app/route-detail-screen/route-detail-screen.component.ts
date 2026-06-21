@@ -1,8 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import type { GeoPoint } from '@islandhub/domain';
 import { LibButtonDirective, LibChipComponent, LibMapComponent, LibRouteStopCardComponent, LibStatsDarkComponent, LucideArrowRight, LucideCheck, LucideClock, LucideChevronLeft, LucideSlidersHorizontal } from '@islandhub/ui';
 import type { MapMarker, MapRoute } from '@islandhub/ui';
-import { AppScreenBase } from '../screen-base';
+import { AppStateService } from '../services/app-state.service';
 
 const STATUS_COLORS: Record<string, string> = {
   green: '#4ade80',
@@ -18,7 +18,9 @@ const STATUS_COLORS: Record<string, string> = {
   styleUrl: './route-detail-screen.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class RouteDetailScreenComponent extends AppScreenBase {
+export class RouteDetailScreenComponent {
+  protected readonly app = inject(AppStateService);
+
   protected readonly routeMarkers = computed((): MapMarker[] => {
     const hub = this.app.explore().hub;
     const stops = this.app.selectedRouteStops();

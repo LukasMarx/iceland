@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, inject } from '@angular
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterOutlet } from '@angular/router';
 import { LibWizardHeaderComponent, LibScreenComponent } from '@islandhub/ui';
-import { AppScreenBase } from '../screen-base';
+import { AppStateService } from '../services/app-state.service';
 import { SpotActionWizardService } from './spot-action-wizard.service';
 
 @Component({
@@ -12,14 +12,13 @@ import { SpotActionWizardService } from './spot-action-wizard.service';
   styleUrl: './spot-action-screen.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SpotActionScreenComponent extends AppScreenBase {
+export class SpotActionScreenComponent {
+  protected readonly app = inject(AppStateService);
   protected readonly service = inject(SpotActionWizardService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
   constructor() {
-    super();
-
     this.service.completed$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((result) => {

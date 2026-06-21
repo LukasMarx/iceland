@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, inject } from '@angular
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterOutlet } from '@angular/router';
 import { LibScreenComponent, LibWizardHeaderComponent } from '@islandhub/ui';
-import { AppScreenBase } from '../screen-base';
+import { AppStateService } from '../services/app-state.service';
 import { AddRouteWizardService } from './add-route-wizard.service';
 
 @Component({
@@ -12,14 +12,13 @@ import { AddRouteWizardService } from './add-route-wizard.service';
   styleUrl: './add-route-screen.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AddRouteScreenComponent extends AppScreenBase {
+export class AddRouteScreenComponent {
+  protected readonly app = inject(AppStateService);
   protected readonly service = inject(AddRouteWizardService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
   constructor() {
-    super();
-
     this.service.completed$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {

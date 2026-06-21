@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { AuthService } from '../services/auth.service';
-import { AppScreenBase } from '../screen-base';
+import { AppStateService } from '../services/app-state.service';
 import { LibScreenComponent } from '@islandhub/ui';
 
 @Component({
@@ -10,12 +10,12 @@ import { LibScreenComponent } from '@islandhub/ui';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [LibScreenComponent],
 })
-export class ProfileScreenComponent extends AppScreenBase {
+export class ProfileScreenComponent {
+  protected readonly app = inject(AppStateService);
   protected readonly auth = inject(AuthService);
 
   protected joinedLabel(joinedAt: string): string {
     if (!joinedAt) return '';
-
     return new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(joinedAt));
   }
 

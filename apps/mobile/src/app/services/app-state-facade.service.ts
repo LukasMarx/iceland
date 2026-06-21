@@ -6,6 +6,7 @@ import type {
   HealthResponse,
   InsertPreviewResponse,
   MeResponse,
+  SafetyStatus,
   SaveSpotResponse,
   Spot,
   SpotContextResponse,
@@ -152,6 +153,51 @@ export class AppStateFacade {
   }
 
   // ---- Setup delegates ----------------------------------------------------
+
+  toggleStatusFilter(status: SafetyStatus): void {
+    this.filterState.toggleStatusFilter(status);
+    void this.exploreState.load(this.activeTripDate(), (msg) => this.markApiOffline(msg));
+  }
+
+  toggleCategoryFilter(category: string): void {
+    this.filterState.toggleCategoryFilter(category);
+    void this.exploreState.load(this.activeTripDate(), (msg) => this.markApiOffline(msg));
+  }
+
+  setVehicleFilter(vehicle: 'car_2wd' | 'car_4wd' | 'any'): void {
+    this.filterState.setVehicleFilter(vehicle);
+    void this.exploreState.load(this.activeTripDate(), (msg) => this.markApiOffline(msg));
+  }
+
+  setShowFRoads(show: boolean): void {
+    this.filterState.setShowFRoads(show);
+    void this.exploreState.load(this.activeTripDate(), (msg) => this.markApiOffline(msg));
+  }
+
+  setMaxDriveMinutes(minutes: number): void {
+    this.filterState.setMaxDriveMinutes(minutes);
+    void this.exploreState.load(this.activeTripDate(), (msg) => this.markApiOffline(msg));
+  }
+
+  resetFilters(): void {
+    this.filterState.reset();
+    void this.exploreState.load(this.activeTripDate(), (msg) => this.markApiOffline(msg));
+  }
+
+  selectSetupPlanningMode(mode: 'draft' | 'hub' | 'road-trip'): void {
+    this.setupState.selectPlanningMode(mode);
+  }
+
+  selectSetupVehicle(vehicle: 'car_2wd' | 'car_4wd' | 'unknown'): void {
+    this.setupState.selectVehicle(vehicle);
+    this.trip.update((t) => ({ trip: { ...t.trip, vehicle } }));
+    this.filterState.setVehicleFilter(vehicle === 'unknown' ? 'any' : vehicle);
+    void this.exploreState.load(this.activeTripDate(), (msg) => this.markApiOffline(msg));
+  }
+
+  setSetupDateRange(startDate: string, endDate: string): void {
+    this.setupState.setDateRange(startDate, endDate);
+  }
 
   continueSetup(): void {
     this.setupState.continueSetup(() => this.navigateToTab('explore'));
